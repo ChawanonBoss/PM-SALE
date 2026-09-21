@@ -190,6 +190,8 @@
   .logo-upload{ display:flex; align-items:center; gap:14px; }
 
   /* ---- Project items editor ---- */
+  .items-table .over{ color:var(--danger); }
+  .items-table td select + select{ margin-top:4px; }
   .items-table input{ width:100%; min-width:70px; height:32px; padding:4px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-size:13px; }
   .items-table input:focus{ outline:none; border-color:var(--accent); background:var(--card); }
   .items-table td{ padding:6px 6px; }
@@ -364,7 +366,7 @@
       </button>
       <button class="nav-item" data-tab="projects">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>
-        <span class="nav-tooltip">โครงการ</span>
+        <span class="nav-tooltip">ซื้อขาย/โครงการ</span>
       </button>
       <button class="nav-item" data-tab="actionplan">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4v16"/><rect x="6" y="4" width="9" height="4" rx="1"/><rect x="10" y="10" width="11" height="4" rx="1"/><rect x="7" y="16" width="8" height="4" rx="1"/></svg>
@@ -479,21 +481,26 @@
       <div id="tab-projects" class="tab-panel" style="display:none;">
         <div class="panel">
           <div class="panel-head">
-            <h3>โครงการทั้งหมด <span class="count-pill" id="projectsCount"></span></h3>
+            <h3>ซื้อขาย / โครงการทั้งหมด <span class="count-pill" id="projectsCount"></span></h3>
             <div class="filter-bar">
-              <input type="text" id="projectsSearch" class="filter-control" placeholder="ค้นหาชื่อโครงการ, ลูกค้า, เลขที่สัญญา" style="width:250px;">
+              <input type="text" id="projectsSearch" class="filter-control" placeholder="ค้นหาชื่องาน/โครงการ, ลูกค้า, เลขที่สัญญา" style="width:250px;">
+              <select id="projectsTypeFilter" class="filter-control">
+                <option value="all">ทุกประเภทงาน</option>
+                <option value="sale">ซื้อขาย</option>
+                <option value="project">โครงการ</option>
+              </select>
               <select id="projectsStatusFilter" class="filter-control">
                 <option value="all">ทุกสถานะ</option>
                 <option value="pending">รอดำเนินการ</option>
                 <option value="active">กำลังดำเนินการ</option>
                 <option value="ended">สิ้นสุดสัญญาโครงการ</option>
               </select>
-              <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มโครงการ</button>
+              <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มรายการ</button>
             </div>
           </div>
-          <p class="panel-note">สถานะคำนวณอัตโนมัติ: ก่อนวันเริ่มต้น หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนดำเนินการแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ</p>
+          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · <b>ซื้อขาย</b> — ดูจากสถานะของแต่ละรายการอุปกรณ์: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+            <thead><tr><th>ชื่องาน / โครงการ</th><th>ประเภทงาน</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>วันที่</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
             <tbody id="projectsBody"></tbody>
           </table></div>
         </div>
@@ -558,9 +565,9 @@
               </select>
             </div>
           </div>
-          <p class="panel-note">ข้อมูลมาจากช่อง "สถานที่ติดตั้ง" และ "การรับประกัน (เดือน)" ในฟอร์มโครงการ — ระยะรับประกันนับจากวันที่สิ้นสุดโครงการ</p>
+          <p class="panel-note">ข้อมูลมาจากช่อง "สถานที่" และ "การรับประกัน (เดือน)" ในฟอร์มเพิ่มรายการ — โครงการนับจากวันที่สิ้นสุดโครงการ, ซื้อขายนับจากวันที่สั่งซื้อ</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>โครงการ / ลูกค้า</th><th>สถานที่ติดตั้ง</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>ซื้อขาย/โครงการ · ลูกค้า</th><th>สถานที่ติดตั้ง / ส่งสินค้า</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
             <tbody id="equipmentBody"></tbody>
           </table></div>
         </div>
@@ -596,7 +603,7 @@
             </div>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>ชื่อบริษัท</th><th>ประเภท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>โครงการ</th><th></th></tr></thead>
+            <thead><tr><th>ชื่อบริษัท</th><th>ประเภท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>ซื้อขาย/โครงการ</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table></div>
         </div>
@@ -687,7 +694,7 @@
             <div class="filter-bar">
               <select id="trashTypeFilter" class="filter-control">
                 <option value="all">ทุกประเภท</option>
-                <option value="projects">โครงการ</option>
+                <option value="projects">ซื้อขาย/โครงการ</option>
                 <option value="customers">ลูกค้า</option>
                 <option value="companies">บริษัท</option>
                 <option value="warehouse">อุปกรณ์ในโกดัง</option>
@@ -709,34 +716,36 @@
 <!-- Project form modal -->
 <div class="modal-overlay" id="projectModal" style="display:none;">
   <div class="modal wide">
-    <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มโครงการ</h3>
+    <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มรายการ</h3>
     <form id="projectForm">
       <div class="form-grid">
-        <div class="field full"><label>ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
+        <div class="field"><label>ประเภทของงาน *</label>
+          <select id="prjJobType"><option value="sale">ซื้อขาย</option><option value="project">โครงการ</option></select>
+        </div>
+        <div class="field"><label id="prjNameLabel">ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
         <div class="field"><label>หน่วยงาน / ลูกค้า *</label><select id="prjCustomer" required></select></div>
         <div class="field"><label>เลขที่สัญญา</label><input type="text" id="prjContract"></div>
-        <div class="field"><label>วันที่เริ่มต้น *</label>
+        <div class="field"><label id="prjStartLabel">วันที่เซ็นสัญญา *</label>
           <div class="date-edit-wrap"><input type="date" id="prjStart" required><span class="date-display placeholder" id="prjStartText">dd/mm/yyyy</span></div>
         </div>
-        <div class="field"><label>วันที่สิ้นสุด *</label>
+        <div class="field" id="prjEndField"><label>วันที่สิ้นสุด *</label>
           <div class="date-edit-wrap"><input type="date" id="prjEnd" required><span class="date-display placeholder" id="prjEndText">dd/mm/yyyy</span></div>
         </div>
         <div class="field"><label>บริษัทของเรา (หัวกระดาษ PDF)</label><select id="prjCompany"></select></div>
-        <div class="field"><label>สถานที่ติดตั้ง</label><input type="text" id="prjLocation"></div>
+        <div class="field"><label id="prjLocationLabel">สถานที่ติดตั้ง</label><input type="text" id="prjLocation"></div>
         <div class="field"><label>การรับประกัน (เดือน)</label><input type="number" id="prjWarranty" min="0" step="1" value="12"><div class="cell-sub" id="prjWarrantyHint"></div></div>
         <div class="field"><label>หมายเหตุ</label><input type="text" id="prjNotes"></div>
       </div>
-      <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดงาน</h4>
+      <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดของงาน</h4>
       <div class="table-scroll"><table class="items-table">
-        <thead><tr><th style="width:36px;">#</th><th style="width:220px;">หัวข้อ *</th><th>รายละเอียด</th><th style="width:160px;">ประเภท</th><th style="width:160px;">วันที่เริ่มต้น</th><th style="width:160px;">วันที่สิ้นสุด</th><th style="width:80px;">จำนวนวัน</th><th style="width:40px;"></th></tr></thead>
+        <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดัง)</th><th>ยี่ห้อ</th><th>ชื่อ</th><th>ประเภท</th><th style="width:160px;">รหัสอุปกรณ์</th><th style="width:80px;">จำนวน</th><th style="width:150px;">สถานะ</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjItemsBody"></tbody>
       </table></div>
-      <datalist id="prjHeadingList"></datalist>
       <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มแถว</button>
-      <p class="panel-note" style="margin:10px 0 0;">หัวข้อ: พิมพ์หัวข้อใหม่ หรือกดที่ช่องเพื่อเลือกหัวข้อที่มีอยู่แล้ว (หลายแถวใช้หัวข้อเดียวกันได้) · จำนวนวันนับรวมวันเริ่มต้นและวันสิ้นสุด</p>
+      <p class="panel-note" style="margin:10px 0 0;">เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เมื่อเปลี่ยนเป็น "ดำเนินการแล้ว" แล้วกดบันทึก ระบบจะ<b>ตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง</b> และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้</p>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
-        <button class="btn" type="submit" id="projectSaveBtn">บันทึกโครงการ</button>
+        <button class="btn" type="submit" id="projectSaveBtn">บันทึกรายการ</button>
       </div>
     </form>
   </div>
@@ -748,10 +757,9 @@
     <h3 class="serif" style="font-size:19px; margin-bottom:4px;">แก้ไขแผนดำเนินการ</h3>
     <p id="planModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;"></p>
     <div class="table-scroll"><table class="items-table">
-      <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:90px;">ดำเนินการแล้ว</th><th style="width:140px;"></th></tr></thead>
+      <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:140px;"></th></tr></thead>
       <tbody id="planEditBody"></tbody>
     </table></div>
-    <datalist id="planOwnerList"></datalist>
     <button class="btn outline" type="button" id="planAddTopicBtn" style="margin-top:10px;">+ เพิ่มหัวข้อ</button>
     <p class="panel-note" style="margin:12px 0 0;">หัวข้อที่มีรายละเอียดย่อย จะใช้วันที่เริ่มต้น–สิ้นสุดรวมจากรายการย่อยโดยอัตโนมัติ · จำนวนวันนับรวมวันเริ่มต้นและวันสิ้นสุด</p>
     <div class="modal-actions">
@@ -830,7 +838,7 @@
     <p id="cpSummary" style="font-size:13px; margin-bottom:14px;"></p>
     <div style="max-height:420px; overflow:auto;">
       <table>
-        <thead><tr><th>โครงการ</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>ความคืบหน้าแผน</th><th>สถานะ</th><th></th></tr></thead>
+        <thead><tr><th>ซื้อขาย / โครงการ</th><th>เลขที่สัญญา</th><th>วันที่</th><th>ความคืบหน้า</th><th>สถานะ</th><th></th></tr></thead>
         <tbody id="cpBody"></tbody>
       </table>
     </div>
@@ -923,7 +931,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.7.0';
+const APP_VERSION = '1.8.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -977,6 +985,7 @@ let confirmModalAction = null;
 function confirmAction(message, onConfirm, title){
   $('confirmModalTitle').textContent = title || 'ยืนยันการทำรายการ';
   $('confirmModalMsg').textContent = message;
+  $('confirmModalMsg').style.whiteSpace = 'pre-line';
   confirmModalAction = onConfirm;
   openModal('confirmModal');
 }
@@ -1048,8 +1057,8 @@ $('mobileMenuBtn').addEventListener('click', () => setMobileMenu(!$('sidebar').c
 $('mobileBackdrop').addEventListener('click', () => setMobileMenu(false));
 
 const TITLES = {
-  dashboard:['แดชบอร์ด','สรุปสถานะโครงการทั้งหมด'],
-  projects:['โครงการ','บันทึกและจัดการข้อมูลโครงการ พิมพ์เป็น PDF ได้'],
+  dashboard:['แดชบอร์ด','สรุปสถานะซื้อขาย/โครงการทั้งหมด'],
+  projects:['ซื้อขาย/โครงการ','บันทึกและจัดการรายการซื้อขายและโครงการ พิมพ์เป็น PDF ได้'],
   actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
   equipment:['อุปกรณ์และการรับประกัน','สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ'],
   warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
@@ -1348,19 +1357,30 @@ $('targetUserFilter').addEventListener('change', renderActiveTab);
 
 /* ====== Project status / warranty ====== */
 const STATUS_LABEL = { pending:'รอดำเนินการ', active:'กำลังดำเนินการ', ended:'สิ้นสุดสัญญาโครงการ' };
-// Pure date-based status (before start / within the contract / after the end)
+const SALE_STATUS_LABEL = { pending:'รอดำเนินการ', active:'กำลังดำเนินการ', ended:'ดำเนินการแล้ว' };   // a sale has no contract period, so its last status reads "done"
+const JOB_TYPES = { sale:'ซื้อขาย', project:'โครงการ' };
+const jobTypeOf = p => p.jobType === 'sale' ? 'sale' : 'project';   // records saved before this field existed are projects
+const isSale = p => jobTypeOf(p) === 'sale';
+// Pure date-based status of a PROJECT (before signing / within the contract / after the end)
 function projectDateStatus(p){
   const t = todayStr();
   if (p.startDate && t < p.startDate) return 'pending';
   if (p.endDate && t > p.endDate) return 'ended';
   return 'active';
 }
-// A project that is inside its contract period but has nothing entered in its Action Plan yet is still "รอดำเนินการ";
-// it only shows "กำลังดำเนินการ" once the plan has at least one step.
+// Project: inside its contract dates but nothing entered in its Action Plan yet is still "รอดำเนินการ".
+// Sale: follows its equipment lines (none done -> pending, some done -> in progress, all done -> done).
 function projectStatus(p){
+  if (isSale(p)){
+    const its = p.items || [];
+    const done = its.filter(i => i.status === 'done').length;
+    if (!its.length || done === 0) return 'pending';
+    return done === its.length ? 'ended' : 'active';
+  }
   const st = projectDateStatus(p);
   return st === 'active' && !(p.plan || []).length ? 'pending' : st;
 }
+const statusLabelFor = (p, st) => (isSale(p) ? SALE_STATUS_LABEL : STATUS_LABEL)[st];
 const WARRANTY_LABEL = { none:'ไม่มีประกัน', ok:'ในประกัน', soon:'ใกล้หมดประกัน', expired:'หมดประกัน' };
 function warrantyStatus(expiry, months){
   if (!months || !expiry) return 'none';
@@ -1377,10 +1397,10 @@ function projectWarrantyMonths(p){
   if (p.warrantyMonths != null) return Number(p.warrantyMonths) || 0;
   return (p.items || []).reduce((m, i) => Math.max(m, Number(i.warrantyMonths) || 0), 0);
 }
-// Warranty is counted from the project's end date (hand-over); there is no separate warranty start any more
+// Warranty is counted from the project's end date (hand-over) or, for a sale, from the order date; there is no separate warranty start
 function projectWarranty(p){
   const months = projectWarrantyMonths(p);
-  const start = p.endDate || '';
+  const start = (isSale(p) ? p.startDate : p.endDate) || '';
   const expiry = (start && months) ? addMonths(start, months) : '';
   return { months, start, expiry, wstatus: warrantyStatus(expiry, months), location: projectInstallLocation(p) };
 }
@@ -1388,6 +1408,9 @@ function getWarrantyRows(){
   return getVisibleProjects().map(p => ({ project: p, ...projectWarranty(p) }));
 }
 function statusBadge(status){ return `<span class="badge ${status}">${STATUS_LABEL[status]}</span>`; }
+function statusBadgeFor(p){ const st = projectStatus(p); return `<span class="badge ${st}">${statusLabelFor(p, st)}</span>`; }
+function jobBadge(p){ return `<span class="badge ${isSale(p) ? 'doing' : 'none'}">${JOB_TYPES[jobTypeOf(p)]}</span>`; }
+function periodText(p){ return isSale(p) ? `สั่งซื้อ ${fmtDate(p.startDate)}` : `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`; }
 function warrantyBadge(status){ return `<span class="badge ${status}">${WARRANTY_LABEL[status]}</span>`; }
 
 /* ====== Dashboard ====== */
@@ -1397,12 +1420,12 @@ function goProjects(status){
 }
 function getDashAlerts(){
   const t = todayStr();
-  const endingSoon = getVisibleProjects().filter(p => projectDateStatus(p) === 'active' && p.endDate && daysBetween(t, p.endDate) <= 30);
+  const endingSoon = getVisibleProjects().filter(p => !isSale(p) && projectDateStatus(p) === 'active' && p.endDate && daysBetween(t, p.endDate) <= 30);
   const warrantySoon = getWarrantyRows().filter(r => r.wstatus === 'soon');
   // unticked Action Plan steps that are due soon / overdue (projects already past their end date are left out to avoid stale noise)
   let planSoon = 0, planLate = 0;
   getVisibleProjects().forEach(p => {
-    if (projectDateStatus(p) === 'ended') return;
+    if (isSale(p) || projectDateStatus(p) === 'ended') return;
     planLeaves(p.plan).forEach(x => { const st = leafState(x); if (st === 'soon') planSoon++; else if (st === 'late') planLate++; });
   });
   return { endingSoon, warrantySoon, planSoon, planLate };
@@ -1436,10 +1459,10 @@ function renderDashboard(){
       <div class="stat-label">${label}</div><div class="stat-value">${n}</div><div class="stat-sub">${sub}</div>
     </div>`;
   $('dashStats').innerHTML =
-    card('', 'โครงการทั้งหมด', total, 'ทุกสถานะ', "goProjects('all')") +
+    card('', 'ซื้อขาย / โครงการทั้งหมด', total, 'ทุกสถานะ', "goProjects('all')") +
     card('filled pending', 'รอดำเนินการ', groups.pending.length, 'ยังไม่ถึงวันเริ่ม หรือยังไม่มีแผน', "goProjects('pending')") +
     card('filled active', 'กำลังดำเนินการ', groups.active.length, 'อยู่ในช่วงสัญญาและมีแผนแล้ว', "goProjects('active')") +
-    card('filled ended', 'สิ้นสุดสัญญาโครงการ', groups.ended.length, 'เลยวันสิ้นสุดแล้ว', "goProjects('ended')");
+    card('filled ended', 'สิ้นสุดสัญญาโครงการ', groups.ended.length, 'เลยวันสิ้นสุด / ซื้อขายดำเนินการครบ', "goProjects('ended')");
 
   const pct = n => total ? (n / total * 100) : 0;
   $('dashSplitBar').innerHTML =
@@ -1456,52 +1479,68 @@ function renderDashboard(){
     const items = groups[s].slice().sort(sortBy[s]).slice(0, 8);
     const body = items.length ? items.map(p => `
       <div class="dash-item" onclick="openProjectForm('${p.id}')">
-        <div class="dash-item-name">${escapeHtml(p.name)}</div>
-        <div class="cell-sub">${escapeHtml(p.customerName || '-')} · ${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}</div>
+        <div class="dash-item-name">${escapeHtml(p.name)} ${jobBadge(p)}</div>
+        <div class="cell-sub">${escapeHtml(p.customerName || '-')} · ${periodText(p)}</div>
       </div>`).join('') : `<div class="dash-empty">ไม่มีโครงการ</div>`;
     const more = groups[s].length > 8 ? `<div class="dash-empty"><a href="#" onclick="goProjects('${s}'); return false;" style="color:var(--accent);">ดูทั้งหมด ${groups[s].length} โครงการ</a></div>` : '';
     return `<div class="dash-col ${s}"><h4><span>${STATUS_LABEL[s]}</span><span class="count-pill">${groups[s].length}</span></h4>${body}${more}</div>`;
   }).join('');
 }
 
-/* ====== Projects ====== */
+/* ====== Sales / projects ======
+   One list holds both kinds of job (`jobType`: 'sale' | 'project'). Each has equipment lines that point at warehouse items:
+   items: [{rid, whId, part, brand, name, type, serials[], qty, status:'pending'|'done'}]. Saving a line as 'done' takes its
+   quantity and serial numbers out of the warehouse item (in one transaction with the save); reverting or deleting the line puts them back. */
 function renderProjects(){
   const isAdmin = currentUserRole === 'admin';
   document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
   const q = $('projectsSearch').value.trim().toLowerCase();
   const sf = $('projectsStatusFilter').value;
+  const tf = $('projectsTypeFilter').value;
   const rows = getVisibleProjects()
+    .filter(p => tf === 'all' || jobTypeOf(p) === tf)
     .filter(p => sf === 'all' || projectStatus(p) === sf)
     .filter(p => !q || [p.name, p.customerName, p.contractNo].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
   $('projectsCount').textContent = rows.length;
-  const cols = isAdmin ? 8 : 7;
-  $('projectsBody').innerHTML = rows.length ? rows.map(p => `
+  const cols = isAdmin ? 9 : 8;
+  $('projectsBody').innerHTML = rows.length ? rows.map(p => {
+    const its = p.items || [], done = its.filter(i => i.status === 'done').length;
+    return `
     <tr>
       <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
+      <td>${jobBadge(p)}</td>
       <td>${escapeHtml(p.customerName || '-')}</td>
       <td>${escapeHtml(p.contractNo || '-')}</td>
-      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>
-      <td>${(p.items || []).length} รายการ</td>
-      <td>${statusBadge(projectStatus(p))}</td>
+      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">${isSale(p) ? 'วันที่สั่งซื้อ' : 'ถึง ' + fmtDate(p.endDate)}</div></td>
+      <td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>
+      <td>${statusBadgeFor(p)}</td>
       ${isAdmin ? `<td class="cell-sub">${escapeHtml(getUserDisplayName(p.createdBy))}</td>` : ''}
       <td><div class="row-actions">
-        <button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>
+        ${isSale(p) ? '' : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
         <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
         <button class="icon-btn" onclick="openProjectForm('${p.id}')">แก้ไข</button>
         <button class="icon-btn delete-btn" onclick="deleteEntity('projects','${p.id}')">ลบ</button>
       </div></td>
-    </tr>`).join('') : `<tr><td colspan="${cols}" class="empty-row">ยังไม่มีโครงการ</td></tr>`;
+    </tr>`;
+  }).join('') : `<tr><td colspan="${cols}" class="empty-row">ยังไม่มีรายการซื้อขาย/โครงการ</td></tr>`;
 }
-['projectsSearch','projectsStatusFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
+['projectsSearch','projectsStatusFilter','projectsTypeFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
 
 let editingProjectId = null;
 let editingItems = [];
-const WORK_TYPES = ['ผู้จัดการ', 'ทีมติดตั้ง', 'ติดตั้งโปรแกรม', 'ฝ่ายขาย', 'ลูกค้า'];
-const blankItem = () => ({ title:'', detail:'', type:'', start:'', end:'' });
-// Work rows: {title (heading), detail, type, start, end}. Rows saved in the old equipment shape (name/qty/unit/...) are mapped on read.
-function toWorkRow(it){
-  return { title: it.title != null ? it.title : (it.name || ''), detail: it.detail || '', type: WORK_TYPES.includes(it.type) ? it.type : '', start: it.start || '', end: it.end || '' };
+let editingOrigItems = [];   // the lines as last saved, to work out what to take out of / put back into the warehouse
+const MAX_ITEM_SERIAL_BOXES = 20;
+const newRid = () => 'r' + Math.random().toString(36).slice(2, 10);
+const blankItem = () => ({ rid:newRid(), whId:'', part:'', brand:'', name:'', type:'', serials:[], qty:1, status:'pending' });
+// Lines saved before warehouse links existed (name/qty/unit..., or the heading/detail work rows) are mapped on read and stay as plain text lines
+function toItemRow(it){
+  return {
+    rid: it.rid || newRid(), whId: it.whId || '', part: it.part || '', brand: it.brand || '',
+    name: it.name != null ? it.name : [it.title, it.detail].filter(Boolean).join(' — '),
+    type: it.whId ? (it.type || '') : '', serials: Array.isArray(it.serials) ? [...it.serials] : [],
+    qty: Number(it.qty) > 0 ? Math.floor(Number(it.qty)) : 1, status: it.status === 'done' ? 'done' : 'pending'
+  };
 }
 function fmtDMY(iso){
   if (!iso) return '';
@@ -1522,22 +1561,35 @@ function fillProjectSelects(selectedCustomer, selectedCompany){
 function openProjectForm(id){
   const p = id ? data.projects.find(x => x.id === id) : null;
   if (id && !p) return;
-  if (!p && !data.customers.length){ toast('กรุณาเพิ่มลูกค้าก่อนสร้างโครงการ'); showTab('customers'); return; }
+  if (!p && !data.customers.length){ toast('กรุณาเพิ่มลูกค้าก่อนเพิ่มรายการ'); showTab('customers'); return; }
   editingProjectId = p ? p.id : null;
-  $('projectModalTitle').textContent = p ? 'แก้ไขโครงการ' : 'เพิ่มโครงการ';
+  $('projectModalTitle').textContent = p ? 'แก้ไขรายการ' : 'เพิ่มรายการ';
   fillProjectSelects(p && p.customerId, p && p.companyId);
+  $('prjJobType').value = p ? jobTypeOf(p) : 'project';
   $('prjName').value = p ? p.name || '' : '';
   $('prjContract').value = p ? p.contractNo || '' : '';
   $('prjStart').value = p ? p.startDate || '' : '';
-  $('prjEnd').value = p ? p.endDate || '' : '';
+  $('prjEnd').value = p && !isSale(p) ? p.endDate || '' : '';
   $('prjNotes').value = p ? p.notes || '' : '';
   $('prjLocation').value = p ? projectInstallLocation(p) : '';
-  $('prjWarranty').value = p ? projectWarrantyMonths(p) : 12;   // new projects default to a 12-month warranty
-  editingItems = p && (p.items || []).length ? p.items.map(toWorkRow) : [blankItem()];
-  syncProjectDateTexts();
+  $('prjWarranty').value = p ? projectWarrantyMonths(p) : 12;   // new items default to a 12-month warranty
+  editingOrigItems = p ? (p.items || []).map(toItemRow) : [];
+  editingItems = p && (p.items || []).length ? p.items.map(toItemRow) : [blankItem()];
+  applyJobType();
   renderItemRows();
   openModal('projectModal');
 }
+// Labels follow the job type: sale = order date only + delivery place; project = signing date to end date + installation place
+function applyJobType(){
+  const sale = $('prjJobType').value === 'sale';
+  $('prjNameLabel').textContent = sale ? 'ชื่องาน *' : 'ชื่อโครงการ *';
+  $('prjStartLabel').textContent = sale ? 'วันที่สั่งซื้อ *' : 'วันที่เซ็นสัญญา *';
+  $('prjEndField').style.display = sale ? 'none' : '';
+  $('prjEnd').required = !sale;
+  $('prjLocationLabel').textContent = sale ? 'สถานที่ส่งสินค้า' : 'สถานที่ติดตั้ง';
+  syncProjectDateTexts();
+}
+$('prjJobType').addEventListener('change', applyJobType);
 // The native date box shows its own locale's order (10/01/2026 can be read either way), so each date input has a label laid over
 // it that always reads dd/mm/yyyy; the browser's calendar button and typing still work underneath.
 function dateText(v){ return v ? fmtDMY(v) : 'dd/mm/yyyy'; }
@@ -1551,34 +1603,74 @@ function syncProjectDateTexts(){
 }
 function updateWarrantyHint(){
   const months = Math.max(0, Math.floor(Number($('prjWarranty').value) || 0));
-  const end = $('prjEnd').value;
+  const sale = $('prjJobType').value === 'sale';
+  const base = sale ? $('prjStart').value : $('prjEnd').value;
   $('prjWarrantyHint').textContent = !months ? 'ไม่มีประกัน'
-    : end ? `หมดประกัน ${fmtDMY(addMonths(end, months))} (นับจากวันสิ้นสุดโครงการ)` : 'เลือกวันที่สิ้นสุดโครงการเพื่อคำนวณวันหมดประกัน';
+    : base ? `หมดประกัน ${fmtDMY(addMonths(base, months))} (นับจาก${sale ? 'วันที่สั่งซื้อ' : 'วันสิ้นสุดโครงการ'})`
+    : `เลือก${sale ? 'วันที่สั่งซื้อ' : 'วันที่สิ้นสุดโครงการ'}เพื่อคำนวณวันหมดประกัน`;
 }
 ['prjStart', 'prjEnd'].forEach(id => { $(id).addEventListener('input', syncProjectDateTexts); $(id).addEventListener('change', syncProjectDateTexts); });
 $('prjWarranty').addEventListener('input', updateWarrantyHint);
 
-function updateHeadingList(){
-  const titles = [...new Set(editingItems.map(it => (it.title || '').trim()).filter(Boolean))];
-  $('prjHeadingList').innerHTML = titles.map(t2 => `<option value="${escapeHtml(t2)}">`).join('');
+/* ---- equipment lines ---- */
+const whLabel = w => `${w.part || '-'} — ${w.brand ? w.brand + ' ' : ''}${w.name} (คงเหลือ ${w.quantity == null ? 0 : w.quantity})`;
+// serials already picked by OTHER pending lines for the same warehouse item are not offered again
+function pickedElsewhere(i, whId){
+  const taken = new Set();
+  editingItems.forEach((r, k) => { if (k !== i && r.whId === whId && r.status !== 'done') r.serials.forEach(sn => sn && taken.add(sn)); });
+  return taken;
 }
 function renderItemRows(){
-  updateHeadingList();
-  const dateCell = (val, handler) => `<div class="date-edit-wrap">
-        <input type="date" value="${escapeHtml(val)}" onchange="${handler}=this.value; renderItemRows()">
-        <span class="date-display ${val ? '' : 'placeholder'}">${dateText(val)}</span></div>`;
-  $('prjItemsBody').innerHTML = editingItems.map((it, i) => `
+  const whs = [...data.warehouse].sort((a, b) => (a.part || '').localeCompare(b.part || '') || (a.name || '').localeCompare(b.name || ''));
+  $('prjItemsBody').innerHTML = editingItems.map((it, i) => {
+    const wh = it.whId ? data.warehouse.find(w => w.id === it.whId) : null;
+    const locked = it.status === 'done';
+    const opts = `<option value="">— เลือกอุปกรณ์จากโกดัง —</option>` + whs.map(w => `<option value="${w.id}" ${w.id === it.whId ? 'selected' : ''}>${escapeHtml(whLabel(w))}</option>`).join('')
+      + (it.whId && !wh ? `<option value="${escapeHtml(it.whId)}" selected>${escapeHtml(it.part || '-')} (ไม่พบในโกดังแล้ว)</option>` : '');
+    const over = wh && !locked && it.qty > (Number(wh.quantity) || 0);
+    const hint = wh ? `<div class="cell-sub ${over ? 'over' : ''}">คงเหลือ ${fmtNum(wh.quantity)}${over ? ' — เกินจำนวนในโกดัง' : ''}</div>` : '';
+    let ser;
+    if (locked) ser = it.serials.length ? it.serials.map(escapeHtml).join('<br>') : '<span class="cell-sub">-</span>';
+    else if (!wh || !(wh.serials || []).length) ser = '<span class="cell-sub">-</span>';
+    else {
+      const taken = pickedElsewhere(i, it.whId);
+      ser = Array.from({ length: Math.min(it.qty, MAX_ITEM_SERIAL_BOXES) }, (_, k) => `<select onchange="setItemSerial(${i},${k},this.value)"><option value="">— เลือก SN —</option>`
+        + wh.serials.filter(sn => sn === it.serials[k] || (!taken.has(sn) && !it.serials.some((x, kk) => kk !== k && x === sn)))
+            .map(sn => `<option value="${escapeHtml(sn)}" ${sn === it.serials[k] ? 'selected' : ''}>${escapeHtml(sn)}</option>`).join('') + `</select>`).join('');
+    }
+    return `
     <tr>
       <td class="cell-sub">${i+1}</td>
-      <td><input type="text" list="prjHeadingList" placeholder="พิมพ์หรือเลือกหัวข้อ" value="${escapeHtml(it.title)}" oninput="editingItems[${i}].title=this.value; updateHeadingList()"></td>
-      <td><input type="text" value="${escapeHtml(it.detail)}" oninput="editingItems[${i}].detail=this.value"></td>
-      <td><select onchange="editingItems[${i}].type=this.value"><option value="">— เลือก —</option>${WORK_TYPES.map(w => `<option value="${w}" ${it.type === w ? 'selected' : ''}>${w}</option>`).join('')}</select></td>
-      <td>${dateCell(it.start, `editingItems[${i}].start`)}</td>
-      <td>${dateCell(it.end, `editingItems[${i}].end`)}</td>
-      <td class="cell-sub" style="text-align:center;">${inclusiveDays(it.start, it.end) || '-'}</td>
+      <td><select ${locked ? 'disabled' : ''} onchange="pickItemWh(${i}, this.value)">${opts}</select>${hint}</td>
+      <td>${escapeHtml(it.brand || '-')}</td>
+      <td>${escapeHtml(it.name || '-')}</td>
+      <td>${escapeHtml(it.type || '-')}</td>
+      <td>${ser}</td>
+      <td><input type="number" min="1" step="1" value="${it.qty}" ${locked ? 'disabled' : ''} onchange="setItemQty(${i}, this.value)"></td>
+      <td><select onchange="setItemStatus(${i}, this.value)">
+        <option value="pending" ${it.status !== 'done' ? 'selected' : ''}>รอดำเนินการ</option>
+        <option value="done" ${it.status === 'done' ? 'selected' : ''}>ดำเนินการแล้ว</option>
+      </select></td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
+function pickItemWh(i, whId){
+  const it = editingItems[i];
+  const w = whId ? data.warehouse.find(x => x.id === whId) : null;
+  it.whId = w ? w.id : '';
+  it.part = w ? w.part || '' : ''; it.brand = w ? w.brand || '' : ''; it.name = w ? w.name || '' : ''; it.type = w ? w.type || '' : '';
+  it.serials = []; it.qty = 1;
+  renderItemRows();
+}
+function setItemQty(i, v){ editingItems[i].qty = Math.max(1, Math.floor(Number(v) || 1)); renderItemRows(); }
+function setItemSerial(i, k, v){
+  const it = editingItems[i];
+  while (it.serials.length <= k) it.serials.push('');
+  it.serials[k] = v;
+  renderItemRows();
+}
+function setItemStatus(i, st){ editingItems[i].status = st; renderItemRows(); }
 function removeItemRow(i){
   editingItems.splice(i, 1);
   if (!editingItems.length) editingItems.push(blankItem());
@@ -1588,42 +1680,116 @@ $('prjAddItemBtn').addEventListener('click', () => { editingItems.push(blankItem
 $('projectCreateBtn').addEventListener('click', () => openProjectForm(null));
 $('projectCancelBtn').addEventListener('click', () => closeModal('projectModal'));
 
+/* ---- what this save must take out of / put back into the warehouse ----
+   Compares the 'done' lines before and after the edit, per warehouse item: quantity to take out (negative = put back), serials to
+   take out, serials to put back. Nothing else in the warehouse is touched. */
+function stockEffects(origItems, newItems){
+  const agg = rows => {
+    const m = new Map();
+    rows.forEach(r => {
+      if (!r.whId || r.status !== 'done') return;
+      const e = m.get(r.whId) || { qty: 0, serials: new Set(), label: '' };
+      e.qty += Number(r.qty) || 0; r.serials.forEach(sn => sn && e.serials.add(sn));
+      e.label = [r.part, r.brand, r.name].filter(Boolean).join(' ');
+      m.set(r.whId, e);
+    });
+    return m;
+  };
+  const before = agg(origItems), after = agg(newItems), out = new Map();
+  new Set([...before.keys(), ...after.keys()]).forEach(whId => {
+    const b = before.get(whId) || { qty: 0, serials: new Set(), label: '' }, a = after.get(whId) || { qty: 0, serials: new Set(), label: '' };
+    const e = { qty: a.qty - b.qty, remove: new Set([...a.serials].filter(sn => !b.serials.has(sn))), restore: new Set([...b.serials].filter(sn => !a.serials.has(sn))), label: a.label || b.label };
+    if (e.qty || e.remove.size || e.restore.size) out.set(whId, e);
+  });
+  return out;
+}
+function describeEffects(effects){
+  return [...effects.values()].map(e => {
+    const parts = [];
+    if (e.qty > 0) parts.push(`ตัดออก ${e.qty} ชิ้น`);
+    if (e.qty < 0) parts.push(`คืนเข้า ${-e.qty} ชิ้น`);
+    if (e.remove.size) parts.push(`ตัด SN: ${[...e.remove].join(', ')}`);
+    if (e.restore.size) parts.push(`คืน SN: ${[...e.restore].join(', ')}`);
+    return `• ${e.label} — ${parts.join(' · ')}`;
+  }).join('\n');
+}
+async function commitProject(ref, doc, isNew, effects){
+  await db.runTransaction(async tx => {
+    const snaps = new Map();
+    for (const whId of effects.keys()) snaps.set(whId, await tx.get(db.collection(COL.warehouse).doc(whId)));   // all reads first
+    const updates = [];
+    effects.forEach((e, whId) => {
+      const snap = snaps.get(whId);
+      if (!snap.exists || snap.data().deletedAt){
+        if (e.qty > 0 || e.remove.size) throw new Error(`ไม่พบ ${e.label} ในโกดัง`);
+        return;   // only a put-back and the warehouse item is gone: nothing to put back into
+      }
+      const w = snap.data(), cur = Array.isArray(w.serials) ? w.serials : [];
+      for (const sn of e.remove) if (!cur.includes(sn)) throw new Error(`Serial ${sn} ของ ${e.label} ไม่อยู่ในโกดังแล้ว`);
+      const newQty = (Number(w.quantity) || 0) - e.qty;
+      if (newQty < 0) throw new Error(`จำนวน ${e.label} ในโกดังไม่พอ (คงเหลือ ${Number(w.quantity) || 0}, ต้องใช้ ${e.qty})`);
+      const serials = [...cur.filter(sn => !e.remove.has(sn)), ...[...e.restore].filter(sn => !cur.includes(sn))];
+      updates.push([db.collection(COL.warehouse).doc(whId), { quantity: newQty, serials }]);
+    });
+    updates.forEach(([wref, patch]) => tx.update(wref, patch));
+    if (isNew) tx.set(ref, doc); else tx.update(ref, doc);
+  });
+}
+
 $('projectForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const start = $('prjStart').value, end = $('prjEnd').value;
-  if (end < start){ toast('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น'); return; }
+  const sale = $('prjJobType').value === 'sale';
+  const start = $('prjStart').value, end = sale ? start : $('prjEnd').value;
+  if (end < start){ toast('วันที่สิ้นสุดต้องไม่ก่อนวันที่เซ็นสัญญา'); return; }
   const customerId = $('prjCustomer').value;
   const customer = data.customers.find(c => c.id === customerId);
   if (!customer){ toast('กรุณาเลือกลูกค้า'); return; }
-  const filled = editingItems.filter(i => (i.title || '').trim() || (i.detail || '').trim() || i.type || i.start || i.end);   // untouched empty rows are dropped silently
-  if (filled.some(i => !(i.title || '').trim())){ toast('กรุณากรอกหัวข้อให้ครบทุกแถวที่มีข้อมูล'); return; }
-  const badRow = filled.find(i => i.start && i.end && i.end < i.start);
-  if (badRow){ toast(`วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น: ${badRow.title}`); return; }
-  const items = filled.map(i => ({ title: i.title.trim(), detail: (i.detail || '').trim(), type: i.type || '', start: i.start || '', end: i.end || '' }));
+  // lines: untouched empty ones are dropped silently
+  const filled = editingItems.filter(r => r.whId || (r.name || '').trim());
+  const items = filled.map(r => {
+    const qty = Math.max(1, Math.floor(Number(r.qty) || 1));
+    return { rid: r.rid, whId: r.whId, part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type,
+      serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean), qty, status: r.status === 'done' ? 'done' : 'pending' };
+  });
+  const seen = new Set();
+  for (const r of items){
+    for (const sn of r.serials){
+      const key = r.whId + '|' + sn.toLowerCase();
+      if (r.whId && seen.has(key)){ toast(`Serial ${sn} ถูกเลือกซ้ำ`); return; }
+      seen.add(key);
+    }
+  }
   const doc = {
+    jobType: sale ? 'sale' : 'project',
     name: $('prjName').value.trim(), customerId, customerName: customer.name,
     contractNo: $('prjContract').value.trim(), startDate: start, endDate: end,
     companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(),
     installLocation: $('prjLocation').value.trim(), warrantyMonths: Math.max(0, Math.floor(Number($('prjWarranty').value) || 0)), items
   };
-  $('projectSaveBtn').disabled = true;
-  setSync('saving');
-  try{
-    if (editingProjectId){
-      await db.collection(COL.projects).doc(editingProjectId).update(doc);
-      logAudit('แก้ไขโครงการ', doc.name, `ลูกค้า ${doc.customerName} · ${items.length} รายการ`);
-    } else {
-      await db.collection(COL.projects).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
-      logAudit('สร้างโครงการ', doc.name, `ลูกค้า ${doc.customerName} · ${items.length} รายการ`);
+  const effects = stockEffects(editingOrigItems, items);
+  const save = async () => {
+    $('projectSaveBtn').disabled = true;
+    setSync('saving');
+    try{
+      const ref = editingProjectId ? db.collection(COL.projects).doc(editingProjectId) : db.collection(COL.projects).doc();
+      const isNew = !editingProjectId;
+      await commitProject(ref, isNew ? { ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() } : doc, isNew, effects);
+      const kind = sale ? 'รายการซื้อขาย' : 'โครงการ';
+      logAudit(isNew ? 'สร้าง' + kind : 'แก้ไข' + kind, doc.name, `ลูกค้า ${doc.customerName} · ${items.length} รายการ`);
+      effects.forEach(eff => logAudit(eff.qty > 0 || eff.remove.size ? 'ตัดสต็อกโกดัง' : 'คืนสต็อกโกดัง', eff.label,
+        `จาก ${doc.name} · ${eff.qty > 0 ? 'ตัด ' + eff.qty : eff.qty < 0 ? 'คืน ' + (-eff.qty) : ''} ชิ้น`));
+      editingOrigItems = items.map(r => ({ ...r }));
+      setSync('ok');
+      closeModal('projectModal');
+      toast('บันทึกรายการแล้ว');
+    }catch(err){
+      setSync('error');
+      toast(err && err.message && !/permission|insufficient/i.test(err.message) ? err.message : 'บันทึกไม่สำเร็จ');
     }
-    setSync('ok');
-    closeModal('projectModal');
-    toast('บันทึกโครงการแล้ว');
-  }catch(err){
-    setSync('error');
-    toast('บันทึกไม่สำเร็จ');
-  }
-  $('projectSaveBtn').disabled = false;
+    $('projectSaveBtn').disabled = false;
+  };
+  if (effects.size) confirmAction('การบันทึกนี้จะเปลี่ยนจำนวนในโกดัง:\n' + describeEffects(effects) + '\n\nยืนยันหรือไม่?', save, 'ยืนยันการตัด/คืนสต็อกโกดัง');
+  else save();
 });
 
 /* ====== PDF (browser print → "Save as PDF") ====== */
@@ -1643,41 +1809,32 @@ function buildProjectPrintHtml(p){
   const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
   const head = letterheadHtml(co);
   const wr = projectWarranty(p);
+  const sale = isSale(p);
   const info = [
-    ['ชื่อโครงการ', p.name],
+    ['ประเภทงาน', JOB_TYPES[jobTypeOf(p)]],
+    [sale ? 'ชื่องาน' : 'ชื่อโครงการ', p.name],
     ['หน่วยงาน / ลูกค้า', cu.name],
     ['ที่อยู่', cu.address],
     ['ผู้ติดต่อ', [cu.contactName, cu.contactPhone].filter(Boolean).join(' · ')],
     ['เลขที่ผู้เสียภาษี', cu.taxId],
     ['เลขที่สัญญา', p.contractNo],
-    ['ระยะเวลาโครงการ', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`],
-    ['สถานที่ติดตั้ง', wr.location],
+    sale ? ['วันที่สั่งซื้อ', fmtDate(p.startDate)] : ['ระยะเวลาโครงการ', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`],
+    [sale ? 'สถานที่ส่งสินค้า' : 'สถานที่ติดตั้ง', wr.location],
     ['การรับประกัน', wr.months ? `${wr.months} เดือน (หมดประกัน ${fmtDate(wr.expiry)})` : ''],
-    ['สถานะ', STATUS_LABEL[projectStatus(p)]],
+    ['สถานะ', statusLabelFor(p, projectStatus(p))],
     ['หมายเหตุ', p.notes]
   ].filter(r => r[1]).map(r => `<tr><td>${r[0]}</td><td>${escapeHtml(r[1])}</td></tr>`).join('');
-  // work rows grouped under their heading (first appearance order): a bold heading row, then its detail rows numbered 1.1, 1.2 ...
-  const groups = new Map();
-  (p.items || []).map(toWorkRow).forEach(r => {
-    const key = r.title || '-';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
-  });
-  let g = 0;
-  const work = [...groups.entries()].map(([title, rows]) => {
-    g++;
-    return `<tr class="pr-group"><td style="text-align:center;"><b>${g}</b></td><td colspan="5"><b>${escapeHtml(title)}</b></td></tr>` + rows.map((r, k) => `
+  const work = (p.items || []).map(toItemRow).map((r, i) => `
     <tr>
-      <td style="text-align:center;">${g}.${k+1}</td><td>${escapeHtml(r.detail || '-')}</td><td style="text-align:center;">${escapeHtml(r.type || '-')}</td>
-      <td style="text-align:center;">${r.start ? fmtDate(r.start) : '-'}</td><td style="text-align:center;">${r.end ? fmtDate(r.end) : '-'}</td>
-      <td style="text-align:center;">${inclusiveDays(r.start, r.end) || '-'}</td>
-    </tr>`).join('');
-  }).join('') || `<tr><td colspan="6" style="text-align:center;">ไม่มีรายการ</td></tr>`;
+      <td style="text-align:center;">${i+1}</td><td>${escapeHtml(r.part || '-')}</td><td>${escapeHtml(r.brand || '-')}</td><td>${escapeHtml(r.name || '-')}</td>
+      <td>${escapeHtml(r.type || '-')}</td><td>${r.serials.length ? r.serials.map(escapeHtml).join(', ') : '-'}</td>
+      <td style="text-align:center;">${r.qty}</td><td style="text-align:center;">${r.status === 'done' ? 'ดำเนินการแล้ว' : 'รอดำเนินการ'}</td>
+    </tr>`).join('') || `<tr><td colspan="8" style="text-align:center;">ไม่มีรายการ</td></tr>`;
   return `${head}
-    <div class="pr-title">รายละเอียดโครงการ</div>
+    <div class="pr-title">${sale ? 'รายละเอียดการซื้อขาย' : 'รายละเอียดโครงการ'}</div>
     <table class="pr-info">${info}</table>
     <table class="pr-items">
-      <thead><tr><th style="width:44px;">ลำดับ</th><th>รายละเอียดงาน</th><th style="width:100px;">ประเภท</th><th style="width:88px;">วันที่เริ่มต้น</th><th style="width:88px;">วันที่สิ้นสุด</th><th style="width:56px;">จำนวนวัน</th></tr></thead>
+      <thead><tr><th style="width:36px;">ลำดับ</th><th>Part</th><th>ยี่ห้อ</th><th>ชื่อ</th><th>ประเภท</th><th>รหัสอุปกรณ์</th><th style="width:44px;">จำนวน</th><th style="width:84px;">สถานะ</th></tr></thead>
       <tbody>${work}</tbody>
     </table>
     <div class="pr-sign"><div>ผู้จัดทำ</div><div>ผู้อนุมัติ</div></div>`;
@@ -1699,6 +1856,7 @@ function printProject(id){
    (so it follows the project's own permissions, Trash and restore — no separate collection/rules). A topic with sub-items
    takes its dates from the earliest/latest sub-item; a step is "done" when its tick box is checked and progress = ticked steps / all steps.
    "Week of month" = ceil(day / 7): days 1-7 are week 1 ... 29-31 are week 5. */
+const PLAN_OWNERS = ['ผู้จัดการ', 'ทีมติดตั้ง', 'ติดตั้งโปรแกรม', 'ฝ่ายขาย', 'ลูกค้า'];   // choices for a step's owner
 const PLAN_COLORS = ['#3B82F6','#22B573','#FF9F43','#8B7CF6','#F0618B','#14B8A6','#EAB308','#64748B'];
 const PLAN_DUE_SOON_DAYS = 7;   // an unticked step is flagged "due soon" when its end date is this close (or today)
 const PLAN_STATUS = { todo:['ยังไม่ดำเนินการ','none'], doing:['กำลังดำเนินการ','doing'], done:['ดำเนินการแล้ว','ok'], soon:['ใกล้ครบกำหนด','soon'], late:['เลยกำหนด','expired'] };
@@ -1878,7 +2036,7 @@ function planSummary(p){
 }
 function renderActionPlan(){
   if (planDrag) return;   // don't rebuild the DOM under an in-progress drag
-  const visible = getVisibleProjects();
+  const visible = getVisibleProjects().filter(pr => !isSale(pr));   // sales have no Action Plan
   const p = visible.find(pr => pr.id === selectedPlanProjectId);
   if (selectedPlanProjectId && !p) selectedPlanProjectId = null;   // project was deleted, or hidden by the person filter
   $('planListView').style.display = p ? 'none' : '';
@@ -2094,12 +2252,12 @@ $('planPrintBtn').addEventListener('click', printActionPlan);
 let editingPlan = [];
 const blankPlanRow = () => ({ title:'', owner:'', start:'', end:'', done:false });
 function renderPlanEditor(){
-  const owners = new Set(data.users.map(u => u.name || u.email).filter(Boolean));
-  editingPlan.forEach(t => { if (t.owner) owners.add(t.owner); (t.subs || []).forEach(x => { if (x.owner) owners.add(x.owner); }); });
-  $('planOwnerList').innerHTML = [...owners].map(o => `<option value="${escapeHtml(o)}">`).join('');
+  // owner is a dropdown; a name typed in an earlier version stays selectable so it isn't lost when the plan is re-saved
+  const ownerSel = (val, handler) => `<select onchange="${handler}=this.value"><option value="">— เลือก —</option>`
+    + (val && !PLAN_OWNERS.includes(val) ? `<option value="${escapeHtml(val)}" selected>${escapeHtml(val)}</option>` : '')
+    + PLAN_OWNERS.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('') + `</select>`;
   const inp = (val, handler, extra) => `<input type="text" value="${escapeHtml(val)}" ${extra || ''} oninput="${handler}=this.value">`;
   const date = (val, handler, disabled) => `<input type="date" value="${escapeHtml(val)}" ${disabled ? 'disabled' : ''} onchange="${handler}=this.value; renderPlanEditor()">`;
-  const tick = (val, handler) => `<input type="checkbox" ${val ? 'checked' : ''} onchange="${handler}=this.checked; renderPlanEditor()">`;
   let html = '';
   editingPlan.forEach((t, i) => {
     const hasSubs = (t.subs || []).length > 0;
@@ -2108,11 +2266,10 @@ function renderPlanEditor(){
     html += `<tr class="plan-edit-topic">
       <td><b>${i+1}</b></td>
       <td>${inp(t.title, `editingPlan[${i}].title`, 'placeholder="หัวข้อการดำเนินการ" style="font-weight:600;"')}</td>
-      <td>${inp(t.owner, `editingPlan[${i}].owner`, 'list="planOwnerList" placeholder="ผู้รับผิดชอบ"')}</td>
+      <td>${ownerSel(t.owner, `editingPlan[${i}].owner`)}</td>
       <td>${date(st, `editingPlan[${i}].start`, hasSubs)}</td>
       <td>${date(en, `editingPlan[${i}].end`, hasSubs)}</td>
       <td class="cell-sub">${inclusiveDays(st, en) || '-'}</td>
-      <td>${hasSubs ? `<span class="cell-sub">${t.subs.filter(isDone).length}/${t.subs.length} (คำนวณ)</span>` : tick(t.done, `editingPlan[${i}].done`)}</td>
       <td><div class="row-actions">
         <button type="button" class="icon-btn" onclick="addPlanSub(${i})">+ ย่อย</button>
         <button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removePlanTopic(${i})" title="ลบหัวข้อ">✕</button>
@@ -2122,15 +2279,14 @@ function renderPlanEditor(){
       html += `<tr>
         <td class="cell-sub" style="padding-left:14px;">${i+1}.${j+1}</td>
         <td style="padding-left:24px;">${inp(sub.title, `editingPlan[${i}].subs[${j}].title`, 'placeholder="รายละเอียดย่อย"')}</td>
-        <td>${inp(sub.owner, `editingPlan[${i}].subs[${j}].owner`, 'list="planOwnerList" placeholder="ผู้รับผิดชอบ"')}</td>
+        <td>${ownerSel(sub.owner, `editingPlan[${i}].subs[${j}].owner`)}</td>
         <td>${date(sub.start, `editingPlan[${i}].subs[${j}].start`)}</td>
         <td>${date(sub.end, `editingPlan[${i}].subs[${j}].end`)}</td>
         <td class="cell-sub">${inclusiveDays(sr.start, sr.end) || '-'}</td>
-        <td>${tick(sub.done, `editingPlan[${i}].subs[${j}].done`)}</td>
         <td><div class="row-actions"><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removePlanSub(${i},${j})" title="ลบรายการย่อย">✕</button></div></td></tr>`;
     });
   });
-  $('planEditBody').innerHTML = html || `<tr><td colspan="8" class="empty-row">ยังไม่มีหัวข้อ — กด "+ เพิ่มหัวข้อ"</td></tr>`;
+  $('planEditBody').innerHTML = html || `<tr><td colspan="7" class="empty-row">ยังไม่มีหัวข้อ — กด "+ เพิ่มหัวข้อ"</td></tr>`;
 }
 function addPlanSub(i){
   const t = editingPlan[i];
@@ -2187,7 +2343,7 @@ function renderEquipment(){
   $('equipmentCount').textContent = rows.length;
   $('equipmentBody').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td><a href="#" onclick="openProjectForm('${r.project.id}'); return false;" style="color:var(--accent);"><b>${escapeHtml(r.project.name)}</b></a><div class="cell-sub">${escapeHtml(r.project.customerName || '')}</div></td>
+      <td><a href="#" onclick="openProjectForm('${r.project.id}'); return false;" style="color:var(--accent);"><b>${escapeHtml(r.project.name)}</b></a> ${jobBadge(r.project)}<div class="cell-sub">${escapeHtml(r.project.customerName || '')}</div></td>
       <td>${escapeHtml(r.location || '-')}</td>
       <td style="white-space:nowrap;">${r.months ? fmtDate(r.start) : '-'}</td>
       <td>${r.months || '-'}</td>
@@ -2198,7 +2354,7 @@ function renderEquipment(){
 ['equipmentSearch','equipmentWarrantyFilter'].forEach(id => $(id).addEventListener('input', renderEquipment));
 
 /* ====== Soft delete (shared by projects / customers / companies) ====== */
-const ENTITY_LABEL = { projects:'โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง' };
+const ENTITY_LABEL = { projects:'ซื้อขาย/โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง' };
 function entityName(type, x){ return x.name || '-'; }
 function deleteEntity(type, id){
   const x = data[type].find(r => r.id === id);
@@ -2430,19 +2586,22 @@ function openCustomerProjects(id){
   const count = { pending:0, active:0, ended:0 };
   projects.forEach(p => count[projectStatus(p)]++);
   $('cpSummary').innerHTML = projects.length
-    ? `ทั้งหมด <b>${projects.length}</b> โครงการ · ${['pending', 'active', 'ended'].map(k => `${statusBadge(k)} ${count[k]}`).join(' &nbsp; ')}`
+    ? `ทั้งหมด <b>${projects.length}</b> รายการ (ซื้อขาย/โครงการ) · ${['pending', 'active', 'ended'].map(k => `${statusBadge(k)} ${count[k]}`).join(' &nbsp; ')}`
     : '';
   $('cpBody').innerHTML = projects.length ? projects.map(p => {
-    const sm = planSummary(p);
+    const sm = planSummary(p), its = p.items || [], done = its.filter(i => i.status === 'done').length;
+    const progress = isSale(p)
+      ? (its.length ? `ดำเนินการแล้ว ${done}/${its.length}` : '<span class="cell-sub">ยังไม่มีรายการ</span>')
+      : (sm.steps ? `${sm.progress}% <span class="cell-sub">(${sm.done}/${sm.total})</span>` : '<span class="cell-sub">ยังไม่มีแผน</span>');
     return `<tr>
-      <td><b>${escapeHtml(p.name)}</b></td>
+      <td><b>${escapeHtml(p.name)}</b> ${jobBadge(p)}</td>
       <td>${escapeHtml(p.contractNo || '-')}</td>
-      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>
-      <td>${sm.steps ? `${sm.progress}% <span class="cell-sub">(${sm.done}/${sm.total})</span>` : '<span class="cell-sub">ยังไม่มีแผน</span>'}</td>
-      <td>${statusBadge(projectStatus(p))}</td>
-      <td><div class="row-actions"><button class="icon-btn" onclick="closeModal('customerProjectsModal'); openActionPlan('${p.id}')">แผนงาน</button></div></td>
+      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">${isSale(p) ? 'วันที่สั่งซื้อ' : 'ถึง ' + fmtDate(p.endDate)}</div></td>
+      <td>${progress}</td>
+      <td>${statusBadgeFor(p)}</td>
+      <td><div class="row-actions">${isSale(p) ? '' : `<button class="icon-btn" onclick="closeModal('customerProjectsModal'); openActionPlan('${p.id}')">แผนงาน</button>`}</div></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="6" class="empty-row">ลูกค้านี้ยังไม่มีโครงการ</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty-row">ลูกค้านี้ยังไม่มีรายการซื้อขายหรือโครงการ</td></tr>`;
   openModal('customerProjectsModal');
 }
 $('cpCloseBtn').addEventListener('click', () => closeModal('customerProjectsModal'));
