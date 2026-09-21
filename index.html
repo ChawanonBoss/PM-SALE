@@ -1128,7 +1128,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.10';
+const APP_VERSION = '1.10.11';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2385,9 +2385,9 @@ function renderPlanTable(p, opts){
     const chk = r.kind === 'proj' ? ''
       : opts.print ? (r.checked ? '✓' : '')
       : `<input type="checkbox" class="g-chk-input" ${r.checked ? 'checked' : ''} ${r.partial ? 'data-partial="1"' : ''} ${r.leaf ? '' : 'disabled'} title="${r.leaf ? 'ติ๊กเมื่อดำเนินการแล้ว' : 'สรุปจากหัวข้อย่อย'}" onchange="togglePlanDone(${r.i},${r.j},this.checked)">`;
-    const alertIcon = warn ? `<span class="g-alert" title="${escapeHtml(r.stateText)}">${r.state === 'late' ? '⚠️' : '⏰'}</span>` : '';
-    const st = r.kind === 'proj' ? '' : `<span class="badge ${PLAN_STATUS[r.state][1]}">${escapeHtml(r.stateText)}</span>`;
-    return `<tr class="g-${r.kind} ${r.leaf && !r.start ? 'g-empty' : ''} ${warn ? 'g-warn-' + r.state : ''}" data-i="${r.i}" data-j="${r.j}" data-leaf="${draggable ? 1 : 0}">
+    const alertIcon = warn && !P ? `<span class="g-alert" title="${escapeHtml(r.stateText)}">${r.state === 'late' ? '⚠️' : '⏰'}</span>` : '';
+    const st = r.kind === 'proj' ? '' : `<span class="badge ${warn && P ? 'none' : PLAN_STATUS[r.state][1]}">${escapeHtml(r.stateText)}</span>`;
+    return `<tr class="g-${r.kind} ${r.leaf && !r.start ? 'g-empty' : ''} ${warn && !P ? 'g-warn-' + r.state : ''}" data-i="${r.i}" data-j="${r.j}" data-leaf="${draggable ? 1 : 0}">
       ${P ? '' : `<td class="g-chk">${chk}</td>`}
       <td class="g-no">${r.no}</td>
       <td class="g-detail" title="${escapeHtml(r.title)}">${alertIcon}${escapeHtml(r.title)}</td>
