@@ -17,7 +17,8 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `trash_selection_test.py` | Trash checkboxes: some / all rows, type filter, bulk restore, bulk permanent delete (catalog pieces go too) |
 | `mobile_cards_and_counters_test.py` | phone card layout, unlinked equipment lines in the edit form, admin keeps `pm_counters` in step |
 | `po_excel_attachments_test.py` | PO number, งวดงานที่, Excel export, project attachments, accessible names, no built-in sample catalogs |
-| `projects_stock_test.py` | project/sale form, stock deduction & return, handover PDF markup |
+| `projects_stock_test.py` | separate ซื้อขาย / โครงการ menus and forms, stock deduction & return, handover PDF markup |
+| `installments_test.py` | project installments: total in the form, the "ส่งงาน" dialog (e.g. 3/4), history, PDF shows 3/4, Excel column |
 | `docno_and_history_test.py` | SO/PJ document numbers, warehouse withdrawal history |
 | `paging_test.py` | 10/20/50/100 rows per page and the page buttons on every list |
 | `pdf_test.py` | prints the handover document and the Action Plan through Chromium's PDF engine and checks fonts, page size and orientation |

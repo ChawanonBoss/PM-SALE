@@ -18,8 +18,9 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
     # 123 projects (a few sales), 25 customers, 34 warehouse items, 12 companies, 15 audit rows, 11 errors, 13 pending invites
     page.evaluate("""async () => {
       for (let i = 1; i <= 25; i++) await db.collection('pm_customers').doc('c' + i).set({name:'ลูกค้า ' + String(i).padStart(2,'0'), type: i % 2 ? 'gov' : 'private', createdBy:'admin1'});
-      for (let i = 1; i <= 123; i++) await db.collection('pm_projects').doc('p' + i).set({jobType: i % 5 === 0 ? 'sale' : 'project', name:'รายการ ' + String(i).padStart(3,'0'), customerId:'c1', customerName:'ลูกค้า 01',
-        startDate:'2026-01-' + String((i % 28) + 1).padStart(2,'0'), endDate:'2027-12-31', createdBy:'admin1', items:[], plan: i % 5 === 0 ? [] : [{title:'x', owner:'', start:'', end:'', done:false, subs:[]}]});
+      for (let i = 1; i <= 123; i++) await db.collection('pm_projects').doc('p' + i).set({jobType: 'project', name:'รายการ ' + String(i).padStart(3,'0'), customerId:'c1', customerName:'ลูกค้า 01',
+        startDate:'2026-01-' + String((i % 28) + 1).padStart(2,'0'), endDate:'2027-12-31', createdBy:'admin1', items:[], plan: [{title:'x', owner:'', start:'', end:'', done:false, subs:[]}]});
+      for (let i = 1; i <= 24; i++) await db.collection('pm_projects').doc('s' + i).set({jobType:'sale', name:'ขาย ' + String(i).padStart(2,'0'), customerId:'c1', customerName:'ลูกค้า 01', startDate:'2026-02-' + String((i % 28) + 1).padStart(2,'0'), endDate:'2026-02-01', createdBy:'admin1', items:[]});
       for (let i = 1; i <= 34; i++) await db.collection('pm_warehouse').doc('w' + i).set({part:'P' + i, brand:'B' + (i % 3), type:'T' + (i % 2), name:'อุปกรณ์ ' + String(i).padStart(2,'0'), quantity:i, serials:[], createdBy:'admin1'});
       for (let i = 1; i <= 12; i++) await db.collection('pm_companies').doc('co' + i).set({name:'บริษัท ' + String(i).padStart(2,'0'), address:'-', phone:'-', taxId:'-'});
       for (let i = 1; i <= 15; i++) await db.collection('pm_auditLog').add({action:'สร้างลูกค้า', entityLabel:'E' + i, details:'', changedBy:'admin1', changedByName:'Admin', timestamp:new Date(Date.now() - i * 1000).toISOString()});
@@ -64,10 +65,16 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
     page.select_option('#projectsPager select', '50'); assert rows('projectsBody') == 50 and nums('projectsPager')[1:-1] == ['1', '2', '3']
     page.select_option('#projectsPager select', '100'); assert rows('projectsBody') == 100 and nums('projectsPager')[1:-1] == ['1', '2']
     page.click('#projectsPager .page-btn:has-text("2")'); assert rows('projectsBody') == 23
+    # the sales menu has its own list and pager (24 rows), and the projects list never shows them
+    page.click('.nav-item[data-tab="sales"]')
+    assert rows('salesBody') == 10 and '1–10 จากทั้งหมด 24' in pager('salesPager') and nums('salesPager')[1:-1] == ['1', '2', '3']
+    page.click('#salesPager .page-btn:has-text("3")'); assert rows('salesBody') == 4 and '21–24' in pager('salesPager')
+    page.select_option('#salesPager select', '100'); assert rows('salesBody') == 24 and nums('salesPager')[1:-1] == ['1']
+    page.fill('#salesSearch', 'ขาย 0'); assert '1–9 จากทั้งหมด 9' in pager('salesPager'); page.click('#salesClearBtn'); assert '1–24 จากทั้งหมด 24' in pager('salesPager')
+    page.click('.nav-item[data-tab="projects"]')
     # filters reset to page 1 and shrink the pager; size survives
-    page.select_option('#projectsTypeFilter', 'sale')
-    assert active('projectsPager') == '1' and rows('projectsBody') == 24 and '1–24 จากทั้งหมด 24' in pager('projectsPager') and nums('projectsPager')[1:-1] == ['1']
-    assert page.input_value('#projectsPager select') == '100'
+    page.select_option('#projectsStatusFilter', 'active')
+    assert active('projectsPager') == '1' and page.input_value('#projectsPager select') == '100'
     page.click('#projectsClearBtn')
     assert '1–100 จากทั้งหมด 123' in pager('projectsPager')
     page.select_option('#projectsPager select', '10')
@@ -96,7 +103,7 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
         assert rows(body) == min(10, total - 10) and active(pager_id) == '2', (tab, rows(body))
         page.click(f'#{pager_id} .page-btn:has-text("‹")')
         print("ok:", tab, total)
-    check('equipment', 'equipmentBody', 'equipmentPager', 100)          # warranty page lists every project (100 left after the deletes)
+    check('equipment', 'equipmentBody', 'equipmentPager', 124)          # warranty page lists every project (100 left after the deletes)
     check('warehouse', 'warehouseBody', 'warehousePager', 34)
     check('customers', 'customersBody', 'customersPager', 25)
     page.click('.nav-item[data-tab="companies"]'); assert page.locator('#companiesGrid > .company-card').count() == 10 and 'จากทั้งหมด 12' in pager('companiesPager')

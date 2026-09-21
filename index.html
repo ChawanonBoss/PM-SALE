@@ -453,10 +453,14 @@
         <span class="nav-count-badge" id="dashNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">แดชบอร์ด</span>
       </button>
+      <button class="nav-item" data-tab="sales">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6"/></svg>
+        <span class="nav-tooltip">ซื้อขาย</span>
+      </button>
       <button class="nav-item" data-tab="projects">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>
         <span class="nav-count-badge" id="projectsNavBadge" style="display:none;"></span>
-        <span class="nav-tooltip">ซื้อขาย/โครงการ</span>
+        <span class="nav-tooltip">โครงการ</span>
       </button>
       <button class="nav-item" data-tab="actionplan">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4v16"/><rect x="6" y="4" width="9" height="4" rx="1"/><rect x="10" y="10" width="11" height="4" rx="1"/><rect x="7" y="16" width="8" height="4" rx="1"/></svg>
@@ -597,31 +601,48 @@
       </div>
 
       <!-- Projects -->
+      <div id="tab-sales" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>ซื้อขายทั้งหมด <span class="count-pill" id="salesCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="salesSearch" class="filter-control" placeholder="ค้นหาเลขที่เอกสาร, ชื่องาน, ลูกค้า, เลขที่ PO" style="width:250px;">
+              <select id="salesStatusFilter" class="filter-control">
+                <option value="all">ทุกสถานะ</option>
+                <option value="pending">รอดำเนินการ</option><option value="active">กำลังดำเนินการ</option><option value="ended">ดำเนินการแล้ว</option>
+              </select>
+              <button class="btn" id="salesCreateBtn" type="button">+ เพิ่มการซื้อขาย</button>
+              <button class="btn outline" type="button" id="salesExportBtn">ส่งออก Excel</button>
+              <button class="btn outline" type="button" id="salesClearBtn">เคลียร์</button>
+            </div>
+          </div>
+          <p class="panel-note"><b>ซื้อขาย</b> — สถานะดูจากรายการสินค้าแต่ละบรรทัด: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว · เลือกสินค้าจากโกดัง เมื่อบันทึกเป็น "ดำเนินการแล้ว" ระบบตัดจำนวนและ Serial ออกจากโกดังให้</p>
+          <div class="table-scroll"><table class="m-cards">
+            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน</th><th>ลูกค้า</th><th>เลขที่ PO</th><th>วันที่สั่งซื้อ</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+            <tbody id="salesBody"></tbody>
+          </table></div>
+          <div class="pager" id="salesPager"></div>
+        </div>
+      </div>
+
       <div id="tab-projects" class="tab-panel" style="display:none;">
         <div class="panel">
           <div class="panel-head">
-            <h3>ซื้อขาย / โครงการทั้งหมด <span class="count-pill" id="projectsCount"></span></h3>
+            <h3>โครงการทั้งหมด <span class="count-pill" id="projectsCount"></span></h3>
             <div class="filter-bar">
-              <input type="text" id="projectsSearch" class="filter-control" placeholder="ค้นหาเลขที่เอกสาร, ชื่องาน/โครงการ, ลูกค้า, เลขที่สัญญา" style="width:250px;">
-              <select id="projectsTypeFilter" class="filter-control">
-                <option value="all">ทุกประเภทงาน</option>
-                <option value="sale">ซื้อขาย</option>
-                <option value="project">โครงการ</option>
-              </select>
+              <input type="text" id="projectsSearch" class="filter-control" placeholder="ค้นหาเลขที่เอกสาร, ชื่อโครงการ, ลูกค้า, เลขที่สัญญา, เลขที่ PO" style="width:250px;">
               <select id="projectsStatusFilter" class="filter-control">
                 <option value="all">ทุกสถานะ</option>
-                <option value="pending">รอดำเนินการ</option>
-                <option value="active">กำลังดำเนินการ</option>
-                <option value="ended">สิ้นสุดสัญญาโครงการ</option>
+                <option value="pending">รอดำเนินการ</option><option value="active">กำลังดำเนินการ</option><option value="ended">สิ้นสุดสัญญาโครงการ</option>
               </select>
-              <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มรายการ</button>
+              <button class="btn" id="projectsCreateBtn" type="button">+ เพิ่มโครงการ</button>
               <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · <b>ซื้อขาย</b> — ดูจากสถานะของแต่ละรายการอุปกรณ์: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว</p>
+          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan</p>
           <div class="table-scroll"><table class="m-cards">
-            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน / โครงการ</th><th>ประเภทงาน</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>วันที่</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
             <tbody id="projectsBody"></tbody>
           </table></div>
           <div class="pager" id="projectsPager"></div>
@@ -904,18 +925,17 @@
 <!-- Project form modal -->
 <div class="modal-overlay" id="projectModal" style="display:none;">
   <div class="modal wide">
-    <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:4px;">เพิ่มรายการ</h3>
+    <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:4px;">เพิ่มโครงการ</h3>
     <p style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;">เลขที่เอกสาร: <span class="docno" id="prjDocNo">-</span></p>
     <form id="projectForm">
       <div class="form-grid">
-        <div class="field"><label>ประเภทของงาน *</label>
-          <select id="prjJobType"><option value="sale">ซื้อขาย</option><option value="project">โครงการ</option></select>
-        </div>
+        <input type="hidden" id="prjJobType" value="project">
         <div class="field"><label id="prjNameLabel">ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
         <div class="field"><label>หน่วยงาน / ลูกค้า *</label><select id="prjCustomer" required></select></div>
         <div class="field"><label>เลขที่สัญญา</label><input type="text" id="prjContract"></div>
         <div class="field"><label>เลขที่ PO</label><input type="text" id="prjPo" placeholder="เลขที่ใบสั่งซื้อของลูกค้า (ถ้ามี)"></div>
-        <div class="field"><label>งวดงานที่</label><input type="text" id="prjInstallment" placeholder="เช่น งวดที่ 1 (ถ้ามี)"></div>
+        <div class="field" id="prjInstallmentField"><label>จำนวนงวดงานทั้งหมด</label><input type="number" min="1" max="99" step="1" id="prjInstallmentTotal" placeholder="เช่น 4 (เว้นว่าง = ไม่แบ่งงวด)">
+          <div class="cell-sub" id="prjInstallmentHint"></div></div>
         <div class="field"><label id="prjStartLabel">วันที่เซ็นสัญญา *</label>
           <div class="date-edit-wrap"><input type="date" id="prjStart" required><span class="date-display placeholder" id="prjStartText">dd/mm/yyyy</span></div>
         </div>
@@ -948,6 +968,26 @@
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกรายการ</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Deliver a batch (installment) of a project -->
+<div class="modal-overlay" id="deliveryModal" style="display:none;">
+  <div class="modal" style="max-width:460px;">
+    <h3 class="serif" id="dlvTitle" style="font-size:19px; margin-bottom:2px;">ส่งงาน</h3>
+    <p id="dlvSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></p>
+    <div class="form-grid">
+      <div class="field"><label>ส่งงานงวดที่ *</label><select id="dlvNo"></select></div>
+      <div class="field"><label>วันที่ส่งงาน *</label>
+        <div class="date-edit-wrap"><input type="date" id="dlvDate" required><span class="date-display placeholder" id="dlvDateText">dd/mm/yyyy</span></div></div>
+      <div class="field full" style="grid-column:1/-1;"><label>หมายเหตุ</label><input type="text" id="dlvNote" placeholder="เช่น ส่งมอบอุปกรณ์ชุดที่ 1 (ถ้ามี)"></div>
+    </div>
+    <div id="dlvHistory" style="margin-top:8px;"></div>
+    <div class="modal-actions">
+      <button class="btn outline" type="button" id="dlvCancelBtn">ยกเลิก</button>
+      <button class="btn outline" type="button" id="dlvSavePrintBtn">บันทึกและพิมพ์ PDF</button>
+      <button class="btn" type="button" id="dlvSaveBtn">บันทึก</button>
+    </div>
   </div>
 </div>
 
@@ -1193,7 +1233,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.13.1';
+const APP_VERSION = '1.14.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1321,7 +1361,8 @@ $('mobileBackdrop').addEventListener('click', () => setMobileMenu(false));
 
 const TITLES = {
   dashboard:['แดชบอร์ด','สรุปสถานะซื้อขาย/โครงการทั้งหมด'],
-  projects:['ซื้อขาย/โครงการ','บันทึกและจัดการรายการซื้อขายและโครงการ พิมพ์เป็น PDF ได้'],
+  sales:['ซื้อขาย','บันทึกรายการซื้อขาย เลือกสินค้าจากโกดัง ตัดสต็อกเมื่อส่งของ และพิมพ์เอกสารส่งมอบงานเป็น PDF'],
+  projects:['โครงการ','บันทึกโครงการ เลือกอุปกรณ์จากโกดัง ส่งข้อมูลไปที่ Action Plan แบ่งงวดส่งงาน และพิมพ์เอกสารส่งมอบงานเป็น PDF'],
   actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
   equipment:['อุปกรณ์และการรับประกัน','สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ'],
   warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
@@ -1351,7 +1392,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 
 function renderActiveTab(){
   const fn = {
-    dashboard:renderDashboard, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, catalog:renderCatalogs,
+    dashboard:renderDashboard, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, catalog:renderCatalogs,
     customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit
   }[currentTab];
   if (fn) fn();
@@ -1364,7 +1405,8 @@ function renderActiveTab(){
 const PAGE_SIZES = [10, 20, 50, 100];
 const pagerState = {};
 const PAGER_UI = {
-  projects:  { el:'projectsPager',  render: () => renderProjects(),     filters:['projectsSearch','projectsTypeFilter','projectsStatusFilter'] },
+  sales:     { el:'salesPager',     render: () => renderSales(),        filters:['salesSearch','salesStatusFilter'] },
+  projects:  { el:'projectsPager',  render: () => renderProjects(),     filters:['projectsSearch','projectsStatusFilter'] },
   plan:      { el:'planPager',      render: () => renderActionPlan(),   filters:['planListSearch','planListStatus'] },
   equipment: { el:'equipmentPager', render: () => renderEquipment(),    filters:['equipmentSearch','equipmentTypeFilter','equipmentWarrantyFilter'] },
   warehouse: { el:'warehousePager', render: () => renderWarehouse(),    filters:['warehouseSearch','warehouseBrandFilter','warehouseTypeFilter','warehouseSortFilter'] },
@@ -1411,7 +1453,8 @@ function setPageSize(key, v){ pagerState[key].size = Number(v) || 10; pagerState
 // (A function, not a const, so it can be called from renderActiveTab() at any point without a temporal-dead-zone risk.)
 function filterGroups(){
   return [
-    { btn:'projectsClearBtn',  fields:{ projectsSearch:'', projectsTypeFilter:'all', projectsStatusFilter:'all' }, render: renderProjects },
+    { btn:'salesClearBtn',     fields:{ salesSearch:'', salesStatusFilter:'all' }, render: renderSales },
+    { btn:'projectsClearBtn',  fields:{ projectsSearch:'', projectsStatusFilter:'all' }, render: renderProjects },
     { btn:'planListClearBtn',  fields:{ planListSearch:'', planListStatus:'all' }, render: renderActionPlan },
     { btn:'equipmentClearBtn', fields:{ equipmentSearch:'', equipmentTypeFilter:'all', equipmentWarrantyFilter:'all' }, render: renderEquipment },
     { btn:'catalogClearBtn',   fields:{ catalogSearch:'', catalogBrandFilter:'all' }, render: renderCatalogs },
@@ -1837,9 +1880,9 @@ function warrantyBadge(status){ return `<span class="badge ${status}">${WARRANTY
 
 /* ====== Dashboard ====== */
 function goProjects(status){
-  $('projectsStatusFilter').value = status || 'all';
-  $('projectsTypeFilter').value = dashJobFilter;   // carry the dashboard's sale/project choice over to the list
-  showTab('projects');
+  const k = dashJobFilter === 'sale' ? 'sales' : 'projects';   // carry the dashboard's sale/project choice over to the matching menu
+  $(k + 'StatusFilter').value = status || 'all';
+  showTab(k);
 }
 let dashJobFilter = 'all';   // dashboard switch: 'all' | 'sale' | 'project'
 const dashPick = list => dashJobFilter === 'all' ? list : list.filter(p => jobTypeOf(p) === dashJobFilter);
@@ -1937,44 +1980,51 @@ function renderDashboard(){
    One list holds both kinds of job (`jobType`: 'sale' | 'project'). Each has equipment lines that point at warehouse items:
    items: [{rid, whId, part, brand, name, type, serials[], qty, status:'pending'|'done'}]. Saving a line as 'done' takes its
    quantity and serial numbers out of the warehouse item (in one transaction with the save); reverting or deleting the line puts them back. */
-function renderProjects(){
+// The two menus share this renderer: kind = 'sale' (ซื้อขาย) or 'project' (โครงการ)
+function renderJobs(kind){
+  const sale = kind === 'sale', k = sale ? 'sales' : 'projects';
   const isAdmin = currentUserRole === 'admin';
   document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
-  const q = $('projectsSearch').value.trim().toLowerCase();
-  const sf = $('projectsStatusFilter').value;
-  const tf = $('projectsTypeFilter').value;
+  const q = $(k + 'Search').value.trim().toLowerCase();
+  const sf = $(k + 'StatusFilter').value;
   const rows = getVisibleProjects()
-    .filter(p => tf === 'all' || jobTypeOf(p) === tf)
+    .filter(p => jobTypeOf(p) === kind)
     .filter(p => sf === 'all' || projectStatus(p) === sf)
     .filter(p => !q || [p.name, p.customerName, p.contractNo, p.poNo, p.docNo].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
-  lastList.projects = rows;
-  $('projectsCount').textContent = rows.length;
-  const cols = isAdmin ? 10 : 9;
-  const view = pageSlice('projects', rows);
-  $('projectsBody').innerHTML = rows.length ? view.map(p => {
+  lastList[k] = rows;
+  $(k + 'Count').textContent = rows.length;
+  const cols = isAdmin ? 9 : 8;
+  const view = pageSlice(k, rows);
+  $(k + 'Body').innerHTML = rows.length ? view.map(p => {
     const its = p.items || [], done = its.filter(i => i.status === 'done').length;
+    const itemsCell = `<td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}${!sale && Number(p.installmentTotal) > 0 ? `<div class="cell-sub">ส่งงานแล้ว ${lastDelivered(p)}/${p.installmentTotal} งวด</div>` : ''}</td>`;
+    const middle = sale
+      ? `<td>${escapeHtml(p.poNo || '-')}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}</td>`
+      : `<td>${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>`;
     return `
     <tr>
       <td>${p.docNo ? `<span class="docno">${escapeHtml(p.docNo)}</span>` : '<span class="cell-sub">-</span>'}</td>
       <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
-      <td>${jobBadge(p)}</td>
       <td>${escapeHtml(p.customerName || '-')}</td>
-      <td>${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td>
-      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">${isSale(p) ? 'วันที่สั่งซื้อ' : 'ถึง ' + fmtDate(p.endDate)}</div></td>
-      <td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>
+      ${middle}
+      ${itemsCell}
       <td>${statusBadgeFor(p)}</td>
       ${isAdmin ? `<td class="cell-sub">${escapeHtml(getUserDisplayName(p.createdBy))}</td>` : ''}
       <td><div class="row-actions">
-        ${isSale(p) ? '' : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
+        ${sale ? '' : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
+        ${!sale && Number(p.installmentTotal) > 0 ? `<button class="icon-btn" onclick="openDeliveryModal('${p.id}')">ส่งงาน</button>` : ''}
         <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
         <button class="icon-btn" onclick="openProjectForm('${p.id}')">แก้ไข</button>
         <button class="icon-btn delete-btn" onclick="deleteEntity('projects','${p.id}')">ลบ</button>
       </div></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="${cols}" class="empty-row">ยังไม่มีรายการซื้อขาย/โครงการ</td></tr>`;
+  }).join('') : `<tr><td colspan="${cols}" class="empty-row">${sale ? 'ยังไม่มีรายการซื้อขาย' : 'ยังไม่มีโครงการ'}</td></tr>`;
 }
-['projectsSearch','projectsStatusFilter','projectsTypeFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
+function renderProjects(){ renderJobs('project'); }
+function renderSales(){ renderJobs('sale'); }
+['projectsSearch', 'projectsStatusFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
+['salesSearch', 'salesStatusFilter'].forEach(id => $(id).addEventListener('input', renderSales));
 
 let editingProjectId = null;
 let editingItems = [];
@@ -2007,20 +2057,22 @@ function fillProjectSelects(selectedCustomer, selectedCompany){
   ks.innerHTML = `<option value="">— ไม่ระบุ —</option>` + companies.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
   ks.value = companies.some(c => c.id === selectedCompany) ? selectedCompany : (companies.length === 1 && !editingProjectId ? companies[0].id : '');
 }
-function openProjectForm(id){
+function openProjectForm(id, kind){
   const p = id ? data.projects.find(x => x.id === id) : null;
   if (id && !p) return;
-  if (!p && !data.customers.length){ toast('กรุณาเพิ่มลูกค้าก่อนเพิ่มรายการ'); showTab('customers'); return; }
+  if (!p && !data.customers.length){ toast('กรุณาเพิ่มลูกค้าก่อน'); showTab('customers'); return; }
   editingProjectId = p ? p.id : null;
-  $('projectModalTitle').textContent = p ? 'แก้ไขรายการ' : 'เพิ่มรายการ';
+  const jobWord = (p ? isSale(p) : kind === 'sale') ? 'การซื้อขาย' : 'โครงการ';
+  $('projectModalTitle').textContent = (p ? 'แก้ไข' : 'เพิ่ม') + jobWord;
   fillProjectSelects(p && p.customerId, p && p.companyId);
-  $('prjJobType').value = p ? jobTypeOf(p) : 'project';
+  $('prjJobType').value = p ? jobTypeOf(p) : (kind === 'sale' ? 'sale' : 'project');
   $('prjJobType').disabled = !!(p && p.docNo);   // the number's SO/PJ prefix follows the type, so it can't change once numbered
   $('prjDocNo').textContent = p && p.docNo ? p.docNo : 'จะรันให้อัตโนมัติเมื่อบันทึก';
   $('prjName').value = p ? p.name || '' : '';
   $('prjContract').value = p ? p.contractNo || '' : '';
   $('prjPo').value = p ? p.poNo || '' : '';
-  $('prjInstallment').value = p ? p.installmentNo || '' : '';
+  $('prjInstallmentTotal').value = p && p.installmentTotal > 0 ? p.installmentTotal : '';
+  $('prjInstallmentHint').textContent = p && (p.deliveries || []).length ? `ส่งงานแล้ว ${installmentLabel(p) || (p.deliveries || []).length + ' ครั้ง'} — กด "ส่งงาน" ในรายการเพื่อบันทึกงวดถัดไป` : (p && p.installmentTotal > 0 ? 'ยังไม่เคยส่งงาน — กด "ส่งงาน" ในรายการเมื่อส่งมอบแต่ละงวด' : '');
   $('prjStart').value = p ? p.startDate || '' : '';
   $('prjEnd').value = p && !isSale(p) ? p.endDate || '' : '';
   $('prjNotes').value = p ? p.notes || '' : '';
@@ -2040,6 +2092,7 @@ function applyJobType(){
   $('prjStartLabel').textContent = sale ? 'วันที่สั่งซื้อ *' : 'วันที่เซ็นสัญญา *';
   $('prjEndField').style.display = sale ? 'none' : '';
   $('prjEnd').required = !sale;
+  $('prjInstallmentField').style.display = sale ? 'none' : '';   // sales are not split into installments
   $('prjLocationLabel').textContent = sale ? 'สถานที่ส่งสินค้า' : 'สถานที่ติดตั้ง';
   syncProjectDateTexts();
 }
@@ -2131,7 +2184,8 @@ function removeItemRow(i){
   renderItemRows();
 }
 $('prjAddItemBtn').addEventListener('click', () => { editingItems.push(blankItem()); renderItemRows(); });
-$('projectCreateBtn').addEventListener('click', () => openProjectForm(null));
+$('projectsCreateBtn').addEventListener('click', () => openProjectForm(null, 'project'));
+$('salesCreateBtn').addEventListener('click', () => openProjectForm(null, 'sale'));
 $('projectCancelBtn').addEventListener('click', () => closeModal('projectModal'));
 
 /* ---- what this save must take out of / put back into the warehouse ----
@@ -2243,6 +2297,10 @@ $('projectForm').addEventListener('submit', async e => {
   const sale = $('prjJobType').value === 'sale';
   const start = $('prjStart').value, end = sale ? start : $('prjEnd').value;
   if (end < start){ toast('วันที่สิ้นสุดต้องไม่ก่อนวันที่เซ็นสัญญา'); return; }
+  const total = sale ? 0 : Math.floor(Number($('prjInstallmentTotal').value) || 0);
+  const cur = data.projects.find(x => x.id === editingProjectId);
+  const delivered = cur ? Math.max(0, ...(cur.deliveries || []).map(d => Number(d.no) || 0)) : 0;
+  if (total && delivered > total){ toast(`ส่งงานถึงงวดที่ ${delivered} ไปแล้ว จำนวนงวดทั้งหมดต้องไม่น้อยกว่า ${delivered}`); $('prjInstallmentTotal').focus(); return; }
   const customerId = $('prjCustomer').value;
   const customer = data.customers.find(c => c.id === customerId);
   if (!customer){ toast('กรุณาเลือกลูกค้า'); return; }
@@ -2264,7 +2322,7 @@ $('projectForm').addEventListener('submit', async e => {
   const doc = {
     jobType: sale ? 'sale' : 'project',
     name: $('prjName').value.trim(), customerId, customerName: customer.name,
-    contractNo: $('prjContract').value.trim(), poNo: $('prjPo').value.trim(), installmentNo: $('prjInstallment').value.trim(), startDate: start, endDate: end,
+    contractNo: $('prjContract').value.trim(), poNo: $('prjPo').value.trim(), installmentTotal: sale ? 0 : Math.max(0, Math.min(99, Math.floor(Number($('prjInstallmentTotal').value) || 0))), startDate: start, endDate: end,
     companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(),
     installLocation: $('prjLocation').value.trim(), warrantyMonths: Math.max(0, Math.floor(Number($('prjWarranty').value) || 0)), items
   };
@@ -2352,9 +2410,9 @@ function buildProjectPrintHtml(p){
     <div class="ho-block"><div class="ho-title">เอกสารส่งมอบงาน</div>
     <div class="ho-sec"><span class="n">1.</span>ข้อมูลทั่วไป</div>
     <table class="ho-t"><colgroup><col style="width:33.5mm"><col style="width:49mm"><col style="width:33.5mm"><col style="width:49mm"></colgroup>
-      ${row('เลขที่เอกสาร', e(p.docNo), 'วันที่ส่งมอบ', escapeHtml(fmtDate(sale ? p.startDate : (p.endDate || p.startDate))))}
+      ${row('เลขที่เอกสาร', e(p.docNo), 'วันที่ส่งมอบ', escapeHtml(fmtDate(deliveryDateFor(p))))}
       ${row(sale ? 'ชื่องาน' : 'ชื่อโครงการ', e(p.name))}
-      ${row('เลขที่สัญญา', e(contract), 'งวดงานที่', e(p.installmentNo))}
+      ${row('เลขที่สัญญา', e(contract), 'งวดงานที่', e(installmentLabel(p)))}
       ${row('หน่วยงาน / บริษัท', e(cu.name), 'ชื่อลูกค้า', e(cu.contactName))}
       ${row('ที่อยู่', e(cu.address))}
       ${row('สถานที่ส่งมอบ', e(wr.location), 'ช่องทางติดต่อ', e(cu.contactPhone))}
@@ -2375,6 +2433,62 @@ function buildProjectPrintHtml(p){
         <p>ลงชื่อ ${dots}</p><p>( ${dots} )</p><p>ตำแหน่ง ${dots}</p><p>วันที่ ..... / ..... / .....</p></div>`).join('')}</div></div>
   </div>`;
 }
+/* ====== Installments ("งวดงาน") and delivering a batch ("ส่งงาน") ======
+   A project can be split into N installments (installmentTotal). Each time a batch is handed over the "ส่งงาน" dialog records which one
+   (installmentNo, plus a deliveries[] history); the handover PDF then shows it as "3/4". Sales are never split. */
+function installmentLabel(p){
+  const total = Number(p.installmentTotal) || 0, no = p.installmentNo;
+  if (isSale(p)) return '';
+  if (no === undefined || no === null || no === '') return '';
+  if (total && /^\d+$/.test(String(no))) return `${no}/${total}`;
+  return String(no);   // older free-text value ("งวดที่ 2")
+}
+const lastDelivered = p => Math.max(0, ...(p.deliveries || []).map(d => Number(d.no) || 0));
+// date of the delivery that the PDF is about: the latest record of the current installment, else the project's end date
+function deliveryDateFor(p){
+  const rec = [...(p.deliveries || [])].reverse().find(d => String(d.no) === String(p.installmentNo));
+  return rec && rec.date ? rec.date : (isSale(p) ? p.startDate : (p.endDate || p.startDate));
+}
+let deliveringId = null;
+function syncDeliveryDateText(){ $('dlvDateText').textContent = dateText($('dlvDate').value); $('dlvDateText').classList.toggle('placeholder', !$('dlvDate').value); }
+$('dlvDate').addEventListener('input', syncDeliveryDateText); $('dlvDate').addEventListener('change', syncDeliveryDateText);
+function openDeliveryModal(id){
+  const p = data.projects.find(x => x.id === id);
+  if (!p || isSale(p) || !(Number(p.installmentTotal) > 0)) return;
+  deliveringId = id;
+  const total = Number(p.installmentTotal), next = Math.min(total, lastDelivered(p) + 1);
+  $('dlvTitle').textContent = 'ส่งงาน';
+  $('dlvSub').textContent = `${p.docNo ? p.docNo + ' · ' : ''}${p.name}`;
+  $('dlvNo').innerHTML = Array.from({ length: total }, (_, i) => `<option value="${i + 1}" ${i + 1 === next ? 'selected' : ''}>${i + 1} / ${total}${(p.deliveries || []).some(d => Number(d.no) === i + 1) ? ' (เคยส่งแล้ว)' : ''}</option>`).join('');
+  $('dlvDate').value = todayStr(); syncDeliveryDateText();
+  $('dlvNote').value = '';
+  const hist = [...(p.deliveries || [])].sort((a, b) => (a.at || '').localeCompare(b.at || ''));
+  $('dlvHistory').innerHTML = hist.length ? `<div class="cell-sub" style="margin:4px 0;">ประวัติการส่งงาน</div>` + hist.map(d => `<div class="cell-sub">งวดที่ ${d.no}/${d.total || total} · ${fmtDate(d.date)}${d.note ? ' · ' + escapeHtml(d.note) : ''}${d.byName ? ' · ' + escapeHtml(d.byName) : ''}</div>`).join('') : '<div class="cell-sub">ยังไม่เคยส่งงาน</div>';
+  openModal('deliveryModal');
+}
+async function saveDelivery(thenPrint){
+  const p = data.projects.find(x => x.id === deliveringId);
+  if (!p) return;
+  const total = Number(p.installmentTotal), no = Math.floor(Number($('dlvNo').value) || 0);
+  if (!no || no > total){ toast('กรุณาเลือกงวดงาน'); return; }
+  if (!$('dlvDate').value){ toast('กรุณาเลือกวันที่ส่งงาน'); return; }
+  const rec = { no, total, date: $('dlvDate').value, note: $('dlvNote').value.trim(), by: currentUserUid, byName: currentUserName || currentUserEmail || '', at: new Date().toISOString() };
+  const deliveries = [...(p.deliveries || []), rec].slice(-50);
+  $('dlvSaveBtn').disabled = $('dlvSavePrintBtn').disabled = true;
+  setSync('saving');
+  try{
+    await db.collection(COL.projects).doc(p.id).update({ installmentNo: no, deliveries });
+    Object.assign(p, { installmentNo: no, deliveries });   // so a print right now already shows the new installment (the snapshot brings the same values)
+    logAudit('ส่งงาน', p.docNo || p.name, `งวดที่ ${no}/${total}${rec.note ? ' · ' + rec.note : ''}`);
+    setSync('ok'); closeModal('deliveryModal'); toast(`บันทึกการส่งงานงวดที่ ${no}/${total} แล้ว`);
+    if (thenPrint) printProject(p.id);
+  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+  $('dlvSaveBtn').disabled = $('dlvSavePrintBtn').disabled = false;
+}
+$('dlvCancelBtn').addEventListener('click', () => closeModal('deliveryModal'));
+$('dlvSaveBtn').addEventListener('click', () => saveDelivery(false));
+$('dlvSavePrintBtn').addEventListener('click', () => saveDelivery(true));
+
 function printProject(id){
   const p = data.projects.find(x => x.id === id);
   if (!p) return;
@@ -3173,14 +3287,16 @@ async function exportExcel(fileBase, sheetName, rows){
   }catch(err){ toast(err.message || 'ส่งออกไม่สำเร็จ'); }
 }
 const excelDate = v => v ? fmtDMY(v) : '';
-const EXPORTS = {
-  projects: () => (lastList.projects || []).map(pr => {
+const jobRow = pr => {
     const its = pr.items || [], w = projectWarranty(pr);
-    return { 'เลขที่เอกสาร': pr.docNo || '', 'ประเภทงาน': JOB_TYPES[jobTypeOf(pr)], 'ชื่องาน/โครงการ': pr.name || '', 'ลูกค้า': pr.customerName || '', 'เลขที่สัญญา': pr.contractNo || '', 'เลขที่ PO': pr.poNo || '',
+    return { 'เลขที่เอกสาร': pr.docNo || '', 'ชื่องาน/โครงการ': pr.name || '', 'ลูกค้า': pr.customerName || '', 'เลขที่สัญญา': pr.contractNo || '', 'เลขที่ PO': pr.poNo || '', 'งวดงาน': installmentLabel(pr),
       'วันที่เริ่ม/สั่งซื้อ': excelDate(pr.startDate), 'วันที่สิ้นสุด': isSale(pr) ? '' : excelDate(pr.endDate), 'สถานะ': statusLabelFor(pr, projectStatus(pr)),
       'จำนวนรายการอุปกรณ์': its.length, 'ดำเนินการแล้ว': its.filter(i => i.status === 'done').length, 'สถานที่': w.location || '', 'ประกัน (เดือน)': w.months || '', 'หมดประกัน': excelDate(w.expiry),
       'หมายเหตุ': pr.notes || '', 'สร้างโดย': getUserDisplayName(pr.createdBy) };
-  }),
+};
+const EXPORTS = {
+  sales: () => (lastList.sales || []).map(jobRow),
+  projects: () => (lastList.projects || []).map(jobRow),
   equipment: () => (lastList.equipment || []).map(r => ({ 'เลขที่เอกสาร': r.project.docNo || '', 'ชื่องาน/โครงการ': r.project.name || '', 'ประเภทงาน': JOB_TYPES[jobTypeOf(r.project)], 'ลูกค้า': r.project.customerName || '',
     'สถานที่': r.location || '', 'เริ่มรับประกัน': r.months ? excelDate(r.start) : '', 'ประกัน (เดือน)': r.months || '', 'หมดประกัน': excelDate(r.expiry), 'สถานะประกัน': WARRANTY_LABEL[r.wstatus] || r.wstatus })),
   warehouse: () => (lastList.warehouse || []).map(w => ({ 'Part': w.part || '', 'ยี่ห้อ': w.brand || '', 'ประเภท': w.type || '', 'ชื่ออุปกรณ์': w.name || '', 'จำนวนคงเหลือ': Number(w.quantity) || 0,
@@ -3188,7 +3304,7 @@ const EXPORTS = {
   customers: () => (lastList.customers || []).map(c => ({ 'ชื่อลูกค้า': c.name || '', 'ประเภท': CUSTOMER_TYPES[c.type] || CUSTOMER_TYPES.private, 'เลขที่ผู้เสียภาษี': c.type === 'gov' ? '' : (c.taxId || ''), 'ที่อยู่': c.address || '',
     'ผู้ติดต่อ': c.contactName || '', 'เบอร์ติดต่อ': c.contactPhone || '', 'จำนวนรายการ': projectCountForCustomer(c) }))
 };
-const EXPORT_NAMES = { projects: ['ซื้อขาย-โครงการ', 'ซื้อขาย-โครงการ'], equipment: ['อุปกรณ์และการรับประกัน', 'การรับประกัน'], warehouse: ['โกดังสินค้า', 'โกดัง'], customers: ['รายชื่อลูกค้า', 'ลูกค้า'] };
+const EXPORT_NAMES = { sales: ['ซื้อขาย', 'ซื้อขาย'], projects: ['โครงการ', 'โครงการ'], equipment: ['อุปกรณ์และการรับประกัน', 'การรับประกัน'], warehouse: ['โกดังสินค้า', 'โกดัง'], customers: ['รายชื่อลูกค้า', 'ลูกค้า'] };
 Object.keys(EXPORTS).forEach(k => $(k + 'ExportBtn').addEventListener('click', () => exportExcel(EXPORT_NAMES[k][0], EXPORT_NAMES[k][1], EXPORTS[k]())));
 
 /* ---- project attachments: one document per file in pm_files (bytes stored as base64, like logos/avatars/catalogs; no Firebase Storage) ---- */

@@ -44,30 +44,30 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     W = lambda id: page.evaluate(f"(() => {{ const w = data.warehouse.find(x => x.id === '{id}'); return {{quantity: w.quantity, serials: w.serials}}; }})()")
 
     # ---------------- renames + filter ----------------
-    assert 'ซื้อขาย/โครงการ' in page.inner_text('.nav-item[data-tab="projects"] .nav-tooltip') or page.evaluate("document.querySelector('.nav-item[data-tab=\"projects\"] .nav-tooltip').textContent") == 'ซื้อขาย/โครงการ'
+    assert page.evaluate("document.querySelector('.nav-item[data-tab=\"sales\"] .nav-tooltip').textContent") == 'ซื้อขาย' and page.evaluate("document.querySelector('.nav-item[data-tab=\"projects\"] .nav-tooltip').textContent") == 'โครงการ'
     page.click('.nav-item[data-tab="dashboard"]')
     assert page.inner_text('#dashStats .stat-card:first-child .stat-label') == 'ซื้อขาย / โครงการทั้งหมด'
     page.click('.nav-item[data-tab="projects"]')
-    assert page.inner_text('#pageTitle') == 'ซื้อขาย/โครงการ'
-    assert 'ซื้อขาย / โครงการทั้งหมด' in page.inner_text('#tab-projects .panel-head h3')
-    assert page.inner_text('#projectCreateBtn') == '+ เพิ่มรายการ'
-    assert page.evaluate("[...document.querySelectorAll('#projectsTypeFilter option')].map(o => o.textContent)") == ['ทุกประเภทงาน', 'ซื้อขาย', 'โครงการ']
+    assert page.inner_text('#pageTitle') == 'โครงการ' and 'โครงการทั้งหมด' in page.inner_text('#tab-projects .panel-head h3') and page.inner_text('#projectsCreateBtn') == '+ เพิ่มโครงการ'
+    assert page.locator('#projectsTypeFilter').count() == 0 and 'ประเภทงาน' not in page.inner_text('#tab-projects thead'), "the job-type filter and column are gone"
+    page.click('.nav-item[data-tab="sales"]')
+    assert page.inner_text('#pageTitle') == 'ซื้อขาย' and 'ซื้อขายทั้งหมด' in page.inner_text('#tab-sales .panel-head h3') and page.inner_text('#salesCreateBtn') == '+ เพิ่มการซื้อขาย'
 
     # ---------------- form: order + labels per job type ----------------
-    page.click('#projectCreateBtn')
-    assert page.inner_text('#projectModalTitle') == 'เพิ่มรายการ' and page.inner_text('#projectSaveBtn') == 'บันทึกรายการ'
+    page.click('#salesCreateBtn')
+    assert page.inner_text('#projectModalTitle') == 'เพิ่มการซื้อขาย' and page.inner_text('#projectSaveBtn') == 'บันทึกรายการ'
     order = page.evaluate("[...document.querySelectorAll('#projectForm .form-grid .field label')].map(l => l.textContent.trim())")
     print(order)
-    assert order == ['ประเภทของงาน *', 'ชื่อโครงการ *', 'หน่วยงาน / ลูกค้า *', 'เลขที่สัญญา', 'เลขที่ PO', 'งวดงานที่', 'วันที่เซ็นสัญญา *', 'วันที่สิ้นสุด *', 'บริษัทของเรา (หัวกระดาษ PDF)', 'สถานที่ติดตั้ง', 'การรับประกัน (เดือน)', 'หมายเหตุ'], order
-    assert page.evaluate("[...document.querySelectorAll('#prjJobType option')].map(o => o.textContent)") == ['ซื้อขาย', 'โครงการ']
+    assert order == ['ชื่องาน *', 'หน่วยงาน / ลูกค้า *', 'เลขที่สัญญา', 'เลขที่ PO', 'จำนวนงวดงานทั้งหมด', 'วันที่สั่งซื้อ *', 'วันที่สิ้นสุด *', 'บริษัทของเรา (หัวกระดาษ PDF)', 'สถานที่ส่งสินค้า', 'การรับประกัน (เดือน)', 'หมายเหตุ'], order
+    assert page.evaluate("document.getElementById('prjJobType').type") == 'hidden' and page.input_value('#prjJobType') == 'sale', "no job-type select: the menu decides"
     heads = page.evaluate("[...document.querySelectorAll('#projectModal .items-table thead th')].map(t => t.textContent.trim())")
     assert heads[1].startswith('Part') and heads[2:8] == ['ยี่ห้อ', 'ชื่อ', 'ประเภท', 'รหัสอุปกรณ์', 'จำนวน', 'สถานะ'], heads
-    page.select_option('#prjJobType', 'sale')
+    page.evaluate("$('prjJobType').value = 'sale'; applyJobType()")
     assert page.inner_text('#prjNameLabel') == 'ชื่องาน *' and page.inner_text('#prjStartLabel') == 'วันที่สั่งซื้อ *' and page.inner_text('#prjLocationLabel') == 'สถานที่ส่งสินค้า'
     assert not page.is_visible('#prjEndField') and page.evaluate("document.getElementById('prjEnd').required") is False
-    page.select_option('#prjJobType', 'project')
+    page.evaluate("$('prjJobType').value = 'project'; applyJobType()")
     assert page.inner_text('#prjNameLabel') == 'ชื่อโครงการ *' and page.is_visible('#prjEndField') and page.inner_text('#prjLocationLabel') == 'สถานที่ติดตั้ง'
-    page.select_option('#prjJobType', 'sale')
+    page.evaluate("$('prjJobType').value = 'sale'; applyJobType()")
 
     # ---------------- a SALE with warehouse-linked lines ----------------
     page.fill('#prjName', 'ขายสวิตช์'); page.select_option('#prjCustomer', index=1); page.select_option('#prjCompany', index=1)
@@ -100,10 +100,10 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert prj['jobType'] == 'sale' and prj['startDate'] == '2026-09-01' and prj['endDate'] == '2026-09-01'
     assert [(i['part'], i['qty'], i['status'], i['serials']) for i in prj['items']] == [('SW-24', 2, 'pending', ['S2', 'S4']), ('RT-1', 1, 'pending', [])]
     assert W('w1') == {'quantity': 5, 'serials': ['S1', 'S2', 'S3', 'S4', 'S5']} and W('w2')['quantity'] == 2, "pending lines must not touch the warehouse"
-    assert 'ซื้อขาย' in page.inner_text('#projectsBody tr:has-text("ขายสวิตช์")') and 'รอดำเนินการ' in page.inner_text('#projectsBody tr:has-text("ขายสวิตช์")')
+    assert 'ขายสวิตช์' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")') and 'รอดำเนินการ' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')
 
     # ---------------- mark a line as done -> confirm -> stock and serials come out of the warehouse ----------------
-    page.click('#projectsBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
     page.select_option(f"{R(1,8)} select", 'done')
     assert page.is_disabled(f"{R(1,7)} input") and page.is_disabled(f"{R(1,2)} select"), "a done line is locked"
     assert 'S2' in page.inner_text(R(1, 6)) and 'S4' in page.inner_text(R(1, 6))
@@ -115,32 +115,32 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert W('w1') == {'quantity': 3, 'serials': ['S1', 'S3', 'S5']}, W('w1')
     assert P()['items'][0]['status'] == 'done' and P()['items'][0]['serials'] == ['S2', 'S4']
-    assert 'กำลังดำเนินการ' in page.inner_text('#projectsBody tr:has-text("ขายสวิตช์")')                             # 1 of 2 lines done
+    assert 'กำลังดำเนินการ' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')                             # 1 of 2 lines done
     page.click('.nav-item[data-tab="warehouse"]')
     assert '3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")') and 'SN 3/3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")')
 
     # ---------------- finish the second line -> sale is 'ดำเนินการแล้ว' ----------------
-    page.click('.nav-item[data-tab="projects"]'); page.click('#projectsBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('.nav-item[data-tab="sales"]'); page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
     page.select_option(f"{R(2,8)} select", 'done'); page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
-    assert W('w2')['quantity'] == 1 and 'ดำเนินการแล้ว' in page.inner_text('#projectsBody tr:has-text("ขายสวิตช์")')
+    assert W('w2')['quantity'] == 1 and 'ดำเนินการแล้ว' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')
     assert page.evaluate("projectStatus(data.projects.find(p => p.name === 'ขายสวิตช์'))") == 'ended'
 
     # ---------------- revert to pending -> stock and serials are put back ----------------
-    page.click('#projectsBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
     page.select_option(f"{R(1,8)} select", 'pending')
     assert not page.is_disabled(f"{R(1,7)} input")
     page.click('#projectSaveBtn'); assert 'คืนเข้า 2 ชิ้น' in page.inner_text('#confirmModalMsg'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert sorted(W('w1')['serials']) == ['S1', 'S2', 'S3', 'S4', 'S5'] and W('w1')['quantity'] == 5
 
     # ---------------- deleting a done line also puts its stock back ----------------
-    page.click('#projectsBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
     page.click(f"{R(2,9)} button")                                                                                  # line 2 (RB4011, done) removed
     page.click('#projectSaveBtn'); assert 'คืนเข้า 1 ชิ้น' in page.inner_text('#confirmModalMsg'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert W('w2')['quantity'] == 2 and len(P()['items']) == 1
 
     # ---------------- not enough stock: nothing is saved ----------------
     page.evaluate("db.collection('pm_warehouse').doc('w2').update({quantity: 0})"); page.wait_for_timeout(200)
-    page.click('#projectsBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
     page.click('#prjAddItemBtn'); page.select_option(f"{R(2,2)} select", 'w2'); page.select_option(f"{R(2,8)} select", 'done')
     page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert 'ไม่พอ' in page.inner_text('#toast') and page.is_visible('#projectModal'), page.inner_text('#toast')
@@ -152,7 +152,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert 'ตัดสต็อกโกดัง' in acts and 'คืนสต็อกโกดัง' in acts and 'สร้างรายการซื้อขาย' in acts
 
     # ---------------- a PROJECT: two dates, plan, legacy lines ----------------
-    page.click('#projectCreateBtn'); page.select_option('#prjJobType', 'project')
+    page.click('.nav-item[data-tab="projects"]'); page.click('#projectsCreateBtn')
     page.fill('#prjName', 'โครงการ CCTV'); page.select_option('#prjCustomer', index=1)
     page.fill('#prjStart', D(-5)); page.fill('#prjEnd', D(60)); page.fill('#prjLocation', 'อาคาร A')
     assert 'นับจากวันสิ้นสุดโครงการ' in page.inner_text('#prjWarrantyHint')
@@ -161,13 +161,13 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert pj['jobType'] == 'project' and pj['endDate'] == D(60) and pj['items'] == []
     assert 'รอดำเนินการ' in page.inner_text('#projectsBody tr:has-text("โครงการ CCTV")')   # in contract, no plan yet
 
-    # filters
-    page.select_option('#projectsTypeFilter', 'sale'); body = page.inner_text('#projectsBody')
+    # separate menus: each list only holds its own kind
+    body = page.inner_text('#projectsBody')
+    assert 'โครงการ CCTV' in body and 'โครงการเก่า' in body and 'ขายสวิตช์' not in body
+    page.click('.nav-item[data-tab="sales"]'); body = page.inner_text('#salesBody')
     assert 'ขายสวิตช์' in body and 'โครงการ CCTV' not in body and 'โครงการเก่า' not in body
-    assert page.locator('#projectsBody tr:has-text("ขายสวิตช์") button:has-text("แผนงาน")').count() == 0     # sales have no action plan
-    page.select_option('#projectsTypeFilter', 'project'); body = page.inner_text('#projectsBody')
-    assert 'ขายสวิตช์' not in body and 'โครงการ CCTV' in body and 'โครงการเก่า' in body
-    page.select_option('#projectsTypeFilter', 'all')
+    assert page.locator('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แผนงาน")').count() == 0     # sales have no action plan
+    page.click('.nav-item[data-tab="projects"]')
 
     # legacy project opens; old lines become plain-text lines and survive a save
     page.click('#projectsBody tr:has-text("โครงการเก่า") button:has-text("แก้ไข")')

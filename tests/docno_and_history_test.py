@@ -69,10 +69,10 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.click('.nav-item[data-tab="projects"]')
     heads = page.evaluate("[...document.querySelectorAll('#tab-projects thead th')].map(t => t.textContent.trim())")
     assert heads[0] == 'เลขที่เอกสาร', heads
-    page.click('#projectCreateBtn')
+    page.click('.nav-item[data-tab="sales"]'); page.click('#salesCreateBtn')
     assert 'จะรันให้อัตโนมัติ' in page.inner_text('#prjDocNo')
-    assert not page.is_disabled('#prjJobType')
-    page.select_option('#prjJobType', 'sale'); page.fill('#prjName', 'ขายใหม่ 1'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.select_option('#prjCompany', label='บริษัทเรา A')
+    assert page.evaluate("document.getElementById('prjJobType').disabled") is False and page.input_value('#prjJobType') == 'sale'
+    page.fill('#prjName', 'ขายใหม่ 1'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.select_option('#prjCompany', label='บริษัทเรา A')
     page.fill('#prjStart', D(0))
     R = lambda n, c: f"#prjItemsBody tr:nth-child({n}) td:nth-child({c})"
     page.select_option(f"{R(1,2)} select", 'w1'); page.fill(f"{R(1,7)} input", '2'); page.press(f"{R(1,7)} input", 'Tab')
@@ -85,25 +85,25 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert 'SO' + YMD + '-001' in page.inner_text('#toast')
     assert page.evaluate(f"(async () => (await db.collection('pm_counters').doc('SO{YMD}').get()).data().n)()") == 1
     # second sale on the same day -> 002 ; a project -> PJ...-001 (separate sequence)
-    page.click('#projectCreateBtn'); page.select_option('#prjJobType', 'sale'); page.fill('#prjName', 'ขายใหม่ 2'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.fill('#prjStart', D(0))
+    page.click('#salesCreateBtn'); page.fill('#prjName', 'ขายใหม่ 2'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.fill('#prjStart', D(0))
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'ขายใหม่ 2').docNo") == f"SO{YMD}-002"
-    page.click('#projectCreateBtn'); page.select_option('#prjJobType', 'project'); page.fill('#prjName', 'โครงการใหม่'); page.select_option('#prjCustomer', label='กรมทดสอบ')
+    page.click('.nav-item[data-tab="projects"]'); page.click('#projectsCreateBtn'); assert page.input_value('#prjJobType') == 'project'; page.fill('#prjName', 'โครงการใหม่'); page.select_option('#prjCustomer', label='กรมทดสอบ')
     page.fill('#prjStart', D(0)); page.fill('#prjEnd', D(90)); page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'โครงการใหม่').docNo") == f"PJ{YMD}-001"
     assert page.evaluate(f"(async () => (await db.collection('pm_counters').doc('SO{YMD}').get()).data().n)()") == 2
     # editing keeps the number and locks the type
-    page.click('#projectsBody tr:has-text("ขายใหม่ 1") button:has-text("แก้ไข")')
-    assert page.inner_text('#prjDocNo') == f"SO{YMD}-001" and page.is_disabled('#prjJobType')
+    page.click('.nav-item[data-tab="sales"]'); page.click('#salesBody tr:has-text("ขายใหม่ 1") button:has-text("แก้ไข")')
+    assert page.inner_text('#prjDocNo') == f"SO{YMD}-001" and page.evaluate("document.getElementById('prjJobType').disabled") is True
     page.keyboard.press('Escape')
     # a legacy item without a number gets one on save, dated by its creation day (2026-02-03), prefix by type
-    page.click('#projectsBody tr:has-text("ขายเก่า") button:has-text("แก้ไข")')
-    assert 'จะรันให้อัตโนมัติ' in page.inner_text('#prjDocNo') and not page.is_disabled('#prjJobType')
+    page.click('#salesBody tr:has-text("ขายเก่า") button:has-text("แก้ไข")')
+    assert 'จะรันให้อัตโนมัติ' in page.inner_text('#prjDocNo') and page.evaluate("document.getElementById('prjJobType').disabled") is False
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'ขายเก่า').docNo") == "SO20260203-001"
     # search by number
-    page.fill('#projectsSearch', 'SO' + YMD + '-002'); assert page.locator('#projectsBody tr').count() == 1 and 'ขายใหม่ 2' in page.inner_text('#projectsBody')
-    page.fill('#projectsSearch', '')
+    page.fill('#salesSearch', 'SO' + YMD + '-002'); assert page.locator('#salesBody tr').count() == 1 and 'ขายใหม่ 2' in page.inner_text('#salesBody')
+    page.fill('#salesSearch', '')
 
     # ---------------- document number shown on every project view ----------------
     hp = page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.name === 'ขายใหม่ 1'))")
@@ -199,14 +199,14 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # the sale view hides project-only alerts
     page.click('.subtab-item[data-dashjob="sale"]'); assert 'สัญญาจะสิ้นสุด' not in page.inner_text('#dashAlert') and 'แผนดำเนินการ' not in page.inner_text('#dashAlert')
     # clicking a card carries the choice to the list
-    page.click('#dashStats .stat-card.filled.pending'); assert page.input_value('#projectsTypeFilter') == 'sale'
+    page.click('#dashStats .stat-card.filled.pending'); assert page.inner_text('#pageTitle') == 'ซื้อขาย' and page.input_value('#salesStatusFilter') == 'pending'
     page.click('.nav-item[data-tab="dashboard"]')
     page.click('#dashJobClear'); assert vals()[0] == str(total) and label0() == 'ซื้อขาย / โครงการทั้งหมด' and page.is_disabled('#dashJobClear')
     assert badge('dashNavBadge') is not None, "the sidebar badges ignore the dashboard switch"
     page.screenshot(path="v19_dash.png")
 
     # ---------------- trash shows the number ----------------
-    page.click('.nav-item[data-tab="projects"]'); page.click('#projectsBody tr:has-text("ขายใหม่ 2") .delete-btn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(300)
+    page.click('.nav-item[data-tab="sales"]'); page.click('#salesBody tr:has-text("ขายใหม่ 2") .delete-btn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(300)
     page.click('.nav-item[data-tab="trash"]'); page.wait_for_timeout(500)
     assert f"SO{YMD}-002" in page.inner_text('#trashBody')
     print("errors:", errors); assert not errors

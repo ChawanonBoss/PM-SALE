@@ -10,9 +10,13 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 - Patch `index.html` with small Python scripts that assert exact match counts; avoid bash heredocs with mixed quotes (write files with the editor tools). After a big edit run `python tests/static_test.py` (a bad replace once left `class="tab-panel"...` visible on the dashboard).
 
 ## Data model (short)
-`pm_projects` (sale | project; items[] link to `pm_warehouse`; plan[] for projects; `docNo`, `contractNo`, `poNo`, `installmentNo`), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped 500),
+`pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse`; plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered, printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped 500),
 `pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB each, 8 per project), `pm_users` (`status` approved|pending|rejected; no status = approved),
 `pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
+
+## Menus
+ซื้อขาย (`tab-sales`, `#salesBody`) and โครงการ (`tab-projects`, `#projectsBody`) are separate menus over the same `pm_projects` collection; `renderJobs(kind)` draws both. There is no job-type select/filter/column any more: `openProjectForm(id, kind)` sets the hidden `#prjJobType` from the menu.
+The Dashboard switch, the Warranty page and the Customer pop-up still mix both kinds.
 
 ## Printing
 Browser print -> "Save as PDF". `setPrintPage(css)` sets one `<style id="printPageStyle">` per print (portrait for the handover document, landscape for the Action Plan) and it is removed afterwards.

@@ -25,7 +25,7 @@ with new_page(viewport={"width": 390, "height": 844}) as (page, errors):
     page.evaluate("showTab('projects')"); page.wait_for_timeout(500)
     cell = page.locator('#projectsBody tr').first.locator('td').nth(1)
     labels = page.evaluate("[...document.querySelectorAll('#projectsBody tr:first-child td')].map(td => td.dataset.label || '')")
-    assert labels[:4] == ['เลขที่เอกสาร', 'ชื่องาน / โครงการ', 'ประเภทงาน', 'ลูกค้า'], labels
+    assert labels[:4] == ['เลขที่เอกสาร', 'ชื่อโครงการ', 'ลูกค้า', 'เลขที่สัญญา'], labels
     assert page.evaluate("getComputedStyle(document.querySelector('#projectsBody tr')).display") == 'block'
     assert not page.evaluate("getComputedStyle(document.querySelector('#tab-projects thead')).display !== 'none'")
     assert page.evaluate("document.documentElement.scrollWidth <= document.documentElement.clientWidth")

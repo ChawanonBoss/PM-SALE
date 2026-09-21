@@ -72,6 +72,7 @@
       mk('อบรมและส่งมอบ', [], 'ลูกค้า', s0 + 60, 5, false)];
   };
 
+  const inst = [4, 3, 0, 5, 0, 3, 4, 0, 0, 2], dlv = [2, 0, 0, 3, 0, 3, 1, 0, 0, 0];   // installments per project spec (0 = not split), how many are already delivered
   const projects = [];
   specs.forEach((sp, i) => {
     const id = 'sample_' + rid();
@@ -89,7 +90,7 @@
       return { rid: rid(), whId: `#${wi}`, part: w.part, brand: w.brand, name: w.name, type: w.type, serials, qty, status };
     });
     projects.push({ id, wiRefs: sp.lines.map(l => l[0]), doc: { ...base, jobType: sp.job, docNo: '', name: `[ตัวอย่าง] ${sp.name}`, customerId: '#c' + sp.ci, customerName: cu.name, companyId: '#co' + sp.coi,
-      contractNo: sp.job === 'project' ? `สญ.${2569}/${String(i + 1).padStart(3, '0')}` : '', installmentNo: sp.job === 'project' && i % 3 === 0 ? `งวดที่ ${1 + (i % 4)}` : '', poNo: sp.po || (i % 4 === 1 ? `PO-${7000 + i}` : ''), startDate: start, endDate: end,
+      contractNo: sp.job === 'project' ? `สญ.${2569}/${String(i + 1).padStart(3, '0')}` : '', ...(inst[i] ? { installmentTotal: inst[i], ...(dlv[i] ? { installmentNo: dlv[i], deliveries: Array.from({ length: dlv[i] }, (_, n) => ({ no: n + 1, total: inst[i], date: off(sp.s + 20 * (n + 1)), note: n === 0 ? 'ส่งมอบชุดแรก' : '', by: uid, byName: uname, at: new Date(T.getTime() + (sp.s + 20 * (n + 1)) * 864e5).toISOString() })) } : {}) } : {}), poNo: sp.po || (i % 4 === 1 ? `PO-${7000 + i}` : ''), startDate: start, endDate: end,
       installLocation: sp.job === 'sale' ? `คลังพัสดุ ${cu.name.replace('[ตัวอย่าง] ', '')}` : `อาคารหลัก ${cu.name.replace('[ตัวอย่าง] ', '')}`, warrantyMonths: sp.w, notes: i % 3 === 0 ? 'ข้อมูลตัวอย่างสำหรับทดสอบระบบ' : '',
       items, ...(sp.job === 'project' ? { plan: planOf(sp) } : {}) } });
   });

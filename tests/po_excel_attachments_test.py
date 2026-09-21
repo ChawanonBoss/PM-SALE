@@ -29,14 +29,14 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     page.fill('#projectsSearch', 'PO-77'); page.wait_for_timeout(200); assert page.locator('#projectsBody tr').count() == 1; page.click('#projectsClearBtn')
     page.evaluate("openProjectForm('p1')"); page.wait_for_timeout(300)
     assert page.input_value('#prjPo') == 'PO-77'
-    page.fill('#prjPo', 'PO-99'); page.fill('#prjInstallment', 'งวดที่ 2'); page.click('#projectSaveBtn'); page.wait_for_timeout(700)
+    page.fill('#prjPo', 'PO-99'); page.fill('#prjInstallmentTotal', '4'); page.click('#projectSaveBtn'); page.wait_for_timeout(700)
     assert page.evaluate("data.projects.find(p => p.id === 'p1').poNo") == 'PO-99'
     html = page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.id === 'p1'))")
-    assert 'PO PO-99' in html and 'งวดที่ 2' in html and 'งวดงานที่' in html
+    assert 'PO PO-99' in html and 'งวดงานที่' in html
     assert 'PO ' not in page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.id === 'p2'))").split('เลขที่สัญญา')[1][:200], "no PO text when there is no PO"
 
     # ---- Excel export: every filtered row, all four lists ----
-    for tab, btn, name in [("projects", "projectsExportBtn", "ซื้อขาย-โครงการ"), ("equipment", "equipmentExportBtn", "อุปกรณ์และการรับประกัน"), ("warehouse", "warehouseExportBtn", "โกดังสินค้า"), ("customers", "customersExportBtn", "รายชื่อลูกค้า")]:
+    for tab, btn, name in [("projects", "projectsExportBtn", "โครงการ"), ("sales", "salesExportBtn", "ซื้อขาย"), ("equipment", "equipmentExportBtn", "อุปกรณ์และการรับประกัน"), ("warehouse", "warehouseExportBtn", "โกดังสินค้า"), ("customers", "customersExportBtn", "รายชื่อลูกค้า")]:
         page.evaluate(f"showTab('{tab}')"); page.wait_for_timeout(300)
         with page.expect_download(timeout=30000) as dl:
             page.click('#' + btn)
