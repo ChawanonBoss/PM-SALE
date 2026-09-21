@@ -601,6 +601,7 @@
                 <option value="ended">สิ้นสุดสัญญาโครงการ</option>
               </select>
               <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มรายการ</button>
+              <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -677,6 +678,7 @@
                 <option value="expired">หมดประกัน</option>
                 <option value="none">ไม่มีประกัน</option>
               </select>
+              <button class="btn outline" type="button" id="equipmentExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="equipmentClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -704,6 +706,7 @@
                 <option value="desc">จำนวนในโกดัง: มาก → น้อย</option>
               </select>
               <button class="btn" id="warehouseCreateBtn" type="button">+ เพิ่มอุปกรณ์</button>
+              <button class="btn outline" type="button" id="warehouseExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="warehouseClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -725,7 +728,6 @@
               <input type="text" id="catalogSearch" class="filter-control" placeholder="ค้นหาชื่อ Catalog, ยี่ห้อ, หมวดสินค้า" style="width:250px;">
               <select id="catalogBrandFilter" class="filter-control"><option value="all">ทุกยี่ห้อ</option></select>
               <button class="btn" id="catalogUploadBtn" type="button" style="display:none;">+ อัปโหลด Catalog (PDF)</button>
-              <button class="btn outline" id="catalogImportSamplesBtn" type="button" style="display:none;">นำตัวอย่างเข้าระบบ</button>
               <button class="btn outline" type="button" id="catalogClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -754,6 +756,7 @@
                 <option value="desc">จำนวนซื้อขาย/โครงการ: มาก → น้อย</option>
               </select>
               <button class="btn" id="customerCreateBtn" type="button">+ เพิ่มลูกค้า</button>
+              <button class="btn outline" type="button" id="customersExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="customersClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -897,6 +900,7 @@
         <div class="field"><label id="prjNameLabel">ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
         <div class="field"><label>หน่วยงาน / ลูกค้า *</label><select id="prjCustomer" required></select></div>
         <div class="field"><label>เลขที่สัญญา</label><input type="text" id="prjContract"></div>
+        <div class="field"><label>เลขที่ PO</label><input type="text" id="prjPo" placeholder="เลขที่ใบสั่งซื้อของลูกค้า (ถ้ามี)"></div>
         <div class="field"><label id="prjStartLabel">วันที่เซ็นสัญญา *</label>
           <div class="date-edit-wrap"><input type="date" id="prjStart" required><span class="date-display placeholder" id="prjStartText">dd/mm/yyyy</span></div>
         </div>
@@ -914,6 +918,15 @@
         <tbody id="prjItemsBody"></tbody>
       </table></div>
       <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มแถว</button>
+      <div id="prjFilesSection" style="margin-top:18px;">
+        <h4 style="font-size:14px; margin-bottom:8px;">ไฟล์แนบ <span class="cell-sub" id="prjFilesCount"></span></h4>
+        <div id="prjFilesList" class="cell-sub">-</div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:8px;">
+          <button class="btn outline" type="button" id="prjFileBtn">+ แนบไฟล์</button>
+          <input type="file" id="prjFileInput" multiple style="display:none;" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.txt,.zip">
+          <span class="cell-sub" id="prjFilesHint"></span>
+        </div>
+      </div>
       <p class="panel-note" style="margin:10px 0 0;">เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เมื่อเปลี่ยนเป็น "ดำเนินการแล้ว" แล้วกดบันทึก ระบบจะ<b>ตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง</b> และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้</p>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
@@ -1165,12 +1178,12 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.11.3';
+const APP_VERSION = '1.12.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
-  warehouse:'pm_warehouse', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+  warehouse:'pm_warehouse', files:'pm_files', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -1242,6 +1255,7 @@ function setSync(state){
 }
 
 /* ====== State ====== */
+const lastList = {};   // the filtered rows each list last drew (all pages): what the Excel export writes
 let currentUser = null, currentUserUid = null, currentUserEmail = '', currentUserName = '', currentUserRole = 'user', currentUserStatus = 'approved';   // status: approved | pending | rejected (a profile with no status = approved: it predates the approval step)
 let currentTab = 'dashboard';
 let authMode = 'signin';
@@ -1419,6 +1433,20 @@ function labelCardCells(tb){
   });
 }
 document.querySelectorAll('table.m-cards tbody').forEach(tb => { new MutationObserver(() => labelCardCells(tb)).observe(tb, { childList: true }); labelCardCells(tb); });
+
+// Buttons with no readable text (icons, ✕, ‹ ›) get an accessible name from their tooltip / title so screen readers can announce them
+const ICON_BTN_NAMES = { '✕': 'ลบ', '‹': 'ก่อนหน้า', '›': 'ถัดไป', '×': 'ปิด' };
+function applyAria(root){
+  (root || document).querySelectorAll('button:not([aria-label])').forEach(b => {
+    const tip = b.querySelector('.nav-tooltip');
+    const txt = b.textContent.trim();
+    const name = tip ? tip.textContent.trim() : (b.title || (txt.length <= 2 ? ICON_BTN_NAMES[txt] : '') || '');
+    if (name) b.setAttribute('aria-label', name);
+  });
+}
+let ariaQueued = false;
+new MutationObserver(() => { if (ariaQueued) return; ariaQueued = true; requestAnimationFrame(() => { ariaQueued = false; applyAria(); }); }).observe(document.body, { childList: true, subtree: true });
+applyAria();
 
 function onAnyUpdate(){
   if (renderQueued) return;
@@ -1903,8 +1931,9 @@ function renderProjects(){
   const rows = getVisibleProjects()
     .filter(p => tf === 'all' || jobTypeOf(p) === tf)
     .filter(p => sf === 'all' || projectStatus(p) === sf)
-    .filter(p => !q || [p.name, p.customerName, p.contractNo, p.docNo].some(v => (v||'').toLowerCase().includes(q)))
+    .filter(p => !q || [p.name, p.customerName, p.contractNo, p.poNo, p.docNo].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
+  lastList.projects = rows;
   $('projectsCount').textContent = rows.length;
   const cols = isAdmin ? 10 : 9;
   const view = pageSlice('projects', rows);
@@ -1916,7 +1945,7 @@ function renderProjects(){
       <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
       <td>${jobBadge(p)}</td>
       <td>${escapeHtml(p.customerName || '-')}</td>
-      <td>${escapeHtml(p.contractNo || '-')}</td>
+      <td>${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td>
       <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">${isSale(p) ? 'วันที่สั่งซื้อ' : 'ถึง ' + fmtDate(p.endDate)}</div></td>
       <td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>
       <td>${statusBadgeFor(p)}</td>
@@ -1975,6 +2004,7 @@ function openProjectForm(id){
   $('prjDocNo').textContent = p && p.docNo ? p.docNo : 'จะรันให้อัตโนมัติเมื่อบันทึก';
   $('prjName').value = p ? p.name || '' : '';
   $('prjContract').value = p ? p.contractNo || '' : '';
+  $('prjPo').value = p ? p.poNo || '' : '';
   $('prjStart').value = p ? p.startDate || '' : '';
   $('prjEnd').value = p && !isSale(p) ? p.endDate || '' : '';
   $('prjNotes').value = p ? p.notes || '' : '';
@@ -1985,6 +2015,7 @@ function openProjectForm(id){
   applyJobType();
   renderItemRows();
   openModal('projectModal');
+  loadProjectFiles(p);
 }
 // Labels follow the job type: sale = order date only + delivery place; project = signing date to end date + installation place
 function applyJobType(){
@@ -2217,7 +2248,7 @@ $('projectForm').addEventListener('submit', async e => {
   const doc = {
     jobType: sale ? 'sale' : 'project',
     name: $('prjName').value.trim(), customerId, customerName: customer.name,
-    contractNo: $('prjContract').value.trim(), startDate: start, endDate: end,
+    contractNo: $('prjContract').value.trim(), poNo: $('prjPo').value.trim(), startDate: start, endDate: end,
     companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(),
     installLocation: $('prjLocation').value.trim(), warrantyMonths: Math.max(0, Math.floor(Number($('prjWarranty').value) || 0)), items
   };
@@ -2309,6 +2340,7 @@ function buildProjectPrintHtml(p){
     ${tbl([1592, 3499, 1547, 2932], td(sale ? 'สถานที่ส่งของ :' : 'สถานที่ติดตั้ง :', 'b') + td(e(wr.location), 'v') + td('เลขที่เอกสาร :', 'b') + td(e(p.docNo), 'v'))}
     ${tbl([1592, 7978], td(sale ? 'ชื่องาน :' : 'โครงการ :', 'b') + td(e(p.name), 'v'))}
     ${sale && !p.contractNo ? '' : tbl([1592, 7978], td('เลขที่สัญญา :', 'b') + td(e(p.contractNo), 'v'))}
+    ${p.poNo ? tbl([1592, 7978], td('เลขที่ PO :', 'b') + td(e(p.poNo), 'v')) : ''}
     ${tbl([9570], td('รายละเอียดอุปกรณ์ของ' + (sale ? 'งาน' : 'โครงการ'), 'v'))}
     <table class="hd-tbl"><colgroup>${W.map(w => `<col style="width:${mm(w)}">`).join('')}</colgroup>
       <thead><tr><th>ลำดับ</th><th>รายละเอียด</th><th>รหัสอุปกรณ์</th><th>จำนวน</th></tr></thead>
@@ -2825,6 +2857,7 @@ function renderEquipment(){
     .filter(r => !q || [r.project.name, r.project.customerName, r.project.docNo, r.location].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (a.expiry || '9999').localeCompare(b.expiry || '9999'));
   $('equipmentCount').textContent = rows.length;
+  lastList.equipment = rows;
   const view = pageSlice('equipment', rows);
   $('equipmentBody').innerHTML = rows.length ? view.map(r => `
     <tr>
@@ -2924,6 +2957,7 @@ function renderWarehouse(){
     .filter(w => !q || [w.part, w.name, w.type, w.brand, w.note].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
     .sort((a, b) => (sort === 'asc' ? qty(a) - qty(b) : sort === 'desc' ? qty(b) - qty(a) : 0) || (a.name||'').localeCompare(b.name||''));
   $('warehouseCount').textContent = rows.length;
+  lastList.warehouse = rows;
   const view = pageSlice('warehouse', rows);
   $('warehouseBody').innerHTML = rows.length ? view.map(w => `
     <tr onclick="openSerialModal('${w.id}')" title="กดเพื่อดู Serial Number และประวัติการเบิก">
@@ -3062,11 +3096,6 @@ const CATALOG_CHUNK_CHARS = 700000;   // under Firestore's 1 MB document limit; 
 const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let catalogsUnavailable = false;
 const catalogBytesCache = new Map();
-const SAMPLE_CATALOGS = [
-  { file:'samples/catalog-network-switch.pdf', thumb:'samples/catalog-network-switch.jpg', title:'Catalog สวิตช์เครือข่าย Catalyst Series', brand:'Cisco', category:'Switch', pages:4, size:251014 },
-  { file:'samples/catalog-router.pdf',         thumb:'samples/catalog-router.jpg',         title:'Catalog เราเตอร์สำหรับองค์กร',           brand:'MikroTik', category:'Router', pages:4, size:240678 },
-  { file:'samples/catalog-ip-camera.pdf',      thumb:'samples/catalog-ip-camera.jpg',      title:'Catalog กล้องวงจรปิด IP Camera',          brand:'Hikvision', category:'Camera', pages:4, size:249079 }
-];
 function pdfLib(){
   if (!window.pdfjsLib) throw new Error('โหลดตัวแสดง PDF ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
   pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
@@ -3082,6 +3111,126 @@ function base64ToBytes(chunks){
   let o = 0; parts.forEach(x => { out.set(x, o); o += x.length; });
   return out;
 }
+/* ---- Excel export (SheetJS, loaded on first use). Writes every row that matches the current filters, not just the visible page. ---- */
+const XLSX_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+let xlsxPromise = null;
+function loadXlsx(){
+  if (window.XLSX) return Promise.resolve();
+  if (!xlsxPromise) xlsxPromise = new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = XLSX_URL; el.onload = resolve;
+    el.onerror = () => { xlsxPromise = null; reject(new Error('โหลดตัวส่งออก Excel ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')); };
+    document.head.appendChild(el);
+  });
+  return xlsxPromise;
+}
+async function exportExcel(fileBase, sheetName, rows){
+  if (!rows.length){ toast('ไม่มีข้อมูลให้ส่งออก'); return; }
+  try{
+    await loadXlsx();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const keys = Object.keys(rows[0]);
+    const width = k => rows.reduce((m, r) => Math.max(m, ...String(r[k] == null ? '' : r[k]).split('\n').map(l => l.length)), k.length) + 2;
+    ws['!cols'] = keys.map(k => ({ wch: Math.min(48, width(k)) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `${fileBase}-${todayStr()}.xlsx`);
+    toast(`ส่งออก ${rows.length} รายการแล้ว`);
+  }catch(err){ toast(err.message || 'ส่งออกไม่สำเร็จ'); }
+}
+const excelDate = v => v ? fmtDMY(v) : '';
+const EXPORTS = {
+  projects: () => (lastList.projects || []).map(pr => {
+    const its = pr.items || [], w = projectWarranty(pr);
+    return { 'เลขที่เอกสาร': pr.docNo || '', 'ประเภทงาน': JOB_TYPES[jobTypeOf(pr)], 'ชื่องาน/โครงการ': pr.name || '', 'ลูกค้า': pr.customerName || '', 'เลขที่สัญญา': pr.contractNo || '', 'เลขที่ PO': pr.poNo || '',
+      'วันที่เริ่ม/สั่งซื้อ': excelDate(pr.startDate), 'วันที่สิ้นสุด': isSale(pr) ? '' : excelDate(pr.endDate), 'สถานะ': statusLabelFor(pr, projectStatus(pr)),
+      'จำนวนรายการอุปกรณ์': its.length, 'ดำเนินการแล้ว': its.filter(i => i.status === 'done').length, 'สถานที่': w.location || '', 'ประกัน (เดือน)': w.months || '', 'หมดประกัน': excelDate(w.expiry),
+      'หมายเหตุ': pr.notes || '', 'สร้างโดย': getUserDisplayName(pr.createdBy) };
+  }),
+  equipment: () => (lastList.equipment || []).map(r => ({ 'เลขที่เอกสาร': r.project.docNo || '', 'ชื่องาน/โครงการ': r.project.name || '', 'ประเภทงาน': JOB_TYPES[jobTypeOf(r.project)], 'ลูกค้า': r.project.customerName || '',
+    'สถานที่': r.location || '', 'เริ่มรับประกัน': r.months ? excelDate(r.start) : '', 'ประกัน (เดือน)': r.months || '', 'หมดประกัน': excelDate(r.expiry), 'สถานะประกัน': WARRANTY_LABEL[r.wstatus] || r.wstatus })),
+  warehouse: () => (lastList.warehouse || []).map(w => ({ 'Part': w.part || '', 'ยี่ห้อ': w.brand || '', 'ประเภท': w.type || '', 'ชื่ออุปกรณ์': w.name || '', 'จำนวนคงเหลือ': Number(w.quantity) || 0,
+    'Serial Number': (w.serials || []).join('\n'), 'จำนวนครั้งที่เบิก/คืน': (w.history || []).length, 'หมายเหตุ': w.note || '' })),
+  customers: () => (lastList.customers || []).map(c => ({ 'ชื่อลูกค้า': c.name || '', 'ประเภท': CUSTOMER_TYPES[c.type] || CUSTOMER_TYPES.private, 'เลขที่ผู้เสียภาษี': c.type === 'gov' ? '' : (c.taxId || ''), 'ที่อยู่': c.address || '',
+    'ผู้ติดต่อ': c.contactName || '', 'เบอร์ติดต่อ': c.contactPhone || '', 'จำนวนรายการ': projectCountForCustomer(c) }))
+};
+const EXPORT_NAMES = { projects: ['ซื้อขาย-โครงการ', 'ซื้อขาย-โครงการ'], equipment: ['อุปกรณ์และการรับประกัน', 'การรับประกัน'], warehouse: ['โกดังสินค้า', 'โกดัง'], customers: ['รายชื่อลูกค้า', 'ลูกค้า'] };
+Object.keys(EXPORTS).forEach(k => $(k + 'ExportBtn').addEventListener('click', () => exportExcel(EXPORT_NAMES[k][0], EXPORT_NAMES[k][1], EXPORTS[k]())));
+
+/* ---- project attachments: one document per file in pm_files (bytes stored as base64, like logos/avatars/catalogs; no Firebase Storage) ---- */
+const FILE_MAX_BYTES = 650 * 1024;   // base64 makes it ~33% bigger; 650 KB stays under Firestore's 1 MB document limit
+const FILE_MAX_COUNT = 8;
+let projectFiles = [];   // metadata (+ bytes) of the project open in the edit form
+async function loadProjectFiles(p){
+  const list = $('prjFilesList'), btn = $('prjFileBtn');
+  projectFiles = [];
+  $('prjFilesHint').textContent = `ไฟล์ละไม่เกิน ${fmtBytes(FILE_MAX_BYTES)} · สูงสุด ${FILE_MAX_COUNT} ไฟล์ต่อรายการ`;
+  if (!p){ list.textContent = 'บันทึกรายการก่อน จึงจะแนบไฟล์ได้'; btn.disabled = true; $('prjFilesCount').textContent = ''; return; }
+  btn.disabled = false; list.textContent = 'กำลังโหลด...';
+  try{
+    let q = db.collection(COL.files).where('projectId', '==', p.id);
+    if (currentUserRole !== 'admin') q = q.where('ownerId', '==', currentUserUid);   // must match the rule: a non-admin only sees files of their own projects
+    const snap = await q.get();
+    if (editingProjectId !== p.id) return;   // the form was closed / switched meanwhile
+    projectFiles = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    renderProjectFiles();
+  }catch(err){
+    list.textContent = /permission|insufficient/i.test(err.message || '') ? 'ยังใช้งานไฟล์แนบไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_files) ที่ Firebase Console' : 'โหลดไฟล์แนบไม่สำเร็จ';
+    btn.disabled = true;
+  }
+}
+function renderProjectFiles(){
+  $('prjFilesCount').textContent = projectFiles.length ? `(${projectFiles.length})` : '';
+  $('prjFilesList').innerHTML = projectFiles.length ? `<table class="items-table"><tbody>` + projectFiles.map(f => `<tr>
+      <td style="word-break:break-all;">${escapeHtml(f.name)}<div class="cell-sub">${fmtBytes(f.size || 0)} · ${fmtDateTime(f.createdAt)}</div></td>
+      <td style="width:1%; white-space:nowrap;"><button type="button" class="icon-btn" onclick="downloadProjectFile('${f.id}')">ดาวน์โหลด</button>
+        <button type="button" class="icon-btn delete-btn" onclick="deleteProjectFile('${f.id}')">ลบ</button></td></tr>`).join('') + `</tbody></table>` : '<span class="cell-sub">ยังไม่มีไฟล์แนบ</span>';
+}
+function readAsBase64(file){
+  return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1] || ''); r.onerror = () => reject(new Error('อ่านไฟล์ไม่สำเร็จ')); r.readAsDataURL(file); });
+}
+$('prjFileBtn').addEventListener('click', () => $('prjFileInput').click());
+$('prjFileInput').addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  const p = data.projects.find(x => x.id === editingProjectId);
+  if (!p || !files.length) return;
+  $('prjFileBtn').disabled = true;
+  let added = 0;
+  try{
+    for (const f of files){
+      if (projectFiles.length >= FILE_MAX_COUNT){ toast(`แนบได้สูงสุด ${FILE_MAX_COUNT} ไฟล์ต่อรายการ`); break; }
+      if (f.size > FILE_MAX_BYTES){ toast(`"${f.name}" ใหญ่เกิน ${fmtBytes(FILE_MAX_BYTES)}`); continue; }
+      const doc = { projectId: p.id, ownerId: p.createdBy, name: f.name, size: f.size, type: f.type || 'application/octet-stream', data: await readAsBase64(f), createdBy: currentUserUid, createdAt: new Date().toISOString() };
+      const ref = await db.collection(COL.files).add(doc);
+      projectFiles.push({ id: ref.id, ...doc }); added++;
+      logAudit('แนบไฟล์', p.docNo || p.name, f.name);
+    }
+    renderProjectFiles();
+    if (added) toast(`แนบไฟล์ ${added} รายการแล้ว`);
+  }catch(err){ toast(err && /permission|insufficient/i.test(err.message || '') ? 'แนบไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของไฟล์แนบ' : (err.message || 'แนบไฟล์ไม่สำเร็จ')); }
+  $('prjFileBtn').disabled = false;
+});
+function downloadProjectFile(id){
+  const f = projectFiles.find(x => x.id === id);
+  if (!f) return;
+  const bin = atob(f.data), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  triggerDownload(new Blob([bytes], { type: f.type }), f.name);
+}
+function deleteProjectFile(id){
+  const f = projectFiles.find(x => x.id === id);
+  if (!f) return;
+  confirmAction(`ลบไฟล์แนบ "${f.name}" ถาวรใช่หรือไม่?`, async () => {
+    try{
+      await db.collection(COL.files).doc(id).delete();
+      projectFiles = projectFiles.filter(x => x.id !== id);
+      renderProjectFiles();
+      logAudit('ลบไฟล์แนบ', f.name, '');
+      toast('ลบไฟล์แนบแล้ว');
+    }catch(err){ toast('ลบไม่สำเร็จ'); }
+  }, 'ลบไฟล์แนบ');
+}
+
 function triggerDownload(blob, name){
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
@@ -3160,27 +3309,18 @@ function renderCatalogs(){
   const notice = $('catalogNotice');
   notice.style.display = catalogsUnavailable ? 'flex' : 'none';
   notice.innerHTML = catalogsUnavailable ? `<div>⚠️ ยังใช้งาน Catalog ที่อัปโหลดไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_catalogs, pm_catalogChunks) ที่ Firebase Console ก่อน — ดูตัวอย่างได้ตามปกติ</div>` : '';
-  // The built-in sample files share the one grid (tagged "ตัวอย่าง") only while the system holds no catalog at all. Once anything is in
-  // there (uploaded, or imported samples) they stay out, so deleting an imported sample never makes its built-in twin pop back up.
-  const builtin = data.catalogs.length ? [] : SAMPLE_CATALOGS.map((c, i) => ({ ...c, builtin: true, idx: i }));
-  $('catalogImportSamplesBtn').style.display = isAdmin && builtin.length && !catalogsUnavailable ? '' : 'none';
   const brandSel = $('catalogBrandFilter'), prev = brandSel.value || 'all';
-  const brands = [...new Set([...data.catalogs, ...builtin].map(c => (c.brand || '').trim()).filter(Boolean))].sort();
+  const brands = [...new Set(data.catalogs.map(c => (c.brand || '').trim()).filter(Boolean))].sort();
   brandSel.innerHTML = `<option value="all">ทุกยี่ห้อ</option>` + brands.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
   brandSel.value = brands.includes(prev) ? prev : 'all';
   const q = $('catalogSearch').value.trim().toLowerCase();
   const match = c => (brandSel.value === 'all' || (c.brand || '').trim() === brandSel.value)
     && (!q || [c.title, c.brand, c.category, c.note, c.fileName].some(v => (v || '').toLowerCase().includes(q)));
-  const rows = [
-    ...data.catalogs.filter(match).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
-    ...builtin.filter(match)
-  ];
+  const rows = data.catalogs.filter(match).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   $('catalogCount').textContent = rows.length;
   const view = pageSlice('catalogs', rows);
-  $('catalogGrid').innerHTML = rows.length ? view.map(c => c.builtin
-    ? postcardHtml({ open: `openSampleCatalog(${c.idx})`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: true,
-        actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadSampleCatalog(${c.idx})">ดาวน์โหลด</button>` })
-    : postcardHtml({ open: `openCatalog('${c.id}')`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: !!c.sample,
+  $('catalogGrid').innerHTML = rows.length ? view.map(c => 
+        postcardHtml({ open: `openCatalog('${c.id}')`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: !!c.sample,
         actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadCatalog('${c.id}')">ดาวน์โหลด</button>`
           + (isAdmin ? `<button class="icon-btn" onclick="event.stopPropagation(); openCatalogForm('${c.id}')">แก้ไข</button><button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('catalogs','${c.id}')">ลบ</button>` : '') })
   ).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${catalogsUnavailable ? '' : (isAdmin ? 'ยังไม่มี Catalog — กด "+ อัปโหลด Catalog (PDF)"' : 'ยังไม่มี Catalog')}</div>`;
@@ -3285,19 +3425,6 @@ async function downloadCatalog(id){
     triggerDownload(new Blob([await getCatalogBytes(cat)], { type: 'application/pdf' }), cat.fileName || (cat.title + '.pdf'));
   }catch(err){ toast(err.message || 'ดาวน์โหลดไม่สำเร็จ'); }
 }
-function openSampleCatalog(i){
-  const c = SAMPLE_CATALOGS[i];
-  openPdfViewer({ title: c.title + ' (ตัวอย่าง)', load: async () => c.file, download: () => downloadSampleCatalog(i) });
-}
-async function downloadSampleCatalog(i){
-  const c = SAMPLE_CATALOGS[i];
-  try{
-    const res = await fetch(c.file);
-    if (!res.ok) throw new Error('ไม่พบไฟล์ตัวอย่าง');
-    triggerDownload(await res.blob(), c.file.split('/').pop());
-  }catch(err){ toast(err.message || 'ดาวน์โหลดไม่สำเร็จ'); }
-}
-
 /* ---- upload / edit form (admin) ---- */
 let editingCatalogId = null;
 let pendingCatalogFile = null;
@@ -3368,28 +3495,6 @@ $('catalogForm').addEventListener('submit', async e => {
   $('catalogSaveBtn').disabled = false;
   $('catalogSaveBtn').textContent = editingCatalogId ? 'บันทึก' : 'อัปโหลด';
 });
-// put the built-in sample PDFs into the system as real catalogs (skips ones already imported)
-$('catalogImportSamplesBtn').addEventListener('click', async () => {
-  const btn = $('catalogImportSamplesBtn');
-  btn.disabled = true;
-  let added = 0;
-  try{
-    for (const c of SAMPLE_CATALOGS){
-      if (data.catalogs.some(x => x.title === c.title)) continue;
-      btn.textContent = `กำลังนำเข้า ${added + 1}/${SAMPLE_CATALOGS.length}...`;
-      const res = await fetch(c.file);
-      if (!res.ok) throw new Error('ไม่พบไฟล์ตัวอย่าง');
-      await uploadCatalog(new File([await res.blob()], c.file.split('/').pop(), { type: 'application/pdf' }), { title: c.title, brand: c.brand, category: c.category, note: 'ตัวอย่าง Catalog', sample: true });
-      added++;
-    }
-    toast(added ? `นำตัวอย่างเข้าระบบ ${added} รายการแล้ว` : 'นำตัวอย่างเข้าระบบไว้แล้วทั้งหมด');
-    if (added) logAudit('นำตัวอย่าง Catalog เข้าระบบ', `${added} รายการ`, '');
-  }catch(err){
-    toast(err && /permission|insufficient/i.test(err.message || '') ? 'นำเข้าไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ Catalog' : (err.message || 'นำเข้าไม่สำเร็จ'));
-  }
-  btn.disabled = false; btn.textContent = 'นำตัวอย่างเข้าระบบ';
-});
-
 /* ====== Customers ====== */
 // Government agencies have no tax ID field: it's hidden (and not stored) for 'gov', shown for 'private'.
 const CUSTOMER_TYPES = { gov:'หน่วยงานรัฐ', private:'บริษัทเอกชน' };
@@ -3407,6 +3512,7 @@ function renderCustomers(){
     .filter(c => !q || [c.name, c.contactName, c.taxId, c.address, CUSTOMER_TYPES[c.type]].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a, b) => (sort === 'asc' ? counts.get(a.id) - counts.get(b.id) : sort === 'desc' ? counts.get(b.id) - counts.get(a.id) : 0) || (a.name||'').localeCompare(b.name||''));
   $('customersCount').textContent = rows.length;
+  lastList.customers = rows;
   const view = pageSlice('customers', rows);
   $('customersBody').innerHTML = rows.length ? view.map(c => `
     <tr onclick="openCustomerProjects('${c.id}')" title="กดเพื่อดูโครงการของลูกค้า">
@@ -3819,6 +3925,7 @@ function purgeTrash(type, id){
   confirmAction(`ลบ "${x ? x.name : id}" ถาวรใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
     try{
       if (type === 'catalogs' && x) await Promise.all(Array.from({ length: x.chunks || 0 }, (_, n) => db.collection(COL.catalogChunks).doc(`${id}_${n}`).delete().catch(() => {})));   // the PDF's stored pieces go too
+      if (type === 'projects') (await db.collection(COL.files).where('projectId', '==', id).get()).docs.forEach(d => db.collection(COL.files).doc(d.id).delete().catch(() => {}));   // its attachments go too
       await db.collection(COL[type]).doc(id).delete();
       logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
       trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
@@ -3863,6 +3970,7 @@ $('trashBulkPurgeBtn').addEventListener('click', () => {
   confirmAction(`ลบถาวร ${list.length} รายการที่เลือก (${trashSummary(list)}) ใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
     try{
       const ops = [];
+      for (const x of list.filter(r => r.kind === 'projects')) (await db.collection(COL.files).where('projectId', '==', x.id).get()).docs.forEach(d => ops.push(b => b.delete(db.collection(COL.files).doc(d.id))));
       list.forEach(x => {
         if (x.kind === 'catalogs') for (let n = 0; n < (x.chunks || 0); n++) ops.push(b => b.delete(db.collection(COL.catalogChunks).doc(`${x.id}_${n}`)));   // the PDF's stored pieces go too
         ops.push(b => b.delete(db.collection(COL[x.kind]).doc(x.id)));
