@@ -350,7 +350,7 @@
     .sidebar.open{ transform:translateX(0); }
     .mobile-backdrop.show{ display:block; position:fixed; inset:0; background:rgba(20,24,34,.4); z-index:650; }
     .table-scroll table{ min-width:640px; }
-    #targetUserFilter{ display:none !important; }
+    #targetUserFilter, #targetUserClear{ display:none !important; }
   }
 </style>
 </head>
@@ -447,6 +447,7 @@
       <select id="targetUserFilter" class="filter-control" title="ดูข้อมูลของ" style="display:none;">
         <option value="all">ทั้งหมด</option>
       </select>
+              <button class="btn outline" type="button" id="targetUserClear" style="display:none;">เคลียร์</button>
     </div>
 
     <div class="content">
@@ -480,7 +481,7 @@
           <span style="font-size:12.5px; color:var(--ink-soft);">แสดงเฉพาะ</span>
           <button class="subtab-item" type="button" data-dashjob="sale">ซื้อขาย</button>
           <button class="subtab-item" type="button" data-dashjob="project">โครงการ</button>
-          <button class="btn outline" type="button" id="dashJobClear">เคลียร์</button>
+          <button class="btn outline" type="button" id="dashJobClear" style="margin-left:auto;">เคลียร์</button>
         </div>
         <div class="alert-banner" id="dashAlert" style="display:none;"></div>
         <div class="stat-grid" id="dashStats"></div>
@@ -511,6 +512,7 @@
                 <option value="ended">สิ้นสุดสัญญาโครงการ</option>
               </select>
               <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มรายการ</button>
+              <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
           <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · <b>ซื้อขาย</b> — ดูจากสถานะของแต่ละรายการอุปกรณ์: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว</p>
@@ -535,6 +537,7 @@
                   <option value="active">กำลังดำเนินการ</option>
                   <option value="ended">สิ้นสุดสัญญาโครงการ</option>
                 </select>
+              <button class="btn outline" type="button" id="planListClearBtn">เคลียร์</button>
               </div>
             </div>
             <p class="panel-note">แต่ละโครงการมีแผนดำเนินการของตัวเอง — กดที่โครงการเพื่อเปิดแผนของโครงการนั้น</p>
@@ -583,6 +586,7 @@
                 <option value="expired">หมดประกัน</option>
                 <option value="none">ไม่มีประกัน</option>
               </select>
+              <button class="btn outline" type="button" id="equipmentClearBtn">เคลียร์</button>
             </div>
           </div>
           <p class="panel-note">ข้อมูลมาจากช่อง "สถานที่" และ "การรับประกัน (เดือน)" ในฟอร์มเพิ่มรายการ — โครงการนับจากวันที่สิ้นสุดโครงการ, ซื้อขายนับจากวันที่สั่งซื้อ</p>
@@ -608,6 +612,7 @@
                 <option value="desc">จำนวนในโกดัง: มาก → น้อย</option>
               </select>
               <button class="btn" id="warehouseCreateBtn" type="button">+ เพิ่มอุปกรณ์</button>
+              <button class="btn outline" type="button" id="warehouseClearBtn">เคลียร์</button>
             </div>
           </div>
           <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number และประวัติการเบิก/คืน (เบิกไปซื้อขาย/โครงการไหน) — การเรียงตามจำนวนดูจากจำนวนที่เหลืออยู่ในโกดังเท่านั้น</p>
@@ -636,6 +641,7 @@
                 <option value="desc">จำนวนซื้อขาย/โครงการ: มาก → น้อย</option>
               </select>
               <button class="btn" id="customerCreateBtn" type="button">+ เพิ่มลูกค้า</button>
+              <button class="btn outline" type="button" id="customersClearBtn">เคลียร์</button>
             </div>
           </div>
           <div class="table-scroll"><table>
@@ -678,6 +684,7 @@
             <div class="filter-bar">
               <input type="text" id="usersSearch" class="filter-control" placeholder="ค้นหาชื่อ, อีเมล" style="width:200px;">
               <button class="btn" id="userCreateToggleBtn" type="button">+ เพิ่มผู้ใช้งาน</button>
+              <button class="btn outline" type="button" id="usersClearBtn">เคลียร์</button>
             </div>
           </div>
           <p class="panel-note">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกโดยไม่มีชื่อในลิสต์จะได้เป็น "ผู้ใช้งานทั่วไป" อัตโนมัติ</p>
@@ -701,6 +708,7 @@
               <div class="filter-bar">
                 <input type="text" id="auditSearch" class="filter-control" placeholder="ค้นหาผู้ทำรายการ, รายการ, รายละเอียด" style="width:250px;">
                 <select id="auditActionFilter" class="filter-control"><option value="all">ทุกการกระทำ</option></select>
+              <button class="btn outline" type="button" id="auditClearBtn">เคลียร์</button>
               </div>
             </div>
             <p class="panel-note">บันทึกการสร้าง/แก้ไข/ลบ/กู้คืนรายการต่างๆ ในระบบ แสดง 300 รายการล่าสุด เรียงจากใหม่ไปเก่า</p>
@@ -736,6 +744,7 @@
                 <option value="warehouse">อุปกรณ์ในโกดัง</option>
               </select>
               <button class="btn outline" id="trashRefreshBtn" type="button">รีเฟรช</button>
+              <button class="btn outline" type="button" id="trashClearBtn">เคลียร์</button>
             </div>
           </div>
           <p class="panel-note">รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)</p>
@@ -990,7 +999,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.9.0';
+const APP_VERSION = '1.9.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1151,7 +1160,36 @@ function renderActiveTab(){
   }[currentTab];
   if (fn) fn();
   updateNavBadge();
+  refreshClearButtons();
 }
+// One "เคลียร์" button per page that has filters: puts every listed field back to its default and redraws the page.
+// (A function, not a const, so it can be called from renderActiveTab() at any point without a temporal-dead-zone risk.)
+function filterGroups(){
+  return [
+    { btn:'projectsClearBtn',  fields:{ projectsSearch:'', projectsTypeFilter:'all', projectsStatusFilter:'all' }, render: renderProjects },
+    { btn:'planListClearBtn',  fields:{ planListSearch:'', planListStatus:'all' }, render: renderActionPlan },
+    { btn:'equipmentClearBtn', fields:{ equipmentSearch:'', equipmentTypeFilter:'all', equipmentWarrantyFilter:'all' }, render: renderEquipment },
+    { btn:'warehouseClearBtn', fields:{ warehouseSearch:'', warehouseBrandFilter:'all', warehouseTypeFilter:'all', warehouseSortFilter:'name' }, render: renderWarehouse },
+    { btn:'customersClearBtn', fields:{ customersSearch:'', customersTypeFilter:'all', customersSortFilter:'name' }, render: renderCustomers },
+    { btn:'usersClearBtn',     fields:{ usersSearch:'' }, render: renderUsers },
+    { btn:'auditClearBtn',     fields:{ auditSearch:'', auditActionFilter:'all' }, render: renderAudit },
+    { btn:'trashClearBtn',     fields:{ trashTypeFilter:'all' }, render: renderTrash }
+  ];
+}
+function refreshClearButtons(){
+  if (!currentUserUid) return;
+  filterGroups().forEach(g => { $(g.btn).disabled = Object.entries(g.fields).every(([id, def]) => $(id).value === def); });
+  $('targetUserClear').disabled = ($('targetUserFilter').value || 'all') === 'all';
+}
+document.addEventListener('input', refreshClearButtons);
+document.addEventListener('change', refreshClearButtons);
+document.addEventListener('click', e => {
+  const g = filterGroups().find(x => e.target.closest('#' + x.btn));
+  if (!g) return;
+  Object.entries(g.fields).forEach(([id, def]) => { $(id).value = def; });
+  g.render();
+  refreshClearButtons();
+});
 let renderQueued = false;
 function onAnyUpdate(){
   if (renderQueued) return;
@@ -1258,6 +1296,7 @@ function showSignedOutUI(){
   $('sidebar').style.display = 'none';
   $('topbar').style.display = 'none';
   $('targetUserFilter').style.display = 'none';
+  $('targetUserClear').style.display = 'none';
   $('loadingOverlay').style.display = 'none';
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   $('railMenuPopover').style.display = 'none';
@@ -1405,14 +1444,16 @@ function getUserDisplayName(uid){
 }
 function refreshTargetUserFilter(){
   const sel = $('targetUserFilter');
-  if (currentUserRole !== 'admin'){ sel.style.display = 'none'; return; }
+  if (currentUserRole !== 'admin'){ sel.style.display = 'none'; $('targetUserClear').style.display = 'none'; return; }
   sel.style.display = '';
+  $('targetUserClear').style.display = '';
   const prev = sel.value || 'all';
   const users = [...data.users].sort((a,b) => (a.name||a.email||'').localeCompare(b.name||b.email||''));
   sel.innerHTML = `<option value="all">ทั้งหมด</option>` + users.map(u => `<option value="${u.id}">${escapeHtml(u.name || u.email)}</option>`).join('');
   sel.value = users.some(u => u.id === prev) ? prev : 'all';
 }
 $('targetUserFilter').addEventListener('change', renderActiveTab);
+$('targetUserClear').addEventListener('click', () => { $('targetUserFilter').value = 'all'; renderActiveTab(); });
 
 /* ====== Project status / warranty ====== */
 const STATUS_LABEL = { pending:'รอดำเนินการ', active:'กำลังดำเนินการ', ended:'สิ้นสุดสัญญาโครงการ' };
