@@ -1154,7 +1154,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.11.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1511,6 +1511,7 @@ function showApprovalGate(){
   $('approvalGate').style.display = 'block';
   if (approvalUnsub) approvalUnsub();
   approvalUnsub = db.collection(COL.users).doc(currentUserUid).onSnapshot(snap => {
+    if (snap.metadata && snap.metadata.hasPendingWrites) return;   // a write of our own that the server has not confirmed yet (e.g. one the rules will refuse) must never let us in
     const st = snap.exists ? (snap.data().status || 'approved') : 'pending';
     if (st === 'approved') location.reload();
     else if (st !== currentUserStatus){ currentUserStatus = st; showApprovalGate(); }
