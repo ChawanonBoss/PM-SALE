@@ -64,6 +64,16 @@
       allow delete: if pmIsAdmin();
     }
 
+    // Product catalogs (PDF stored as pieces): everyone signed in can read and download, only admin uploads / edits / deletes.
+    match /pm_catalogs/{id} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if pmIsAdmin();
+    }
+    match /pm_catalogChunks/{id} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if pmIsAdmin();
+    }
+
     match /pm_users/{userId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == userId

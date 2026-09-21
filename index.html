@@ -15,6 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -281,6 +282,29 @@
   .page-btn:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
   .page-btn.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
   .page-btn:disabled{ opacity:.4; cursor:default; }
+  /* ---- Catalog: postcards + online PDF viewer ---- */
+  .postcard-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:22px; }
+  .postcard{ background:#fff; border-radius:14px; padding:10px 10px 14px; box-shadow:0 6px 20px rgba(20,24,34,.14), 0 1px 3px rgba(20,24,34,.08); cursor:pointer; transition:transform .2s ease, box-shadow .2s ease; display:flex; flex-direction:column; gap:10px; border:1px solid rgba(0,0,0,.04); }
+  .postcard:hover{ transform:translateY(-4px) rotate(-.6deg); box-shadow:0 14px 30px rgba(20,24,34,.22); }
+  .pc-img{ position:relative; aspect-ratio:3/4; border-radius:8px; overflow:hidden; background:#EEF0F3; }
+  .pc-img img{ width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
+  .pc-badge{ position:absolute; right:8px; top:8px; background:rgba(20,24,34,.78); color:#fff; font-size:11px; padding:2px 9px; border-radius:100px; }
+  .pc-sample{ position:absolute; left:8px; top:8px; background:#FF9F43; color:#fff; font-size:11px; padding:2px 9px; border-radius:100px; font-weight:600; }
+  .pc-title{ font-weight:600; font-size:13.5px; line-height:1.35; color:#1E2430; padding:0 4px; }
+  .pc-sub{ font-size:12px; color:#8B909C; padding:0 4px; }
+  .pc-actions{ display:flex; gap:6px; flex-wrap:wrap; padding:0 4px; }
+  .pc-preview{ text-align:center; }
+  .pc-preview img{ max-height:220px; border-radius:8px; box-shadow:0 4px 14px rgba(20,24,34,.2); }
+  #pdfViewerModal{ padding:12px; }
+  .pdf-viewer{ background:var(--paper-dim); width:min(1100px, 100%); height:94vh; border-radius:16px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 24px 60px rgba(20,24,34,.35); }
+  .pdf-bar{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:12px 18px; background:var(--card); border-bottom:1px solid var(--line); }
+  .pdf-title{ font-weight:600; font-size:15px; max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pdf-tools{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-soft); }
+  .pdf-scroll{ position:relative; flex:1; overflow:auto; padding:18px 0 30px; }
+  #pdfPages{ display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .pdf-page{ background:#fff; box-shadow:0 4px 18px rgba(20,24,34,.25); position:relative; flex-shrink:0; }
+  .pdf-page canvas{ display:block; }
+  .pdf-loading{ text-align:center; color:var(--ink-soft); padding:60px 0; }
   .docno{ font-family:ui-monospace,Consolas,monospace; font-size:12px; background:var(--paper-dim); padding:2px 7px; border-radius:6px; white-space:nowrap; color:var(--ink); }
   .company-name-link{ font-weight:600; color:var(--ink); text-decoration:none; }
   .company-name-link:hover{ color:var(--accent); text-decoration:underline; }
@@ -396,6 +420,10 @@
       <button class="nav-item" data-tab="warehouse">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/><path d="M8 17h8"/></svg>
         <span class="nav-tooltip">โกดังสินค้า</span>
+      </button>
+      <button class="nav-item" data-tab="catalog">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h7"/></svg>
+        <span class="nav-tooltip">Catalog สินค้า</span>
       </button>
       <button class="nav-item" data-tab="customers">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -635,6 +663,33 @@
         </div>
       </div>
 
+      <!-- Catalog -->
+      <div id="tab-catalog" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Catalog สินค้า <span class="count-pill" id="catalogCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="catalogSearch" class="filter-control" placeholder="ค้นหาชื่อ Catalog, ยี่ห้อ, หมวดสินค้า" style="width:250px;">
+              <select id="catalogBrandFilter" class="filter-control"><option value="all">ทุกยี่ห้อ</option></select>
+              <button class="btn" id="catalogUploadBtn" type="button" style="display:none;">+ อัปโหลด Catalog (PDF)</button>
+              <button class="btn outline" type="button" id="catalogClearBtn">เคลียร์</button>
+            </div>
+          </div>
+          <div class="alert-banner" id="catalogNotice" style="display:none;"></div>
+          <p class="panel-note">ภาพโปสการ์ดคือหน้าแรกของ Catalog — กดที่ภาพเพื่อเปิดดู PDF ออนไลน์ และกด "ดาวน์โหลด" เพื่อเก็บไฟล์ไว้ (ผู้ดูแลระบบอัปโหลด/แก้ไข/ลบได้ ไฟล์ขนาดไม่เกิน 15 MB)</p>
+          <div class="postcard-grid" id="catalogGrid"></div>
+          <div class="pager" id="catalogPager"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <h3>ตัวอย่าง Catalog <span class="count-pill">3</span></h3>
+            <button class="btn outline" id="catalogImportSamplesBtn" type="button" style="display:none;">นำตัวอย่างเข้าระบบ</button>
+          </div>
+          <p class="panel-note">ไฟล์ตัวอย่างสำหรับทดลองดู/ดาวน์โหลด (ข้อมูลเป็นข้อมูลสมมติ) — ผู้ดูแลระบบกด "นำตัวอย่างเข้าระบบ" เพื่อเพิ่มเป็น Catalog จริงไว้ทดสอบการแก้ไข/ลบ</p>
+          <div class="postcard-grid" id="catalogSampleGrid"></div>
+        </div>
+      </div>
+
       <!-- Customers -->
       <div id="tab-customers" class="tab-panel" style="display:none;">
         <div class="panel">
@@ -759,6 +814,7 @@
                 <option value="customers">ลูกค้า</option>
                 <option value="companies">บริษัท</option>
                 <option value="warehouse">อุปกรณ์ในโกดัง</option>
+                <option value="catalogs">Catalog สินค้า</option>
               </select>
               <button class="btn outline" id="trashRefreshBtn" type="button">รีเฟรช</button>
               <button class="btn outline" type="button" id="trashClearBtn">เคลียร์</button>
@@ -830,6 +886,46 @@
       <button class="btn outline" type="button" id="planCancelBtn">ยกเลิก</button>
       <button class="btn" type="button" id="planSaveBtn">บันทึกแผน</button>
     </div>
+  </div>
+</div>
+
+<!-- Catalog upload / edit -->
+<div class="modal-overlay" id="catalogModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" id="catalogModalTitle" style="font-size:19px; margin-bottom:18px;">อัปโหลด Catalog</h3>
+    <form id="catalogForm">
+      <div class="form-grid">
+        <div class="field full" id="catFileField"><label>ไฟล์ PDF *</label><input type="file" id="catFile" accept="application/pdf,.pdf"><div class="cell-sub" id="catFileInfo">ขนาดไม่เกิน 15 MB</div></div>
+        <div class="field full"><div class="pc-preview" id="catPreview"></div></div>
+        <div class="field full"><label>ชื่อ Catalog *</label><input type="text" id="catTitle" required></div>
+        <div class="field"><label>ยี่ห้อ</label><input type="text" id="catBrand" list="catBrandList" autocomplete="off"><datalist id="catBrandList"></datalist></div>
+        <div class="field"><label>หมวดสินค้า</label><input type="text" id="catCategory" list="catCategoryList" autocomplete="off"><datalist id="catCategoryList"></datalist></div>
+        <div class="field full"><label>หมายเหตุ</label><textarea id="catNote"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn outline" type="button" id="catalogCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit" id="catalogSaveBtn">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Online PDF viewer -->
+<div class="modal-overlay" id="pdfViewerModal" style="display:none;">
+  <div class="pdf-viewer">
+    <div class="pdf-bar">
+      <div class="pdf-title" id="pdfTitle"></div>
+      <div class="pdf-tools">
+        <span id="pdfPageInfo"></span>
+        <button class="icon-btn" type="button" id="pdfZoomOut" title="ย่อ">−</button>
+        <span id="pdfZoomInfo" style="min-width:42px; text-align:center;">100%</span>
+        <button class="icon-btn" type="button" id="pdfZoomIn" title="ขยาย">+</button>
+        <button class="icon-btn" type="button" id="pdfFit">พอดีความกว้าง</button>
+        <button class="btn" type="button" id="pdfDownloadBtn">ดาวน์โหลด</button>
+        <button class="btn outline" type="button" id="pdfCloseBtn">ปิด</button>
+      </div>
+    </div>
+    <div class="pdf-scroll" id="pdfScroll"><div id="pdfPages"></div><div class="pdf-loading" id="pdfLoading">กำลังโหลด...</div></div>
   </div>
 </div>
 
@@ -1017,12 +1113,12 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.9.2';
+const APP_VERSION = '1.10.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
-  warehouse:'pm_warehouse', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+  warehouse:'pm_warehouse', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -1099,7 +1195,7 @@ let currentTab = 'dashboard';
 let authMode = 'signin';
 let pendingSignupName = '';
 let justLoggedInViaForm = false;
-const data = { projects:[], customers:[], companies:[], warehouse:[], users:[], pending:[], audit:[], errors:[] };
+const data = { projects:[], customers:[], companies:[], warehouse:[], catalogs:[], users:[], pending:[], audit:[], errors:[] };
 let unsubscribers = [];
 let loaded = {};
 
@@ -1148,6 +1244,7 @@ const TITLES = {
   actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
   equipment:['อุปกรณ์และการรับประกัน','สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ'],
   warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
+  catalog:['Catalog สินค้า','ไฟล์ PDF Catalog ของสินค้า ดูออนไลน์และดาวน์โหลดได้'],
   customers:['รายชื่อลูกค้า','ข้อมูลหน่วยงานและผู้ติดต่อ'],
   companies:['ข้อมูลบริษัท','โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร'],
   users:['ผู้ใช้งาน','จัดการผู้ใช้งานและสิทธิ์'],
@@ -1173,7 +1270,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 
 function renderActiveTab(){
   const fn = {
-    dashboard:renderDashboard, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse,
+    dashboard:renderDashboard, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, catalog:renderCatalogs,
     customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit
   }[currentTab];
   if (fn) fn();
@@ -1191,6 +1288,7 @@ const PAGER_UI = {
   equipment: { el:'equipmentPager', render: () => renderEquipment(),    filters:['equipmentSearch','equipmentTypeFilter','equipmentWarrantyFilter'] },
   warehouse: { el:'warehousePager', render: () => renderWarehouse(),    filters:['warehouseSearch','warehouseBrandFilter','warehouseTypeFilter','warehouseSortFilter'] },
   customers: { el:'customersPager', render: () => renderCustomers(),    filters:['customersSearch','customersTypeFilter','customersSortFilter'] },
+  catalogs:  { el:'catalogPager',   render: () => renderCatalogs(),     filters:['catalogSearch','catalogBrandFilter'] },
   companies: { el:'companiesPager', render: () => renderCompanies(),    filters:[] },
   users:     { el:'usersPager',     render: () => renderUsers(),        filters:['usersSearch'] },
   audit:     { el:'auditPager',     render: () => renderAudit(),        filters:['auditSearch','auditActionFilter'] },
@@ -1235,6 +1333,7 @@ function filterGroups(){
     { btn:'projectsClearBtn',  fields:{ projectsSearch:'', projectsTypeFilter:'all', projectsStatusFilter:'all' }, render: renderProjects },
     { btn:'planListClearBtn',  fields:{ planListSearch:'', planListStatus:'all' }, render: renderActionPlan },
     { btn:'equipmentClearBtn', fields:{ equipmentSearch:'', equipmentTypeFilter:'all', equipmentWarrantyFilter:'all' }, render: renderEquipment },
+    { btn:'catalogClearBtn',   fields:{ catalogSearch:'', catalogBrandFilter:'all' }, render: renderCatalogs },
     { btn:'warehouseClearBtn', fields:{ warehouseSearch:'', warehouseBrandFilter:'all', warehouseTypeFilter:'all', warehouseSortFilter:'name' }, render: renderWarehouse },
     { btn:'customersClearBtn', fields:{ customersSearch:'', customersTypeFilter:'all', customersSortFilter:'name' }, render: renderCustomers },
     { btn:'usersClearBtn',     fields:{ usersSearch:'' }, render: renderUsers },
@@ -1472,6 +1571,10 @@ function attachRealtimeListeners(){
   watch('customers', scoped(db.collection(COL.customers)), mapDocs);
   watch('companies', db.collection(COL.companies), mapDocs);
   watch('warehouse', db.collection(COL.warehouse), mapDocs);   // shared stock: not scoped per user
+  // Catalogs are a bonus subscription (not part of the first-load gate, no error toast): if the pm_catalogs rules aren't published yet only the Catalog page says so
+  unsubscribers.push(db.collection(COL.catalogs).onSnapshot(
+    snap => { catalogsUnavailable = false; data.catalogs = mapDocs(snap); onAnyUpdate(); },
+    () => { catalogsUnavailable = true; data.catalogs = []; onAnyUpdate(); }));
   watch('users', db.collection(COL.users), snap => snap.docs.map(d => ({ id:d.id, ...d.data() })));
   if (isAdmin){
     // bonus admin-only subscriptions — deliberately not part of the initial-load gate
@@ -2607,7 +2710,7 @@ function renderEquipment(){
 ['equipmentSearch','equipmentWarrantyFilter','equipmentTypeFilter'].forEach(id => $(id).addEventListener('input', renderEquipment));
 
 /* ====== Soft delete (shared by projects / customers / companies) ====== */
-const ENTITY_LABEL = { projects:'ซื้อขาย/โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง' };
+const ENTITY_LABEL = { catalogs:'Catalog สินค้า', projects:'ซื้อขาย/โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง' };
 function entityName(type, x){ return x.name || '-'; }
 function deleteEntity(type, id){
   const x = data[type].find(r => r.id === id);
@@ -2818,6 +2921,340 @@ function openSerialModal(id){
 }
 $('serialCloseBtn').addEventListener('click', () => closeModal('serialModal'));
 $('serialEditBtn').addEventListener('click', () => openWarehouseForm(serialModalItemId));
+
+/* ====== Catalog (PDF product catalogs) ======
+   No Firebase Storage is used (same approach as logos/avatars): the PDF is split into base64 pieces of 700,000 characters stored as documents
+   pm_catalogChunks/<catalogId>_<n>, and pm_catalogs/<id> holds the small metadata + a JPEG of page 1 (the postcard). The pieces are only
+   fetched when someone opens or downloads a catalog. Rendering (postcard + online viewer) uses pdf.js. */
+const CATALOG_MAX_BYTES = 15 * 1024 * 1024;
+const CATALOG_CHUNK_CHARS = 700000;   // under Firestore's 1 MB document limit; a multiple of 4 so every piece decodes on its own
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+let catalogsUnavailable = false;
+const catalogBytesCache = new Map();
+const SAMPLE_CATALOGS = [
+  { file:'samples/catalog-network-switch.pdf', thumb:'samples/catalog-network-switch.jpg', title:'Catalog สวิตช์เครือข่าย Catalyst Series', brand:'Cisco', category:'Switch', pages:4, size:299586 },
+  { file:'samples/catalog-router.pdf',         thumb:'samples/catalog-router.jpg',         title:'Catalog เราเตอร์สำหรับองค์กร',           brand:'MikroTik', category:'Router', pages:4, size:288144 },
+  { file:'samples/catalog-ip-camera.pdf',      thumb:'samples/catalog-ip-camera.jpg',      title:'Catalog กล้องวงจรปิด IP Camera',          brand:'Hikvision', category:'Camera', pages:4, size:285812 }
+];
+function pdfLib(){
+  if (!window.pdfjsLib) throw new Error('โหลดตัวแสดง PDF ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  return pdfjsLib;
+}
+const fmtBytes = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+function blobToBase64(blob){
+  return new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result).split(',')[1] || ''); r.onerror = () => reject(r.error); r.readAsDataURL(blob); });
+}
+function base64ToBytes(chunks){
+  const parts = chunks.map(c => { const bin = atob(c), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; });
+  const out = new Uint8Array(parts.reduce((n, x) => n + x.length, 0));
+  let o = 0; parts.forEach(x => { out.set(x, o); o += x.length; });
+  return out;
+}
+function triggerDownload(blob, name){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+// page count + a JPEG of page 1 (the postcard picture)
+async function analysePdf(bytes){
+  const doc = await pdfLib().getDocument({ data: bytes.slice() }).promise;   // slice: pdf.js takes ownership of the buffer it is given
+  const page = await doc.getPage(1);
+  const scale = 520 / page.getViewport({ scale: 1 }).width;
+  const vp = page.getViewport({ scale });
+  const cv = document.createElement('canvas'); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+  await page.render({ canvasContext: ctx, viewport: vp }).promise;
+  const out = { pages: doc.numPages, thumb: cv.toDataURL('image/jpeg', 0.82) };
+  doc.destroy();
+  return out;
+}
+async function readPdfFile(file){
+  if (file.size > CATALOG_MAX_BYTES) throw new Error(`ไฟล์ใหญ่เกิน ${fmtBytes(CATALOG_MAX_BYTES)}`);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (String.fromCharCode(...bytes.slice(0, 4)) !== '%PDF') throw new Error('ไฟล์นี้ไม่ใช่ PDF');
+  return bytes;
+}
+async function uploadCatalog(file, meta, onProgress){
+  const bytes = await readPdfFile(file);
+  const info = await analysePdf(bytes);
+  const b64 = await blobToBase64(new Blob([bytes], { type:'application/pdf' }));
+  const chunks = [];
+  for (let i = 0; i < b64.length; i += CATALOG_CHUNK_CHARS) chunks.push(b64.slice(i, i + CATALOG_CHUNK_CHARS));
+  const ref = db.collection(COL.catalogs).doc();
+  const written = [];
+  try{
+    for (let i = 0; i < chunks.length; i += 3){
+      const batch = db.batch();
+      chunks.slice(i, i + 3).forEach((c, k) => {
+        const cref = db.collection(COL.catalogChunks).doc(`${ref.id}_${i + k}`);
+        batch.set(cref, { catalogId: ref.id, n: i + k, data: c });
+        written.push(cref);
+      });
+      await batch.commit();
+      if (onProgress) onProgress(Math.min(i + 3, chunks.length), chunks.length);
+    }
+    // the catalog document is written LAST, so a half-uploaded file never shows up in the list
+    await ref.set({ ...meta, name: meta.title, fileName: file.name, size: file.size, pages: info.pages, thumb: info.thumb, chunks: chunks.length, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+  }catch(err){
+    await Promise.all(written.map(r => r.delete().catch(() => {})));
+    throw err;
+  }
+  catalogBytesCache.set(ref.id, bytes);
+  return ref.id;
+}
+async function getCatalogBytes(cat){
+  if (catalogBytesCache.has(cat.id)) return catalogBytesCache.get(cat.id);
+  const snaps = await Promise.all(Array.from({ length: cat.chunks || 0 }, (_, n) => db.collection(COL.catalogChunks).doc(`${cat.id}_${n}`).get()));
+  if (!snaps.length || snaps.some(sn => !sn.exists)) throw new Error('ไฟล์ Catalog ไม่ครบ (ชิ้นส่วนบางส่วนหายไป)');
+  const bytes = base64ToBytes(snaps.map(sn => sn.data().data));
+  if (catalogBytesCache.size >= 5) catalogBytesCache.delete(catalogBytesCache.keys().next().value);
+  catalogBytesCache.set(cat.id, bytes);
+  return bytes;
+}
+
+/* ---- postcards ---- */
+function postcardHtml(o){
+  return `<div class="postcard" onclick="${o.open}">
+    <div class="pc-img"><img src="${o.thumb}" alt="" loading="lazy">${o.sample ? '<span class="pc-sample">ตัวอย่าง</span>' : ''}<span class="pc-badge">${o.pages || '-'} หน้า</span></div>
+    <div class="pc-title">${escapeHtml(o.title)}</div>
+    <div class="pc-sub">${escapeHtml([o.brand, o.category].filter(Boolean).join(' · ') || '-')} · ${fmtBytes(o.size || 0)}</div>
+    <div class="pc-actions">${o.actions}</div>
+  </div>`;
+}
+function renderCatalogs(){
+  const isAdmin = currentUserRole === 'admin';
+  $('catalogUploadBtn').style.display = isAdmin ? '' : 'none';
+  $('catalogImportSamplesBtn').style.display = isAdmin ? '' : 'none';
+  const notice = $('catalogNotice');
+  notice.style.display = catalogsUnavailable ? 'flex' : 'none';
+  notice.innerHTML = catalogsUnavailable ? `<div>⚠️ ยังใช้งาน Catalog ที่อัปโหลดไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_catalogs, pm_catalogChunks) ที่ Firebase Console ก่อน — ดูตัวอย่างด้านล่างได้ตามปกติ</div>` : '';
+  const brandSel = $('catalogBrandFilter'), prev = brandSel.value || 'all';
+  const brands = [...new Set(data.catalogs.map(c => (c.brand || '').trim()).filter(Boolean))].sort();
+  brandSel.innerHTML = `<option value="all">ทุกยี่ห้อ</option>` + brands.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+  brandSel.value = brands.includes(prev) ? prev : 'all';
+  const q = $('catalogSearch').value.trim().toLowerCase();
+  const rows = data.catalogs
+    .filter(c => brandSel.value === 'all' || (c.brand || '').trim() === brandSel.value)
+    .filter(c => !q || [c.title, c.brand, c.category, c.note, c.fileName].some(v => (v || '').toLowerCase().includes(q)))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  $('catalogCount').textContent = rows.length;
+  const view = pageSlice('catalogs', rows);
+  $('catalogGrid').innerHTML = rows.length ? view.map(c => postcardHtml({
+    open: `openCatalog('${c.id}')`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size,
+    actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadCatalog('${c.id}')">ดาวน์โหลด</button>`
+      + (isAdmin ? `<button class="icon-btn" onclick="event.stopPropagation(); openCatalogForm('${c.id}')">แก้ไข</button><button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('catalogs','${c.id}')">ลบ</button>` : '')
+  })).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${catalogsUnavailable ? '' : (isAdmin ? 'ยังไม่มี Catalog — กด "+ อัปโหลด Catalog (PDF)" หรือ "นำตัวอย่างเข้าระบบ"' : 'ยังไม่มี Catalog')}</div>`;
+  $('catalogSampleGrid').innerHTML = SAMPLE_CATALOGS.map((c, i) => postcardHtml({
+    open: `openSampleCatalog(${i})`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: true,
+    actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadSampleCatalog(${i})">ดาวน์โหลด</button>`
+  })).join('');
+}
+['catalogSearch', 'catalogBrandFilter'].forEach(id => $(id).addEventListener('input', renderCatalogs));
+
+/* ---- online PDF viewer (pdf.js canvases, drawn lazily as you scroll) ---- */
+let pdfState = null;
+function closePdfDoc(){
+  if (!pdfState) return;
+  pdfState.token++;
+  if (pdfState.observer) pdfState.observer.disconnect();
+  pdfState.pages.forEach(r => { if (r.task) try{ r.task.cancel(); }catch(e){} });
+  try{ pdfState.doc.destroy(); }catch(e){}
+  pdfState = null;
+}
+async function openPdfViewer(opts){   // opts: { title, load: async () => Uint8Array | url string, download: async () => void }
+  closePdfDoc();
+  $('pdfTitle').textContent = opts.title;
+  $('pdfPages').innerHTML = ''; $('pdfPageInfo').textContent = ''; $('pdfZoomInfo').textContent = '';
+  $('pdfLoading').style.display = 'block'; $('pdfLoading').textContent = 'กำลังโหลด...';
+  openModal('pdfViewerModal');
+  const mine = {};   // identity of this open, so a slow load can't overwrite a newer one
+  pdfState = mine;
+  try{
+    const src = await opts.load();
+    const doc = await pdfLib().getDocument(typeof src === 'string' ? { url: src } : { data: src.slice() }).promise;
+    if (pdfState !== mine){ doc.destroy(); return; }
+    Object.assign(mine, { doc, fit: true, scale: 1, token: 0, pages: [], observer: null, download: opts.download, title: opts.title });
+    $('pdfLoading').style.display = 'none';
+    await layoutPdf();
+  }catch(err){
+    $('pdfLoading').style.display = 'block';
+    $('pdfLoading').textContent = 'เปิดไฟล์ไม่สำเร็จ: ' + (err && err.message ? err.message : err);
+  }
+}
+async function layoutPdf(){
+  const st = pdfState;
+  if (!st || !st.doc) return;
+  const box = $('pdfScroll');
+  const token = ++st.token;
+  if (st.observer) st.observer.disconnect();
+  st.pages.forEach(r => { if (r.task) try{ r.task.cancel(); }catch(e){} });
+  $('pdfPages').innerHTML = ''; st.pages = [];
+  const first = await st.doc.getPage(1);
+  if (token !== st.token) return;
+  if (st.fit) st.scale = Math.max(0.3, Math.min(3, (box.clientWidth - 40) / first.getViewport({ scale: 1 }).width));
+  $('pdfZoomInfo').textContent = Math.round(st.scale * 100) + '%';
+  st.observer = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) renderPdfPage(e.target.__rec, token); }), { root: box, rootMargin: '900px 0px' });
+  for (let n = 1; n <= st.doc.numPages; n++){
+    const pg = n === 1 ? first : await st.doc.getPage(n);
+    if (token !== st.token) return;
+    const vp = pg.getViewport({ scale: st.scale });
+    const el = document.createElement('div');
+    el.className = 'pdf-page'; el.style.width = vp.width + 'px'; el.style.height = vp.height + 'px'; el.dataset.n = n;
+    const rec = { n, pg, vp, el, done: false, task: null };
+    el.__rec = rec; st.pages.push(rec);
+    $('pdfPages').appendChild(el);
+    st.observer.observe(el);
+  }
+  updatePdfPageInfo();
+}
+async function renderPdfPage(rec, token){
+  const st = pdfState;
+  if (!st || token !== st.token || rec.done) return;
+  rec.done = true;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cv = document.createElement('canvas');
+  cv.width = Math.floor(rec.vp.width * dpr); cv.height = Math.floor(rec.vp.height * dpr);
+  cv.style.width = rec.vp.width + 'px'; cv.style.height = rec.vp.height + 'px';
+  rec.el.appendChild(cv);
+  rec.task = rec.pg.render({ canvasContext: cv.getContext('2d'), viewport: rec.pg.getViewport({ scale: st.scale * dpr }) });
+  try{ await rec.task.promise; }catch(e){ /* cancelled by a zoom change or closing the viewer */ }
+}
+function updatePdfPageInfo(){
+  const st = pdfState;
+  if (!st || !st.doc || !st.pages.length) return;
+  const top = $('pdfScroll').scrollTop + 80;
+  let cur = st.pages[0];
+  for (const r of st.pages){ if (r.el.offsetTop + r.el.offsetHeight > top){ cur = r; break; } }
+  $('pdfPageInfo').textContent = `หน้า ${cur.n} / ${st.doc.numPages}`;
+}
+$('pdfScroll').addEventListener('scroll', updatePdfPageInfo);
+const zoomPdf = f => { if (!pdfState || !pdfState.doc) return; pdfState.fit = false; pdfState.scale = Math.max(0.3, Math.min(4, pdfState.scale * f)); layoutPdf(); };
+$('pdfZoomIn').addEventListener('click', () => zoomPdf(1.25));
+$('pdfZoomOut').addEventListener('click', () => zoomPdf(0.8));
+$('pdfFit').addEventListener('click', () => { if (pdfState && pdfState.doc){ pdfState.fit = true; layoutPdf(); } });
+$('pdfDownloadBtn').addEventListener('click', () => { if (pdfState && pdfState.download) pdfState.download(); });
+$('pdfCloseBtn').addEventListener('click', () => { closeModal('pdfViewerModal'); closePdfDoc(); });
+
+/* ---- open / download ---- */
+function openCatalog(id){
+  const cat = data.catalogs.find(x => x.id === id);
+  if (!cat) return;
+  openPdfViewer({ title: cat.title, load: () => getCatalogBytes(cat), download: () => downloadCatalog(id) });
+}
+async function downloadCatalog(id){
+  const cat = data.catalogs.find(x => x.id === id);
+  if (!cat) return;
+  try{
+    toast('กำลังเตรียมไฟล์...');
+    triggerDownload(new Blob([await getCatalogBytes(cat)], { type: 'application/pdf' }), cat.fileName || (cat.title + '.pdf'));
+  }catch(err){ toast(err.message || 'ดาวน์โหลดไม่สำเร็จ'); }
+}
+function openSampleCatalog(i){
+  const c = SAMPLE_CATALOGS[i];
+  openPdfViewer({ title: c.title + ' (ตัวอย่าง)', load: async () => c.file, download: () => downloadSampleCatalog(i) });
+}
+async function downloadSampleCatalog(i){
+  const c = SAMPLE_CATALOGS[i];
+  try{
+    const res = await fetch(c.file);
+    if (!res.ok) throw new Error('ไม่พบไฟล์ตัวอย่าง');
+    triggerDownload(await res.blob(), c.file.split('/').pop());
+  }catch(err){ toast(err.message || 'ดาวน์โหลดไม่สำเร็จ'); }
+}
+
+/* ---- upload / edit form (admin) ---- */
+let editingCatalogId = null;
+let pendingCatalogFile = null;
+function fillCatalogDatalists(){
+  const uniq = arr => [...new Set(arr.map(v => (v || '').trim()).filter(Boolean))].sort();
+  $('catBrandList').innerHTML = uniq([...data.catalogs.map(c => c.brand), ...data.warehouse.map(w => w.brand)]).map(v => `<option value="${escapeHtml(v)}">`).join('');
+  $('catCategoryList').innerHTML = uniq([...data.catalogs.map(c => c.category), ...data.warehouse.map(w => w.type)]).map(v => `<option value="${escapeHtml(v)}">`).join('');
+}
+function openCatalogForm(id){
+  const c = id ? data.catalogs.find(x => x.id === id) : null;
+  editingCatalogId = c ? c.id : null;
+  pendingCatalogFile = null;
+  $('catalogModalTitle').textContent = c ? 'แก้ไข Catalog' : 'อัปโหลด Catalog';
+  $('catFileField').style.display = c ? 'none' : '';
+  $('catFile').value = ''; $('catFile').required = !c;
+  $('catFileInfo').textContent = 'ขนาดไม่เกิน 15 MB';
+  $('catPreview').innerHTML = c ? `<img src="${c.thumb}" alt="">` : '';
+  $('catTitle').value = c ? c.title || '' : '';
+  $('catBrand').value = c ? c.brand || '' : '';
+  $('catCategory').value = c ? c.category || '' : '';
+  $('catNote').value = c ? c.note || '' : '';
+  $('catalogSaveBtn').textContent = c ? 'บันทึก' : 'อัปโหลด';
+  $('catalogSaveBtn').disabled = false;
+  fillCatalogDatalists();
+  openModal('catalogModal');
+}
+$('catalogUploadBtn').addEventListener('click', () => openCatalogForm(null));
+$('catalogCancelBtn').addEventListener('click', () => closeModal('catalogModal'));
+$('catFile').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  pendingCatalogFile = null; $('catPreview').innerHTML = '';
+  if (!f) return;
+  try{
+    const bytes = await readPdfFile(f);
+    const info = await analysePdf(bytes);
+    pendingCatalogFile = f;
+    $('catPreview').innerHTML = `<img src="${info.thumb}" alt="">`;
+    $('catFileInfo').textContent = `${f.name} · ${info.pages} หน้า · ${fmtBytes(f.size)}`;
+    if (!$('catTitle').value.trim()) $('catTitle').value = f.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim();
+  }catch(err){
+    $('catFile').value = '';
+    $('catFileInfo').textContent = err.message || 'อ่านไฟล์ไม่สำเร็จ';
+    toast(err.message || 'อ่านไฟล์ไม่สำเร็จ');
+  }
+});
+$('catalogForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const meta = { title: $('catTitle').value.trim(), brand: $('catBrand').value.trim(), category: $('catCategory').value.trim(), note: $('catNote').value.trim() };
+  if (!meta.title) return;
+  $('catalogSaveBtn').disabled = true;
+  setSync('saving');
+  try{
+    if (editingCatalogId){
+      await db.collection(COL.catalogs).doc(editingCatalogId).update({ ...meta, name: meta.title });
+      logAudit('แก้ไข Catalog', meta.title, '');
+    } else {
+      if (!pendingCatalogFile){ toast('กรุณาเลือกไฟล์ PDF'); $('catalogSaveBtn').disabled = false; setSync('ok'); return; }
+      await uploadCatalog(pendingCatalogFile, meta, (done, total) => { $('catalogSaveBtn').textContent = `กำลังอัปโหลด ${done}/${total}`; });
+      logAudit('อัปโหลด Catalog', meta.title, `${pendingCatalogFile.name} · ${fmtBytes(pendingCatalogFile.size)}`);
+    }
+    setSync('ok');
+    closeModal('catalogModal');
+    toast('บันทึก Catalog แล้ว');
+  }catch(err){
+    setSync('error');
+    toast(err && /permission|insufficient/i.test(err.message || '') ? 'บันทึกไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ Catalog' : (err.message || 'บันทึกไม่สำเร็จ'));
+  }
+  $('catalogSaveBtn').disabled = false;
+  $('catalogSaveBtn').textContent = editingCatalogId ? 'บันทึก' : 'อัปโหลด';
+});
+// put the built-in sample PDFs into the system as real catalogs (skips ones already imported)
+$('catalogImportSamplesBtn').addEventListener('click', async () => {
+  const btn = $('catalogImportSamplesBtn');
+  btn.disabled = true;
+  let added = 0;
+  try{
+    for (const c of SAMPLE_CATALOGS){
+      if (data.catalogs.some(x => x.title === c.title)) continue;
+      btn.textContent = `กำลังนำเข้า ${added + 1}/${SAMPLE_CATALOGS.length}...`;
+      const res = await fetch(c.file);
+      if (!res.ok) throw new Error('ไม่พบไฟล์ตัวอย่าง');
+      await uploadCatalog(new File([await res.blob()], c.file.split('/').pop(), { type: 'application/pdf' }), { title: c.title, brand: c.brand, category: c.category, note: 'ตัวอย่าง Catalog', sample: true });
+      added++;
+    }
+    toast(added ? `นำตัวอย่างเข้าระบบ ${added} รายการแล้ว` : 'นำตัวอย่างเข้าระบบไว้แล้วทั้งหมด');
+    if (added) logAudit('นำตัวอย่าง Catalog เข้าระบบ', `${added} รายการ`, '');
+  }catch(err){
+    toast(err && /permission|insufficient/i.test(err.message || '') ? 'นำเข้าไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ Catalog' : (err.message || 'นำเข้าไม่สำเร็จ'));
+  }
+  btn.disabled = false; btn.textContent = 'นำตัวอย่างเข้าระบบ';
+});
 
 /* ====== Customers ====== */
 // Government agencies have no tax ID field: it's hidden (and not stored) for 'gov', shown for 'private'.
@@ -3166,7 +3603,7 @@ async function loadTrash(){
   try{
     // orderBy('deletedAt') only returns docs that actually have the field, so no separate != query/index is needed
     const results = await Promise.all(Object.keys(ENTITY_LABEL).map(async type => {
-      const snap = await db.collection(COL[type]).orderBy('deletedAt', 'desc').limit(200).get();
+      const snap = await db.collection(COL[type]).orderBy('deletedAt', 'desc').limit(200).get().catch(err => { if (type === 'catalogs') return { docs: [] }; throw err; });   // catalog rules may not be published yet
       return snap.docs.map(d => ({ ...d.data(), kind:type, id:d.id }));
     }));
     trashItems = results.flat().sort((a,b) => (b.deletedAt||'').localeCompare(a.deletedAt||''));
@@ -3206,6 +3643,7 @@ function purgeTrash(type, id){
   const x = trashItems.find(r => r.kind === type && r.id === id);
   confirmAction(`ลบ "${x ? x.name : id}" ถาวรใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
     try{
+      if (type === 'catalogs' && x) await Promise.all(Array.from({ length: x.chunks || 0 }, (_, n) => db.collection(COL.catalogChunks).doc(`${id}_${n}`).delete().catch(() => {})));   // the PDF's stored pieces go too
       await db.collection(COL[type]).doc(id).delete();
       logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
       trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
