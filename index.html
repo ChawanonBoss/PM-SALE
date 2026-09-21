@@ -195,6 +195,17 @@
   .items-table td{ padding:6px 6px; }
   .items-table th{ padding:6px; }
 
+  /* ---- Warehouse ---- */
+  #warehouseBody tr{ cursor:pointer; }
+  .code-mask{ font-family:ui-monospace,Consolas,monospace; letter-spacing:.06em; }
+  .eye-btn{ background:none; border:none; color:var(--ink-soft); padding:2px 6px; vertical-align:middle; }
+  .eye-btn:hover{ color:var(--accent); }
+  .serial-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .serial-row .serial-no{ width:26px; font-size:12px; color:var(--ink-soft); text-align:right; flex-shrink:0; }
+  .serial-row input{ flex:1; }
+  .serial-add-btn{ width:34px; height:34px; border-radius:50%; border:1px dashed var(--accent); background:var(--accent-soft); color:var(--accent); font-size:20px; line-height:1; }
+  .serial-add-btn:hover{ background:var(--accent); color:#fff; }
+
   /* ---- Users ---- */
   .user-avatar{ display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; font-size:13px; font-weight:600; background:var(--accent-soft); color:var(--accent); overflow:hidden; cursor:pointer; }
   .user-avatar img{ width:100%; height:100%; object-fit:cover; }
@@ -260,6 +271,10 @@
       <button class="nav-item" data-tab="equipment">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         <span class="nav-tooltip">อุปกรณ์และการรับประกัน</span>
+      </button>
+      <button class="nav-item" data-tab="warehouse">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/><path d="M8 17h8"/></svg>
+        <span class="nav-tooltip">โกดังสินค้า</span>
       </button>
       <button class="nav-item" data-tab="customers">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -406,6 +421,25 @@
         </div>
       </div>
 
+      <!-- Warehouse -->
+      <div id="tab-warehouse" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>โกดังสินค้า <span class="count-pill" id="warehouseCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="warehouseSearch" class="filter-control" placeholder="ค้นหา Part, ชื่ออุปกรณ์, Serial Number" style="width:260px;">
+              <select id="warehouseTypeFilter" class="filter-control"><option value="all">ทุกประเภท</option></select>
+              <button class="btn" id="warehouseCreateBtn" type="button">+ เพิ่มอุปกรณ์</button>
+            </div>
+          </div>
+          <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number ทั้งหมดของอุปกรณ์นั้น — รหัสอุปกรณ์ถูกซ่อนไว้ (xxxxxx) กดรูปตาเพื่อดู</p>
+          <div class="table-scroll"><table>
+            <thead><tr><th>Part</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>จำนวนอุปกรณ์</th><th>รหัสอุปกรณ์</th><th></th></tr></thead>
+            <tbody id="warehouseBody"></tbody>
+          </table></div>
+        </div>
+      </div>
+
       <!-- Customers -->
       <div id="tab-customers" class="tab-panel" style="display:none;">
         <div class="panel">
@@ -511,6 +545,7 @@
                 <option value="projects">โครงการ</option>
                 <option value="customers">ลูกค้า</option>
                 <option value="companies">บริษัท</option>
+                <option value="warehouse">อุปกรณ์ในโกดัง</option>
               </select>
               <button class="btn outline" id="trashRefreshBtn" type="button">รีเฟรช</button>
             </div>
@@ -551,6 +586,45 @@
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกโครงการ</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Warehouse item form modal -->
+<div class="modal-overlay" id="warehouseModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" id="warehouseModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มอุปกรณ์</h3>
+    <form id="warehouseForm">
+      <div class="form-grid">
+        <div class="field"><label>Part</label><input type="text" id="whPart"></div>
+        <div class="field"><label>รหัสอุปกรณ์</label><input type="text" id="whCode"></div>
+        <div class="field full"><label>ชื่ออุปกรณ์ *</label><input type="text" id="whName" required></div>
+        <div class="field"><label>ประเภท</label><input type="text" id="whType" list="whTypeList" autocomplete="off"><datalist id="whTypeList"></datalist></div>
+        <div class="field"><label>จำนวนอุปกรณ์</label><input type="number" id="whQty" min="0" step="1" value="1"></div>
+        <div class="field full"><label>Serial Number</label>
+          <div id="whSerialList"></div>
+          <button type="button" class="serial-add-btn" id="whSerialAddBtn" title="เพิ่มช่อง Serial Number">+</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn outline" type="button" id="warehouseCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit" id="warehouseSaveBtn">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Serial numbers viewer -->
+<div class="modal-overlay" id="serialModal" style="display:none;">
+  <div class="modal" style="max-width:520px;">
+    <h3 class="serif" id="serialModalTitle" style="font-size:19px; margin-bottom:4px;"></h3>
+    <p id="serialModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;"></p>
+    <div style="max-height:380px; overflow-y:auto;">
+      <table><thead><tr><th style="width:50px;">#</th><th>Serial Number</th></tr></thead><tbody id="serialModalBody"></tbody></table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" type="button" id="serialEditBtn">แก้ไข</button>
+      <button class="btn" type="button" id="serialCloseBtn">ปิด</button>
+    </div>
   </div>
 </div>
 
@@ -632,12 +706,12 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.1.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
-  users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+  warehouse:'pm_warehouse', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -713,7 +787,7 @@ let currentTab = 'dashboard';
 let authMode = 'signin';
 let pendingSignupName = '';
 let justLoggedInViaForm = false;
-const data = { projects:[], customers:[], companies:[], users:[], pending:[], audit:[], errors:[] };
+const data = { projects:[], customers:[], companies:[], warehouse:[], users:[], pending:[], audit:[], errors:[] };
 let unsubscribers = [];
 let loaded = {};
 
@@ -760,6 +834,7 @@ const TITLES = {
   dashboard:['แดชบอร์ด','สรุปสถานะโครงการทั้งหมด'],
   projects:['โครงการ','บันทึกและจัดการข้อมูลโครงการ พิมพ์เป็น PDF ได้'],
   equipment:['อุปกรณ์และการรับประกัน','รายการอุปกรณ์ สถานที่ติดตั้ง และระยะเวลารับประกัน'],
+  warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
   customers:['รายชื่อลูกค้า','ข้อมูลหน่วยงานและผู้ติดต่อ'],
   companies:['ข้อมูลบริษัท','โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร'],
   users:['ผู้ใช้งาน','จัดการผู้ใช้งานและสิทธิ์'],
@@ -782,7 +857,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 
 function renderActiveTab(){
   const fn = {
-    dashboard:renderDashboard, projects:renderProjects, equipment:renderEquipment,
+    dashboard:renderDashboard, projects:renderProjects, equipment:renderEquipment, warehouse:renderWarehouse,
     customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit
   }[currentTab];
   if (fn) fn();
@@ -1002,6 +1077,7 @@ function attachRealtimeListeners(){
   watch('projects', scoped(db.collection(COL.projects)), mapDocs);
   watch('customers', scoped(db.collection(COL.customers)), mapDocs);
   watch('companies', db.collection(COL.companies), mapDocs);
+  watch('warehouse', db.collection(COL.warehouse), mapDocs);   // shared stock: not scoped per user
   watch('users', db.collection(COL.users), snap => snap.docs.map(d => ({ id:d.id, ...d.data() })));
   if (isAdmin){
     // bonus admin-only subscriptions — deliberately not part of the initial-load gate
@@ -1012,7 +1088,7 @@ function attachRealtimeListeners(){
   }
 }
 function checkAllLoaded(){
-  if (['projects','customers','companies','users'].every(k => loaded[k])){
+  if (['projects','customers','companies','warehouse','users'].every(k => loaded[k])){
     $('loadingOverlay').style.display = 'none';
     $('sidebar').classList.remove('loading-lock');
     setSync('ok');
@@ -1336,7 +1412,7 @@ function renderEquipment(){
 ['equipmentSearch','equipmentWarrantyFilter'].forEach(id => $(id).addEventListener('input', renderEquipment));
 
 /* ====== Soft delete (shared by projects / customers / companies) ====== */
-const ENTITY_LABEL = { projects:'โครงการ', customers:'ลูกค้า', companies:'บริษัท' };
+const ENTITY_LABEL = { projects:'โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง' };
 function entityName(type, x){ return x.name || '-'; }
 function deleteEntity(type, id){
   const x = data[type].find(r => r.id === id);
@@ -1351,6 +1427,133 @@ function deleteEntity(type, id){
     }catch(err){ setSync('error'); toast('ลบไม่สำเร็จ'); }
   });
 }
+
+/* ====== Warehouse ====== */
+const revealedWhCodes = new Set();   // ids whose equipment code is currently un-masked (per-browser, resets on reload)
+const EYE_ON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function renderWarehouse(){
+  const typeSel = $('warehouseTypeFilter');
+  const prevType = typeSel.value || 'all';
+  const types = [...new Set(data.warehouse.map(w => (w.type || '').trim()).filter(Boolean))].sort();
+  typeSel.innerHTML = `<option value="all">ทุกประเภท</option>` + types.map(ty => `<option value="${escapeHtml(ty)}">${escapeHtml(ty)}</option>`).join('');
+  typeSel.value = types.includes(prevType) ? prevType : 'all';
+  const q = $('warehouseSearch').value.trim().toLowerCase();
+  const rows = data.warehouse
+    .filter(w => typeSel.value === 'all' || (w.type || '').trim() === typeSel.value)
+    .filter(w => !q || [w.part, w.name, w.type].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  $('warehouseCount').textContent = rows.length;
+  $('warehouseBody').innerHTML = rows.length ? rows.map(w => {
+    const shown = revealedWhCodes.has(w.id);
+    const code = w.code ? (shown ? escapeHtml(w.code) : 'xxxxxx') : '-';
+    return `<tr onclick="openSerialModal('${w.id}')" title="กดเพื่อดู Serial Number">
+      <td>${escapeHtml(w.part || '-')}</td>
+      <td><b>${escapeHtml(w.name)}</b></td>
+      <td>${escapeHtml(w.type || '-')}</td>
+      <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length} รายการ</div></td>
+      <td><span class="code-mask">${code}</span>${w.code ? `<button class="eye-btn" type="button" title="${shown ? 'ซ่อนรหัส' : 'แสดงรหัส'}" onclick="event.stopPropagation(); toggleWhCode('${w.id}')">${shown ? EYE_OFF : EYE_ON}</button>` : ''}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="event.stopPropagation(); openWarehouseForm('${w.id}')">แก้ไข</button>
+        ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('warehouse','${w.id}')">ลบ</button>` : ''}
+      </div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;
+}
+['warehouseSearch','warehouseTypeFilter'].forEach(id => $(id).addEventListener('input', renderWarehouse));
+function toggleWhCode(id){
+  if (revealedWhCodes.has(id)) revealedWhCodes.delete(id); else revealedWhCodes.add(id);
+  renderWarehouse();
+}
+
+let editingWarehouseId = null;
+let editingSerials = [''];
+function renderSerialInputs(focusLast){
+  $('whSerialList').innerHTML = editingSerials.map((sn, i) => `
+    <div class="serial-row">
+      <span class="serial-no">${i+1}</span>
+      <input type="text" value="${escapeHtml(sn)}" placeholder="Serial Number" oninput="editingSerials[${i}]=this.value" onkeydown="serialKey(event, ${i})">
+      ${editingSerials.length > 1 ? `<button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeSerialRow(${i})" title="ลบช่องนี้">✕</button>` : ''}
+    </div>`).join('');
+  if (focusLast){
+    const inputs = $('whSerialList').querySelectorAll('input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }
+}
+function addSerialRow(){ editingSerials.push(''); renderSerialInputs(true); }
+function removeSerialRow(i){
+  editingSerials.splice(i, 1);
+  if (!editingSerials.length) editingSerials.push('');
+  renderSerialInputs(false);
+}
+// Enter in a serial box opens the next box (instead of submitting the whole form) — handy when typing/scanning many serials in a row
+function serialKey(e, i){
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (i === editingSerials.length - 1 && editingSerials[i].trim()) addSerialRow();
+  else { const inputs = $('whSerialList').querySelectorAll('input'); if (inputs[i+1]) inputs[i+1].focus(); }
+}
+$('whSerialAddBtn').addEventListener('click', addSerialRow);
+
+function openWarehouseForm(id){
+  const w = id ? data.warehouse.find(x => x.id === id) : null;
+  if (id && !w) return;
+  editingWarehouseId = w ? w.id : null;
+  $('warehouseModalTitle').textContent = w ? 'แก้ไขอุปกรณ์' : 'เพิ่มอุปกรณ์';
+  $('whPart').value = w ? w.part || '' : '';
+  $('whName').value = w ? w.name || '' : '';
+  $('whType').value = w ? w.type || '' : '';
+  $('whQty').value = w ? (w.quantity == null ? 1 : w.quantity) : 1;
+  $('whCode').value = w ? w.code || '' : '';
+  const types = [...new Set(data.warehouse.map(x => (x.type || '').trim()).filter(Boolean))].sort();
+  $('whTypeList').innerHTML = types.map(ty => `<option value="${escapeHtml(ty)}">`).join('');
+  editingSerials = w && (w.serials || []).length ? [...w.serials] : [''];   // only one empty box to start; "+" reveals more
+  renderSerialInputs(false);
+  closeModal('serialModal');
+  openModal('warehouseModal');
+}
+$('warehouseCreateBtn').addEventListener('click', () => openWarehouseForm(null));
+$('warehouseCancelBtn').addEventListener('click', () => closeModal('warehouseModal'));
+$('warehouseForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const serials = editingSerials.map(sn => sn.trim()).filter(Boolean);
+  if (new Set(serials.map(sn => sn.toLowerCase())).size !== serials.length){ toast('มี Serial Number ซ้ำกัน'); return; }
+  const doc = {
+    part: $('whPart').value.trim(), name: $('whName').value.trim(), type: $('whType').value.trim(),
+    quantity: Math.max(0, Number($('whQty').value) || 0), code: $('whCode').value.trim(), serials
+  };
+  $('warehouseSaveBtn').disabled = true;
+  setSync('saving');
+  try{
+    if (editingWarehouseId){
+      await db.collection(COL.warehouse).doc(editingWarehouseId).update(doc);
+      logAudit('แก้ไขอุปกรณ์ในโกดัง', doc.name, `Part ${doc.part || '-'} · จำนวน ${doc.quantity} · SN ${serials.length}`);
+    } else {
+      await db.collection(COL.warehouse).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('เพิ่มอุปกรณ์ในโกดัง', doc.name, `Part ${doc.part || '-'} · จำนวน ${doc.quantity} · SN ${serials.length}`);
+    }
+    setSync('ok');
+    closeModal('warehouseModal');
+    toast('บันทึกอุปกรณ์แล้ว');
+  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+  $('warehouseSaveBtn').disabled = false;
+});
+
+let serialModalItemId = null;
+function openSerialModal(id){
+  const w = data.warehouse.find(x => x.id === id);
+  if (!w) return;
+  serialModalItemId = id;
+  const serials = w.serials || [];
+  $('serialModalTitle').textContent = w.name;
+  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.type ? w.type + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
+  $('serialModalBody').innerHTML = serials.length
+    ? serials.map((sn, i) => `<tr><td class="cell-sub">${i+1}</td><td><span class="code-mask" style="letter-spacing:0;">${escapeHtml(sn)}</span></td></tr>`).join('')
+    : `<tr><td colspan="2" class="empty-row">ยังไม่ได้บันทึก Serial Number</td></tr>`;
+  openModal('serialModal');
+}
+$('serialCloseBtn').addEventListener('click', () => closeModal('serialModal'));
+$('serialEditBtn').addEventListener('click', () => openWarehouseForm(serialModalItemId));
 
 /* ====== Customers ====== */
 function projectCountForCustomer(c){ return data.projects.filter(p => p.customerId === c.id).length; }
@@ -1629,7 +1832,7 @@ async function loadTrash(){
     // orderBy('deletedAt') only returns docs that actually have the field, so no separate != query/index is needed
     const results = await Promise.all(Object.keys(ENTITY_LABEL).map(async type => {
       const snap = await db.collection(COL[type]).orderBy('deletedAt', 'desc').limit(200).get();
-      return snap.docs.map(d => ({ type, id:d.id, ...d.data() }));
+      return snap.docs.map(d => ({ ...d.data(), kind:type, id:d.id }));
     }));
     trashItems = results.flat().sort((a,b) => (b.deletedAt||'').localeCompare(a.deletedAt||''));
     renderTrash();
@@ -1639,37 +1842,37 @@ async function loadTrash(){
 }
 function renderTrash(){
   const tf = $('trashTypeFilter').value;
-  const rows = trashItems.filter(x => tf === 'all' || x.type === tf);
+  const rows = trashItems.filter(x => tf === 'all' || x.kind === tf);
   $('trashCount').textContent = rows.length;
   $('trashBody').innerHTML = rows.length ? rows.map(x => `
     <tr>
-      <td><span class="badge none">${ENTITY_LABEL[x.type]}</span></td>
+      <td><span class="badge none">${ENTITY_LABEL[x.kind]}</span></td>
       <td>${escapeHtml(x.name || '-')}</td>
       <td>${escapeHtml(getUserDisplayName(x.deletedBy))}</td>
       <td style="white-space:nowrap;">${fmtDateTime(x.deletedAt)}</td>
       <td><div class="row-actions">
-        <button class="icon-btn" onclick="restoreTrash('${x.type}','${x.id}')">กู้คืน</button>
-        <button class="icon-btn delete-btn" onclick="purgeTrash('${x.type}','${x.id}')">ลบถาวร</button>
+        <button class="icon-btn" onclick="restoreTrash('${x.kind}','${x.id}')">กู้คืน</button>
+        <button class="icon-btn delete-btn" onclick="purgeTrash('${x.kind}','${x.id}')">ลบถาวร</button>
       </div></td>
     </tr>`).join('') : `<tr><td colspan="5" class="empty-row">ถังขยะว่างเปล่า</td></tr>`;
 }
 async function restoreTrash(type, id){
-  const x = trashItems.find(r => r.type === type && r.id === id);
+  const x = trashItems.find(r => r.kind === type && r.id === id);
   try{
     await db.collection(COL[type]).doc(id).update({ deletedAt: firebase.firestore.FieldValue.delete(), deletedBy: firebase.firestore.FieldValue.delete() });
     logAudit('กู้คืน' + ENTITY_LABEL[type], x ? x.name : id, '');
-    trashItems = trashItems.filter(r => !(r.type === type && r.id === id));
+    trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
     renderTrash();
     toast('กู้คืนแล้ว');
   }catch(err){ toast('กู้คืนไม่สำเร็จ'); }
 }
 function purgeTrash(type, id){
-  const x = trashItems.find(r => r.type === type && r.id === id);
+  const x = trashItems.find(r => r.kind === type && r.id === id);
   confirmAction(`ลบ "${x ? x.name : id}" ถาวรใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
     try{
       await db.collection(COL[type]).doc(id).delete();
       logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
-      trashItems = trashItems.filter(r => !(r.type === type && r.id === id));
+      trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
       renderTrash();
       toast('ลบถาวรแล้ว');
     }catch(err){ toast('ลบไม่สำเร็จ'); }
