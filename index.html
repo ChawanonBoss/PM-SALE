@@ -368,6 +368,26 @@
     #printArea .gantt .g-cell.on{ border-left:none; border-right:none; }
     #printArea .gantt .g-num{ white-space:nowrap; }
     #printArea .badge{ font-size:10pt; padding:0 5px; }
+    .hd-head{ display:flex; align-items:center; justify-content:space-between; gap:6mm; }
+    .hd-head img{ max-width:34mm; max-height:26mm; object-fit:contain; }
+    .hd-co{ flex:1; text-align:right; font-size:18pt; font-weight:700; line-height:1.2; }
+    .hd-addr{ text-align:center; font-weight:700; border-bottom:0.4mm solid #000; padding:2mm 0 2.5mm; margin-bottom:5mm; line-height:1.25; }
+    .hd-tbl{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
+    .hd-tbl{ border-bottom:0.3mm solid #000; }
+    .hd-tbl tr:last-child > td{ border-bottom:none; }
+    .hd-tbl tr > :first-child{ border-left:0.3mm solid #000 !important; }
+    .hd-tbl:first-of-type tr:first-child > td{ border-top:0.3mm solid #000 !important; }
+    .hd-tbl td, .hd-tbl th{ border:none; border-right:0.3mm solid #000; border-bottom:0.3mm solid #000; padding:1.2mm 2.4mm; font-size:16pt; line-height:1.25; text-align:center; vertical-align:middle; font-weight:400; color:#000; background:none; overflow-wrap:anywhere; }
+    .hd-tbl td.hd-l{ font-weight:700; white-space:nowrap; }
+    .hd-tbl td.hd-t{ font-weight:700; font-size:18pt; padding:1.5mm; }
+    .hd-tbl td.hd-sec{ padding:1mm; }
+    .hd-tbl td.hd-tl{ text-align:left; }
+    .hd-tbl .hd-top{ vertical-align:top; }
+    .hd-tbl .hd-nm{ font-weight:700; }
+    .hd-sign{ display:flex; justify-content:space-around; margin-top:16mm; page-break-inside:avoid; text-align:center; font-size:16pt; }
+    .hd-sg{ width:72mm; }
+    .hd-sg .ln{ display:flex; align-items:flex-end; margin-bottom:1mm; }
+    .hd-sg .ln i{ flex:1; border-bottom:0.3mm solid #000; margin:0 2mm; height:1.1em; }
     .pr-foot{ margin-top:4mm; font-size:11pt; color:#333; }
     .pr-sign{ display:flex; justify-content:space-around; margin-top:24mm; text-align:center; page-break-inside:avoid; font-size:16pt; }
     .pr-sign div{ width:62mm; border-top:0.3mm solid #000; padding-top:2mm; }
@@ -1108,7 +1128,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.3';
+const APP_VERSION = '1.10.4';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2153,43 +2173,50 @@ function letterheadHtml(co){
     </div>` : '';
 }
 function buildProjectPrintHtml(p){
+  // Laid out like a delivery-handover form (letterhead, boxed info block, equipment table with one serial per line, two signature lines).
   const co = data.companies.find(c => c.id === p.companyId);
   const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
-  const head = letterheadHtml(co);
   const wr = projectWarranty(p);
   const sale = isSale(p);
-  const info = [
-    ['เลขที่เอกสาร', p.docNo],
-    ['ประเภทงาน', JOB_TYPES[jobTypeOf(p)]],
-    [sale ? 'ชื่องาน' : 'ชื่อโครงการ', p.name],
-    ['หน่วยงาน / ลูกค้า', cu.name],
-    ['ที่อยู่', cu.address],
-    ['ผู้ติดต่อ', [cu.contactName, cu.contactPhone].filter(Boolean).join(' · ')],
-    ['เลขที่ผู้เสียภาษี', cu.taxId],
-    ['เลขที่สัญญา', p.contractNo],
-    sale ? ['วันที่สั่งซื้อ', fmtDate(p.startDate)] : ['ระยะเวลาโครงการ', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`],
-    [sale ? 'สถานที่ส่งสินค้า' : 'สถานที่ติดตั้ง', wr.location],
-    ['การรับประกัน', wr.months ? `${wr.months} เดือน (หมดประกัน ${fmtDate(wr.expiry)})` : ''],
-    ['สถานะ', statusLabelFor(p, projectStatus(p))],
-    ['หมายเหตุ', p.notes]
-  ].filter(r => r[1]).map(r => `<tr><td>${r[0]}</td><td>${escapeHtml(r[1])}</td></tr>`).join('');
-  // Portrait A4 at 16 pt has no room for 8 narrow columns: part / brand / name / type share one cell (lines), serials get their own column.
-  const work = (p.items || []).map(toItemRow).map((r, i) => `
+  const contactLine = [cu.contactName, cu.contactPhone].filter(Boolean).join(' · ');
+  const head = co ? `
+    <div class="hd-head">${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : '<span></span>'}<div class="hd-co">${escapeHtml(co.name)}</div></div>
+    <div class="hd-addr">${[co.address, [co.phone ? 'โทร. ' + co.phone : '', co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + co.taxId : ''].filter(Boolean).join('   |   ')].filter(Boolean).map(escapeHtml).join('<br>')}</div>` : '';
+  // optional rows only when there is something to print
+  const extra = [
+    ['เลขที่สัญญา :', p.contractNo],
+    sale ? null : ['ระยะเวลา :', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`],
+    ['เลขที่ผู้เสียภาษี :', cu.taxId],
+    [sale ? 'สถานที่ส่งสินค้า :' : 'สถานที่ติดตั้ง :', wr.location],
+    ['การรับประกัน :', wr.months ? `${wr.months} เดือน (หมดประกัน ${fmtDate(wr.expiry)})` : '']
+  ].filter(r => r && r[1]).map(r => `<tr><td class="hd-l">${r[0]}</td><td colspan="4">${escapeHtml(r[1])}</td></tr>`).join('');
+  const rows = (p.items || []).map(toItemRow).map((r, i) => `
     <tr>
-      <td class="c">${i+1}</td>
-      <td><div class="pr-name">${escapeHtml(r.part || '-')}</div><div>${escapeHtml([r.brand, r.name].filter(Boolean).join(' ') || '-')}</div>${r.type ? `<div>ประเภท: ${escapeHtml(r.type)}</div>` : ''}</td>
-      <td>${r.serials.length ? r.serials.map(escapeHtml).join('<br>') : '-'}</td>
-      <td class="c">${r.qty}</td><td class="c">${r.status === 'done' ? 'ดำเนินการแล้ว' : 'รอดำเนินการ'}</td>
-    </tr>`).join('') || `<tr><td colspan="5" class="c">ไม่มีรายการ</td></tr>`;
+      <td>${i+1}</td>
+      <td><div>${escapeHtml([r.brand, r.part ? 'Model : ' + r.part : ''].filter(Boolean).join(' ') || '-')}</div>${(r.name || r.type) ? `<div>(${escapeHtml([r.name, r.type].filter(Boolean).join(' · '))})</div>` : ''}</td>
+      <td colspan="2">${r.serials.length ? r.serials.map(escapeHtml).join('<br>') : '-'}</td>
+      <td>${r.qty}</td>
+    </tr>`).join('') || `<tr><td colspan="5">ไม่มีรายการ</td></tr>`;
+  const cols = '<colgroup><col style="width:38mm"><col><col style="width:33mm"><col style="width:36mm"><col style="width:20mm"></colgroup>';
   return `${head}
-    <div class="pr-title">${sale ? 'รายละเอียดการซื้อขาย' : 'รายละเอียดโครงการ'}</div>
-    <table class="pr-info">${info}</table>
-    <table class="pr-items">
-      <colgroup><col style="width:21mm"><col><col style="width:42mm"><col style="width:20mm"><col style="width:33mm"></colgroup>
-      <thead><tr><th>ลำดับ</th><th>รายการอุปกรณ์</th><th>รหัสอุปกรณ์</th><th>จำนวน</th><th>สถานะ</th></tr></thead>
-      <tbody>${work}</tbody>
+    <table class="hd-tbl">${cols}
+      <tr><td colspan="5" class="hd-t">เอกสารส่งมอบงาน</td></tr>
+      <tr><td class="hd-l">ชื่อบริษัท :</td><td>${escapeHtml(cu.name || '-')}</td><td class="hd-l">วันที่ :</td><td colspan="2" class="hd-l">${escapeHtml(fmtDate(p.startDate))}</td></tr>
+      <tr><td class="hd-l">ที่อยู่ :</td><td colspan="4">${escapeHtml(cu.address || '-')}</td></tr>
+      <tr><td class="hd-l">ชื่อลูกค้า :</td><td>${escapeHtml(contactLine || '-')}</td><td class="hd-l">เลขที่เอกสาร :</td><td colspan="2">${escapeHtml(p.docNo || '-')}</td></tr>
+      <tr><td class="hd-l">${sale ? 'ชื่องาน :' : 'โครงการ :'}</td><td colspan="4">${escapeHtml(p.name || '-')}</td></tr>
+      ${extra}
+      <tr><td colspan="5" class="hd-sec">รายละเอียดอุปกรณ์ของ${sale ? 'งาน' : 'โครงการ'}</td></tr>
     </table>
-    <div class="pr-sign"><div>ผู้จัดทำ</div><div>ผู้อนุมัติ</div></div>`;
+    <table class="hd-tbl">${cols}
+      <thead><tr><th>ลำดับ</th><th>รายละเอียด</th><th colspan="2">รหัสอุปกรณ์</th><th>จำนวน</th></tr></thead>
+      <tbody>${rows}
+      <tr><td class="hd-l">หมายเหตุ :</td><td colspan="4" class="hd-tl">${escapeHtml(p.notes || '')}&nbsp;</td></tr></tbody>
+    </table>
+    <div class="hd-sign">
+      <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ขอส่งมอบงาน</div></div>
+      <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ตรวจรับงาน</div></div>
+    </div>`;
 }
 function printProject(id){
   const p = data.projects.find(x => x.id === id);
