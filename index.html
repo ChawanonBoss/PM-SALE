@@ -461,6 +461,7 @@
       </button>
       <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="nav-count-badge" id="usersNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">ผู้ใช้งาน</span>
       </button>
       <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
@@ -536,8 +537,24 @@
         </div>
       </div>
 
+      <!-- Waiting for admin approval (new sign-ups that were not pre-invited) -->
+      <div class="gate" id="approvalGate" style="display:none;">
+        <div class="gate-card">
+          <div class="gate-icon">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          </div>
+          <h2 id="approvalTitle">รอผู้ดูแลระบบอนุมัติ</h2>
+          <p id="approvalMsg">บัญชีของคุณถูกสร้างแล้ว แต่ยังใช้งานไม่ได้จนกว่าผู้ดูแลระบบจะอนุมัติ</p>
+          <p id="approvalEmail" class="cell-sub" style="margin-top:6px;"></p>
+          <div style="display:flex; gap:10px; justify-content:center; margin-top:24px; flex-wrap:wrap;">
+            <button class="btn" type="button" id="approvalRefreshBtn">ตรวจสอบสถานะอีกครั้ง</button>
+            <button class="btn outline" type="button" id="approvalSignOutBtn">ออกจากระบบ</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Dashboard -->
-      <div id="tab-dashboard" class="tab-panel" style="display:none;">
+      <div id="tab-dashboard" class="tab-panel" style="display:none;"> class="tab-panel" style="display:none;">
         <div class="dash-job-bar" id="dashJobBar">
           <span style="font-size:12.5px; color:var(--ink-soft);">แสดงเฉพาะ</span>
           <button class="subtab-item" type="button" data-dashjob="sale">ซื้อขาย</button>
@@ -1137,7 +1154,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.14';
+const APP_VERSION = '1.11.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1214,7 +1231,7 @@ function setSync(state){
 }
 
 /* ====== State ====== */
-let currentUser = null, currentUserUid = null, currentUserEmail = '', currentUserName = '', currentUserRole = 'user';
+let currentUser = null, currentUserUid = null, currentUserEmail = '', currentUserName = '', currentUserRole = 'user', currentUserStatus = 'approved';   // status: approved | pending | rejected (a profile with no status = approved: it predates the approval step)
 let currentTab = 'dashboard';
 let authMode = 'signin';
 let pendingSignupName = '';
@@ -1477,9 +1494,35 @@ function detachListeners(){
   loaded = {};
 }
 
+let approvalUnsub = null;
+function hideApprovalGate(){
+  if (approvalUnsub){ approvalUnsub(); approvalUnsub = null; }
+  $('approvalGate').style.display = 'none';
+}
+// A signed-in account that an admin has not approved (yet) sees only this screen: no listeners are attached, and firestore.rules refuse it every
+// business collection anyway. It watches its own profile, so the moment an admin approves, the page reloads into the real app.
+function showApprovalGate(){
+  $('loadingOverlay').style.display = 'none';
+  $('sidebar').style.display = 'none'; $('topbar').style.display = 'none';
+  const rejected = currentUserStatus === 'rejected';
+  $('approvalTitle').textContent = rejected ? 'บัญชีนี้ไม่ได้รับอนุญาต' : 'รอผู้ดูแลระบบอนุมัติ';
+  $('approvalMsg').textContent = rejected ? 'ผู้ดูแลระบบไม่อนุมัติบัญชีนี้ หากคิดว่าผิดพลาด ให้ติดต่อผู้ดูแลระบบ' : 'บัญชีของคุณถูกสร้างแล้ว แต่ยังใช้งานไม่ได้จนกว่าผู้ดูแลระบบจะอนุมัติ';
+  $('approvalEmail').textContent = currentUserEmail;
+  $('approvalGate').style.display = 'block';
+  if (approvalUnsub) approvalUnsub();
+  approvalUnsub = db.collection(COL.users).doc(currentUserUid).onSnapshot(snap => {
+    const st = snap.exists ? (snap.data().status || 'approved') : 'pending';
+    if (st === 'approved') location.reload();
+    else if (st !== currentUserStatus){ currentUserStatus = st; showApprovalGate(); }
+  }, () => {});
+}
+$('approvalRefreshBtn').addEventListener('click', () => location.reload());
+$('approvalSignOutBtn').addEventListener('click', () => auth.signOut());
+
 function showSignedOutUI(){
+  hideApprovalGate();
   detachListeners();
-  currentUser = null; currentUserUid = null; currentUserRole = 'user';
+  currentUser = null; currentUserUid = null; currentUserRole = 'user'; currentUserStatus = 'approved';
   $('gate').style.display = 'block';
   $('sidebar').style.display = 'none';
   $('topbar').style.display = 'none';
@@ -1512,6 +1555,7 @@ auth.onAuthStateChanged(async user => {
     auth.signOut();
     return;
   }
+  if (currentUserStatus !== 'approved'){ showApprovalGate(); return; }
   $('sidebar').style.display = 'flex';
   $('sidebar').classList.add('loading-lock');
   $('topbar').style.display = 'flex';
@@ -1526,26 +1570,31 @@ async function resolveUserRole(){
     const emailKey = currentUserEmail.toLowerCase();
     const pendingRef = db.collection(COL.pending).doc(emailKey);
     const pendingSnap = await pendingRef.get();
-    let role, name;
+    let role, name, status;
     if (pendingSnap.exists){
+      // pre-invited by an admin: approved at once with the invited role
       const p = pendingSnap.data();
-      role = p.role || 'user';
+      role = p.role || 'user'; status = 'approved';
       name = p.name || currentUserName;
     } else {
-      const any = await db.collection(COL.users).limit(1).get();
-      role = any.empty ? 'admin' : 'user';   // first-ever user becomes admin (see firestore.rules for the bootstrap step)
+      // first-ever user becomes admin (see firestore.rules for the bootstrap step); anybody else waits for an admin to approve them.
+      // Once the rules are published a stranger may not list pm_users, so a refused query simply means "not the first user".
+      let empty = false;
+      try{ empty = (await db.collection(COL.users).limit(1).get()).empty; }catch(e){ empty = false; }
+      role = empty ? 'admin' : 'user'; status = empty ? 'approved' : 'pending';
       name = currentUserName;
     }
     // create the user doc BEFORE deleting the pending invite — the rule for a self-created admin doc checks the invite still exists
-    await ref.set({ email: currentUserEmail, name, role });
+    await ref.set({ email: currentUserEmail, name, role, status });
     if (pendingSnap.exists) await pendingRef.delete();
-    currentUserRole = role;
+    currentUserRole = role; currentUserStatus = status;
     if (name) currentUserName = name;
   } else {
     const d = snap.data();
     currentUserRole = d.role || 'user';
+    currentUserStatus = d.status || 'approved';
     if (d.name) currentUserName = d.name;
-    else if (currentUserName) await ref.update({ name: currentUserName });
+    else if (currentUserName && currentUserStatus === 'approved') await ref.update({ name: currentUserName });
   }
   const isAdmin = currentUserRole === 'admin';
   ['navUsersTab','navAuditTab','navTrashTab'].forEach(id => $(id).style.display = isAdmin ? '' : 'none');
@@ -1741,6 +1790,7 @@ function updateNavBadge(){
   setNavBadge('projectsNavBadge', a.endingSoon.length, false);
   setNavBadge('planNavBadge', planN, a.planLate > 0);
   setNavBadge('equipmentNavBadge', a.warrantySoon.length, false);
+  setNavBadge('usersNavBadge', currentUserRole === 'admin' ? data.users.filter(u => (u.status || 'approved') === 'pending').length : 0, false);
 }
 document.querySelectorAll('.subtab-item[data-dashjob]').forEach(btn => btn.addEventListener('click', () => { dashJobFilter = btn.dataset.dashjob; renderDashboard(); }));
 $('dashJobClear').addEventListener('click', () => { dashJobFilter = 'all'; renderDashboard(); });
@@ -3525,12 +3575,12 @@ $('companyForm').addEventListener('submit', async e => {
 function renderUsers(){
   if (currentUserRole !== 'admin') return;
   const q = $('usersSearch').value.trim().toLowerCase();
-  const real = data.users.map(u => ({ ...u, isPending:false }));
+  const real = data.users.map(u => ({ ...u, isPending:false, status: u.status || 'approved' }));
   const realEmails = new Set(real.map(u => (u.email||'').toLowerCase()));
   const pending = data.pending.filter(p => !realEmails.has(p.id)).map(p => ({ id:p.id, email:p.id, name:p.name, role:p.role, isPending:true }));
   const rows = [...real, ...pending]
     .filter(u => !q || (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
-    .sort((a,b) => (a.name||a.email||'').localeCompare(b.name||b.email||''));
+    .sort((a,b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || (a.name||a.email||'').localeCompare(b.name||b.email||''));   // accounts waiting for approval first
   $('usersCount').textContent = rows.length;
   $('usersBody').innerHTML = pageSlice('users', rows).map(u => {
     const initial = (u.name || u.email || '?').trim().charAt(0).toUpperCase();
@@ -3539,13 +3589,13 @@ function renderUsers(){
     const isMe = u.id === currentUserUid;
     return `<tr>
       <td>${avatar}</td>
-      <td>${escapeHtml(u.name || '-')}${isMe ? ' <span class="badge role-admin">คุณ</span>' : ''}${u.isPending ? ' <span class="badge pending">รอเข้าสู่ระบบ</span>' : ''}</td>
+      <td>${escapeHtml(u.name || '-')}${isMe ? ' <span class="badge role-admin">คุณ</span>' : ''}${u.isPending ? ' <span class="badge pending">รอเข้าสู่ระบบ</span>' : ''}${u.status === 'pending' ? ' <span class="badge pending">รออนุมัติ</span>' : ''}${u.status === 'rejected' ? ' <span class="badge expired">ไม่อนุมัติ</span>' : ''}</td>
       <td>${escapeHtml(u.email || '-')}</td>
       <td><select class="filter-control" onchange="setUserRole('${escapeHtml(u.id)}', ${u.isPending}, this.value)" ${isMe ? 'disabled title="ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง"' : ''}>
         <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>ผู้ใช้งานทั่วไป</option>
         <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option>
       </select></td>
-      <td><div class="row-actions">${isMe ? '' : `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.id)}', ${u.isPending})">ลบ</button>`}</div></td>
+      <td><div class="row-actions">${!u.isPending && u.status !== 'approved' ? `<button class="icon-btn" onclick="setUserStatus('${escapeHtml(u.id)}', 'approved')">อนุมัติ</button>` : ''}${!u.isPending && u.status === 'pending' ? `<button class="icon-btn" onclick="setUserStatus('${escapeHtml(u.id)}', 'rejected')">ไม่อนุมัติ</button>` : ''}${isMe ? '' : `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.id)}', ${u.isPending})">ลบ</button>`}</div></td>
     </tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-row">ไม่พบผู้ใช้งาน</td></tr>`;
 }
@@ -3568,6 +3618,15 @@ $('userForm').addEventListener('submit', async e => {
     toast('เพิ่มผู้ใช้งานแล้ว');
   }catch(err){ toast('บันทึกไม่สำเร็จ'); }
 });
+async function setUserStatus(id, status){
+  if (currentUserRole !== 'admin') return;
+  const label = getUserDisplayName(id);
+  try{
+    await db.collection(COL.users).doc(id).update({ status });
+    logAudit(status === 'approved' ? 'อนุมัติผู้ใช้' : 'ไม่อนุมัติผู้ใช้', label, '');
+    toast(status === 'approved' ? 'อนุมัติแล้ว' : 'ไม่อนุมัติแล้ว');
+  }catch(err){ toast('ทำรายการไม่สำเร็จ'); }
+}
 async function setUserRole(id, isPending, role){
   if (id === currentUserUid){ toast('ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง'); renderUsers(); return; }
   try{

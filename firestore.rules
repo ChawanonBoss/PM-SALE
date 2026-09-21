@@ -21,27 +21,35 @@
         && get(/databases/$(database)/documents/pm_users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // New sign-ups are created with status 'pending' (see the pm_users create rule) and are refused every business collection until an admin
+    // sets 'approved'. A profile with no `status` field at all is an older, already-working account and counts as approved.
+    function pmIsApproved() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/pm_users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/pm_users/$(request.auth.uid)).data.get('status', 'approved') == 'approved';
+    }
+
     match /pm_projects/{id} {
-      allow read: if pmIsAdmin() || (request.auth != null && resource.data.createdBy == request.auth.uid);
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
+      allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
       allow update: if pmIsAdmin()
-        || (request.auth != null && resource.data.createdBy == request.auth.uid
+        || (pmIsApproved() && resource.data.createdBy == request.auth.uid
             && request.resource.data.createdBy == resource.data.createdBy);
       allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
     match /pm_customers/{id} {
-      allow read: if pmIsAdmin() || (request.auth != null && resource.data.createdBy == request.auth.uid);
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
+      allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
       allow update: if pmIsAdmin()
-        || (request.auth != null && resource.data.createdBy == request.auth.uid
+        || (pmIsApproved() && resource.data.createdBy == request.auth.uid
             && request.resource.data.createdBy == resource.data.createdBy);
       allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
     // Company profiles (letterhead): everyone signed in can read (needed to print), only admin edits.
     match /pm_companies/{id} {
-      allow read: if request.auth != null;
+      allow read: if pmIsApproved();
       allow create, update, delete: if pmIsAdmin();
     }
 
@@ -51,13 +59,13 @@
     // non-negative number, createdBy / deletedAt / any other key cannot be touched, and the withdrawal history can only grow
     // (it is capped at 500 by the app, so it never shrinks legitimately).
     match /pm_warehouse/{id} {
-      allow read: if request.auth != null;
+      allow read: if pmIsApproved();
       allow create: if pmIsAdmin()
-        || (request.auth != null && request.resource.data.createdBy == request.auth.uid
+        || (pmIsApproved() && request.resource.data.createdBy == request.auth.uid
             && request.resource.data.keys().hasOnly(['part','name','type','brand','quantity','serials','note','createdBy','createdAt'])
             && request.resource.data.quantity is number && request.resource.data.quantity >= 0);
       allow update: if pmIsAdmin()
-        || (request.auth != null
+        || (pmIsApproved()
             && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['part','name','type','brand','quantity','serials','note','history'])
             && request.resource.data.quantity is number && request.resource.data.quantity >= 0
             && (!('history' in resource.data)
@@ -68,41 +76,47 @@
     // Document-number counters (SO20260921 -> n): any signed-in user may create one or raise it, never lower it. The app falls back to
     // "highest visible number + 1" if these rules aren't published, so publishing them is what makes numbering race-proof.
     match /pm_counters/{id} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n is int && request.resource.data.n >= 1;
-      allow update: if request.auth != null && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n is int && request.resource.data.n > resource.data.n;
+      allow read: if pmIsApproved();
+      allow create: if pmIsApproved() && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n is int && request.resource.data.n >= 1;
+      allow update: if pmIsApproved() && request.resource.data.keys().hasOnly(['n']) && request.resource.data.n is int && request.resource.data.n > resource.data.n;
       allow delete: if pmIsAdmin();
     }
 
     // Product catalogs (PDF stored as pieces): everyone signed in can read and download, only admin uploads / edits / deletes.
     match /pm_catalogs/{id} {
-      allow read: if request.auth != null;
+      allow read: if pmIsApproved();
       allow create, update, delete: if pmIsAdmin();
     }
     match /pm_catalogChunks/{id} {
-      allow read: if request.auth != null;
+      allow read: if pmIsApproved();
       allow create, update, delete: if pmIsAdmin();
     }
 
+    // pm_users: your own profile is always readable (a waiting account has to see its own status); everything else needs an approved account.
+    // A brand-new sign-up may only create a 'pending' profile of role 'user'; being pre-invited by an admin (pm_pendingRoles) gives the invited role
+    // already approved; the first-ever admin needs the pm_config/bootstrap marker (made by hand in the Console). Nobody can change their own role or status.
     match /pm_users/{userId} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null && (request.auth.uid == userId || pmIsApproved());
+      allow list: if pmIsApproved()
+        || (request.auth != null && exists(/databases/$(database)/documents/pm_config/bootstrap) && request.query.limit <= 1);
       allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(['email','name','role','status'])
         && (
-          request.resource.data.role == 'user'
+          (request.resource.data.role == 'user' && request.resource.data.status == 'pending')
+          || (
+            exists(/databases/$(database)/documents/pm_pendingRoles/$(request.auth.token.email.lower()))
+            && get(/databases/$(database)/documents/pm_pendingRoles/$(request.auth.token.email.lower())).data.role == request.resource.data.role
+            && request.resource.data.get('status', 'approved') == 'approved'
+          )
           || (
             request.resource.data.role == 'admin'
-            && (
-              exists(/databases/$(database)/documents/pm_config/bootstrap)
-              || (
-                exists(/databases/$(database)/documents/pm_pendingRoles/$(request.auth.token.email.lower()))
-                && get(/databases/$(database)/documents/pm_pendingRoles/$(request.auth.token.email.lower())).data.role == 'admin'
-              )
-            )
+            && request.resource.data.get('status', 'approved') == 'approved'
+            && exists(/databases/$(database)/documents/pm_config/bootstrap)
           )
         );
       allow update: if pmIsAdmin()
-        || (request.auth != null && request.auth.uid == userId
-            && !('role' in request.resource.data.diff(resource.data).affectedKeys()));
+        || (pmIsApproved() && request.auth.uid == userId
+            && !(request.resource.data.diff(resource.data).affectedKeys().hasAny(['role','status'])));
       allow delete: if pmIsAdmin();
     }
 
@@ -118,7 +132,7 @@
 
     match /pm_auditLog/{id} {
       allow read: if pmIsAdmin();
-      allow create: if request.auth != null && request.resource.data.changedBy == request.auth.uid;
+      allow create: if pmIsApproved() && request.resource.data.changedBy == request.auth.uid;
       allow update, delete: if false;
     }
 
