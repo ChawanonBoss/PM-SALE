@@ -244,8 +244,11 @@
   /* ---- Warehouse ---- */
   #warehouseBody tr{ cursor:pointer; }
   .code-mask{ font-family:ui-monospace,Consolas,monospace; letter-spacing:.06em; }
-  .eye-btn{ background:none; border:none; color:var(--ink-soft); padding:2px 6px; vertical-align:middle; }
-  .eye-btn:hover{ color:var(--accent); }
+  .type-row{ display:flex; gap:8px; align-items:center; }
+  .type-row select{ flex:1; }
+  .type-new{ display:flex; gap:6px; margin-top:8px; }
+  .type-new input{ flex:1; }
+  .serial-note{ font-size:12px; color:var(--sun); margin:4px 0 0; }
   .serial-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .serial-row .serial-no{ width:26px; font-size:12px; color:var(--ink-soft); text-align:right; flex-shrink:0; }
   .serial-row input{ flex:1; }
@@ -523,9 +526,9 @@
               <button class="btn" id="warehouseCreateBtn" type="button">+ เพิ่มอุปกรณ์</button>
             </div>
           </div>
-          <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number ทั้งหมดของอุปกรณ์นั้น — รหัสอุปกรณ์ถูกซ่อนไว้ (xxxxxx) กดรูปตาเพื่อดู</p>
+          <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number ทั้งหมดของอุปกรณ์นั้น</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>Part</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>จำนวนอุปกรณ์</th><th>รหัสอุปกรณ์</th><th></th></tr></thead>
+            <thead><tr><th>Part</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warehouseBody"></tbody>
           </table></div>
         </div>
@@ -705,15 +708,25 @@
     <h3 class="serif" id="warehouseModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มอุปกรณ์</h3>
     <form id="warehouseForm">
       <div class="form-grid">
-        <div class="field"><label>Part</label><input type="text" id="whPart"></div>
-        <div class="field"><label>รหัสอุปกรณ์</label><input type="text" id="whCode"></div>
-        <div class="field full"><label>ชื่ออุปกรณ์ *</label><input type="text" id="whName" required></div>
-        <div class="field"><label>ประเภท</label><input type="text" id="whType" list="whTypeList" autocomplete="off"><datalist id="whTypeList"></datalist></div>
-        <div class="field"><label>จำนวนอุปกรณ์</label><input type="number" id="whQty" min="0" step="1" value="1"></div>
-        <div class="field full"><label>Serial Number</label>
-          <div id="whSerialList"></div>
-          <button type="button" class="serial-add-btn" id="whSerialAddBtn" title="เพิ่มช่อง Serial Number">+</button>
+        <div class="field"><label>Part *</label><input type="text" id="whPart" required></div>
+        <div class="field"><label>ชื่ออุปกรณ์ *</label><input type="text" id="whName" required></div>
+        <div class="field"><label>ประเภท</label>
+          <div class="type-row">
+            <select id="whType"></select>
+            <button type="button" class="serial-add-btn" id="whTypeAddBtn" title="เพิ่มประเภทใหม่">+</button>
+          </div>
+          <div class="type-new" id="whTypeNewRow" style="display:none;">
+            <input type="text" id="whTypeNew" placeholder="ชื่อประเภทใหม่" autocomplete="off">
+            <button type="button" class="icon-btn" id="whTypeNewOk">เพิ่ม</button>
+            <button type="button" class="icon-btn" id="whTypeNewCancel">ยกเลิก</button>
+          </div>
         </div>
+        <div class="field"><label>จำนวนอุปกรณ์</label><input type="number" id="whQty" min="0" step="1" value="1"></div>
+        <div class="field full"><label>Serial Number <span id="whSerialCount" style="color:var(--ink-soft);"></span></label>
+          <div id="whSerialList"></div>
+          <p class="serial-note" id="whSerialNote" style="display:none;"></p>
+        </div>
+        <div class="field full"><label>หมายเหตุ</label><textarea id="whNote"></textarea></div>
       </div>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="warehouseCancelBtn">ยกเลิก</button>
@@ -727,7 +740,8 @@
 <div class="modal-overlay" id="serialModal" style="display:none;">
   <div class="modal" style="max-width:520px;">
     <h3 class="serif" id="serialModalTitle" style="font-size:19px; margin-bottom:4px;"></h3>
-    <p id="serialModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;"></p>
+    <p id="serialModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:4px;"></p>
+    <p id="serialModalNote" style="font-size:13px; margin-bottom:16px;"></p>
     <div style="max-height:380px; overflow-y:auto;">
       <table><thead><tr><th style="width:50px;">#</th><th>Serial Number</th></tr></thead><tbody id="serialModalBody"></tbody></table>
     </div>
@@ -817,7 +831,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.3.0';
+const APP_VERSION = '1.4.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1961,9 +1975,30 @@ function deleteEntity(type, id){
 }
 
 /* ====== Warehouse ====== */
-const revealedWhCodes = new Set();   // ids whose equipment code is currently un-masked (per-browser, resets on reload)
-const EYE_ON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-const EYE_OFF = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+const WAREHOUSE_DEFAULT_TYPES = ['Industrial', 'Switch', 'Router', 'Computer Set'];
+const MAX_SERIAL_BOXES = 500;   // guards against an accidental huge quantity creating thousands of inputs
+let extraWhTypes = [];          // types added with "+" in the open form (they're kept once an item using them is saved)
+// Dropdown options = the built-in types, then every type already used by a saved item, then ones just added in this form.
+// (There is no separate "types" collection — a type exists for everyone as soon as one saved item uses it.)
+function allWarehouseTypes(){
+  const seen = new Set(), out = [];
+  const add = ty => {
+    ty = (ty || '').trim();
+    if (!ty || seen.has(ty.toLowerCase())) return;
+    seen.add(ty.toLowerCase()); out.push(ty);
+  };
+  WAREHOUSE_DEFAULT_TYPES.forEach(add);
+  [...new Set(data.warehouse.map(w => (w.type || '').trim()).filter(Boolean))].sort().forEach(add);
+  extraWhTypes.forEach(add);
+  return out;
+}
+function fillWhTypeSelect(selected){
+  const types = allWarehouseTypes();
+  const match = types.find(ty => ty.toLowerCase() === (selected || '').trim().toLowerCase());
+  $('whType').innerHTML = `<option value="">— เลือกประเภท —</option>` + types.map(ty => `<option value="${escapeHtml(ty)}">${escapeHtml(ty)}</option>`).join('');
+  $('whType').value = match || '';
+}
+
 function renderWarehouse(){
   const typeSel = $('warehouseTypeFilter');
   const prevType = typeSel.value || 'all';
@@ -1973,59 +2008,79 @@ function renderWarehouse(){
   const q = $('warehouseSearch').value.trim().toLowerCase();
   const rows = data.warehouse
     .filter(w => typeSel.value === 'all' || (w.type || '').trim() === typeSel.value)
-    .filter(w => !q || [w.part, w.name, w.type].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
+    .filter(w => !q || [w.part, w.name, w.type, w.note].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
     .sort((a,b) => (a.name||'').localeCompare(b.name||''));
   $('warehouseCount').textContent = rows.length;
-  $('warehouseBody').innerHTML = rows.length ? rows.map(w => {
-    const shown = revealedWhCodes.has(w.id);
-    const code = w.code ? (shown ? escapeHtml(w.code) : 'xxxxxx') : '-';
-    return `<tr onclick="openSerialModal('${w.id}')" title="กดเพื่อดู Serial Number">
+  $('warehouseBody').innerHTML = rows.length ? rows.map(w => `
+    <tr onclick="openSerialModal('${w.id}')" title="กดเพื่อดู Serial Number">
       <td>${escapeHtml(w.part || '-')}</td>
       <td><b>${escapeHtml(w.name)}</b></td>
       <td>${escapeHtml(w.type || '-')}</td>
-      <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length} รายการ</div></td>
-      <td><span class="code-mask">${code}</span>${w.code ? `<button class="eye-btn" type="button" title="${shown ? 'ซ่อนรหัส' : 'แสดงรหัส'}" onclick="event.stopPropagation(); toggleWhCode('${w.id}')">${shown ? EYE_OFF : EYE_ON}</button>` : ''}</td>
+      <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length}/${fmtNum(w.quantity)}</div></td>
+      <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(w.note || '-')}</td>
       <td><div class="row-actions">
         <button class="icon-btn" onclick="event.stopPropagation(); openWarehouseForm('${w.id}')">แก้ไข</button>
         ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('warehouse','${w.id}')">ลบ</button>` : ''}
       </div></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;
 }
 ['warehouseSearch','warehouseTypeFilter'].forEach(id => $(id).addEventListener('input', renderWarehouse));
-function toggleWhCode(id){
-  if (revealedWhCodes.has(id)) revealedWhCodes.delete(id); else revealedWhCodes.add(id);
-  renderWarehouse();
-}
 
+/* ---- Serial number boxes: exactly one per unit (quantity 4 -> 4 boxes), re-drawn live as the quantity changes ---- */
 let editingWarehouseId = null;
-let editingSerials = [''];
-function renderSerialInputs(focusLast){
-  $('whSerialList').innerHTML = editingSerials.map((sn, i) => `
+let editingSerials = [];   // may hold more entries than the current quantity, so lowering then raising the quantity doesn't lose typed serials
+function warehouseQty(){ return Math.max(0, Math.floor(Number($('whQty').value) || 0)); }
+function renderSerialInputs(focusIdx){
+  const qty = warehouseQty();
+  const n = Math.min(qty, MAX_SERIAL_BOXES);
+  while (editingSerials.length < n) editingSerials.push('');
+  $('whSerialCount').textContent = qty ? `(${n} ช่อง ตามจำนวนอุปกรณ์)` : '';
+  $('whSerialList').innerHTML = n ? editingSerials.slice(0, n).map((sn, i) => `
     <div class="serial-row">
       <span class="serial-no">${i+1}</span>
       <input type="text" value="${escapeHtml(sn)}" placeholder="Serial Number" oninput="editingSerials[${i}]=this.value" onkeydown="serialKey(event, ${i})">
-      ${editingSerials.length > 1 ? `<button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeSerialRow(${i})" title="ลบช่องนี้">✕</button>` : ''}
-    </div>`).join('');
-  if (focusLast){
+    </div>`).join('') : `<div class="cell-sub">จำนวนอุปกรณ์เป็น 0 — ไม่มีช่อง Serial Number</div>`;
+  const dropped = editingSerials.slice(n).filter(sn => sn.trim()).length;
+  const notes = [];
+  if (qty > MAX_SERIAL_BOXES) notes.push(`แสดงช่อง Serial Number สูงสุด ${MAX_SERIAL_BOXES} ช่อง`);
+  if (dropped) notes.push(`มี Serial Number ${dropped} รายการเกินจำนวนอุปกรณ์ — ส่วนที่เกินจะไม่ถูกบันทึก`);
+  $('whSerialNote').style.display = notes.length ? 'block' : 'none';
+  $('whSerialNote').textContent = notes.join(' · ');
+  if (focusIdx != null){
     const inputs = $('whSerialList').querySelectorAll('input');
-    if (inputs.length) inputs[inputs.length - 1].focus();
+    if (inputs[focusIdx]) inputs[focusIdx].focus();
   }
 }
-function addSerialRow(){ editingSerials.push(''); renderSerialInputs(true); }
-function removeSerialRow(i){
-  editingSerials.splice(i, 1);
-  if (!editingSerials.length) editingSerials.push('');
-  renderSerialInputs(false);
-}
-// Enter in a serial box opens the next box (instead of submitting the whole form) — handy when typing/scanning many serials in a row
+// Enter in a serial box jumps to the next box instead of submitting the whole form (handy when typing/scanning a batch)
 function serialKey(e, i){
   if (e.key !== 'Enter') return;
   e.preventDefault();
-  if (i === editingSerials.length - 1 && editingSerials[i].trim()) addSerialRow();
-  else { const inputs = $('whSerialList').querySelectorAll('input'); if (inputs[i+1]) inputs[i+1].focus(); }
+  const inputs = $('whSerialList').querySelectorAll('input');
+  if (inputs[i+1]) inputs[i+1].focus();
 }
-$('whSerialAddBtn').addEventListener('click', addSerialRow);
+$('whQty').addEventListener('input', () => renderSerialInputs());
+
+/* ---- "+" beside the type dropdown: add a new type ---- */
+function closeWhTypeNew(){ $('whTypeNewRow').style.display = 'none'; $('whTypeNew').value = ''; }
+$('whTypeAddBtn').addEventListener('click', () => {
+  $('whTypeNewRow').style.display = 'flex';
+  $('whTypeNew').focus();
+});
+function confirmWhTypeNew(){
+  const name = $('whTypeNew').value.trim();
+  if (!name){ $('whTypeNew').focus(); return; }
+  const existing = allWarehouseTypes().find(ty => ty.toLowerCase() === name.toLowerCase());
+  if (!existing) extraWhTypes.push(name);
+  fillWhTypeSelect(existing || name);
+  closeWhTypeNew();
+  if (existing) toast(`มีประเภท "${existing}" อยู่แล้ว เลือกให้แล้ว`);
+}
+$('whTypeNewOk').addEventListener('click', confirmWhTypeNew);
+$('whTypeNewCancel').addEventListener('click', closeWhTypeNew);
+$('whTypeNew').addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ e.preventDefault(); confirmWhTypeNew(); }
+  else if (e.key === 'Escape'){ e.stopPropagation(); closeWhTypeNew(); }   // Escape here closes only the mini-form, not the whole modal
+});
 
 function openWarehouseForm(id){
   const w = id ? data.warehouse.find(x => x.id === id) : null;
@@ -2034,13 +2089,13 @@ function openWarehouseForm(id){
   $('warehouseModalTitle').textContent = w ? 'แก้ไขอุปกรณ์' : 'เพิ่มอุปกรณ์';
   $('whPart').value = w ? w.part || '' : '';
   $('whName').value = w ? w.name || '' : '';
-  $('whType').value = w ? w.type || '' : '';
   $('whQty').value = w ? (w.quantity == null ? 1 : w.quantity) : 1;
-  $('whCode').value = w ? w.code || '' : '';
-  const types = [...new Set(data.warehouse.map(x => (x.type || '').trim()).filter(Boolean))].sort();
-  $('whTypeList').innerHTML = types.map(ty => `<option value="${escapeHtml(ty)}">`).join('');
-  editingSerials = w && (w.serials || []).length ? [...w.serials] : [''];   // only one empty box to start; "+" reveals more
-  renderSerialInputs(false);
+  $('whNote').value = w ? w.note || '' : '';
+  extraWhTypes = [];
+  closeWhTypeNew();
+  fillWhTypeSelect(w ? w.type : '');
+  editingSerials = w ? [...(w.serials || [])] : [];
+  renderSerialInputs();
   closeModal('serialModal');
   openModal('warehouseModal');
 }
@@ -2048,21 +2103,23 @@ $('warehouseCreateBtn').addEventListener('click', () => openWarehouseForm(null))
 $('warehouseCancelBtn').addEventListener('click', () => closeModal('warehouseModal'));
 $('warehouseForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const serials = editingSerials.map(sn => sn.trim()).filter(Boolean);
+  const qty = warehouseQty();
+  const serials = editingSerials.slice(0, Math.min(qty, MAX_SERIAL_BOXES)).map(sn => sn.trim()).filter(Boolean);
   if (new Set(serials.map(sn => sn.toLowerCase())).size !== serials.length){ toast('มี Serial Number ซ้ำกัน'); return; }
   const doc = {
-    part: $('whPart').value.trim(), name: $('whName').value.trim(), type: $('whType').value.trim(),
-    quantity: Math.max(0, Number($('whQty').value) || 0), code: $('whCode').value.trim(), serials
+    part: $('whPart').value.trim(), name: $('whName').value.trim(), type: $('whType').value,
+    quantity: qty, serials, note: $('whNote').value.trim()
   };
+  if (!doc.part){ toast('กรุณากรอก Part'); $('whPart').focus(); return; }
   $('warehouseSaveBtn').disabled = true;
   setSync('saving');
   try{
     if (editingWarehouseId){
       await db.collection(COL.warehouse).doc(editingWarehouseId).update(doc);
-      logAudit('แก้ไขอุปกรณ์ในโกดัง', doc.name, `Part ${doc.part || '-'} · จำนวน ${doc.quantity} · SN ${serials.length}`);
+      logAudit('แก้ไขอุปกรณ์ในโกดัง', doc.name, `Part ${doc.part} · จำนวน ${doc.quantity} · SN ${serials.length}`);
     } else {
       await db.collection(COL.warehouse).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
-      logAudit('เพิ่มอุปกรณ์ในโกดัง', doc.name, `Part ${doc.part || '-'} · จำนวน ${doc.quantity} · SN ${serials.length}`);
+      logAudit('เพิ่มอุปกรณ์ในโกดัง', doc.name, `Part ${doc.part} · จำนวน ${doc.quantity} · SN ${serials.length}`);
     }
     setSync('ok');
     closeModal('warehouseModal');
@@ -2079,6 +2136,8 @@ function openSerialModal(id){
   const serials = w.serials || [];
   $('serialModalTitle').textContent = w.name;
   $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.type ? w.type + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
+  $('serialModalNote').textContent = w.note ? 'หมายเหตุ: ' + w.note : '';
+  $('serialModalNote').style.whiteSpace = 'pre-line';
   $('serialModalBody').innerHTML = serials.length
     ? serials.map((sn, i) => `<tr><td class="cell-sub">${i+1}</td><td><span class="code-mask" style="letter-spacing:0;">${escapeHtml(sn)}</span></td></tr>`).join('')
     : `<tr><td colspan="2" class="empty-row">ยังไม่ได้บันทึก Serial Number</td></tr>`;
