@@ -195,6 +195,20 @@
   .items-table td{ padding:6px 6px; }
   .items-table th{ padding:6px; }
 
+  /* native <input type=date> with a readable Thai-format label laid over it (the browser's own calendar button still works) */
+  .date-edit-wrap{ position:relative; }
+  .date-edit-wrap input[type="date"]{ color:transparent; }
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-text,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-month-field,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-day-field,
+  .date-edit-wrap input[type="date"]::-webkit-datetime-edit-year-field{ color:transparent; }
+  .date-edit-wrap input[type="date"]::-webkit-calendar-picker-indicator{ cursor:pointer; opacity:.7; }
+  :root[data-theme="dark"] .date-edit-wrap input[type="date"]::-webkit-calendar-picker-indicator{ filter:invert(1); }
+  .date-display{ position:absolute; left:9px; top:0; bottom:0; right:30px; display:flex; align-items:center; font-size:13px; color:var(--ink); pointer-events:none; white-space:nowrap; overflow:hidden; }
+  .date-display.placeholder{ color:var(--ink-soft); font-style:italic; }
+
   /* ---- Action plan (Gantt by week-of-month) ---- */
   .plan-scroll{ overflow-x:auto; border:1px solid var(--line); border-radius:14px; }
   .gantt{ width:auto; border-collapse:separate; border-spacing:0; font-size:12.5px; }
@@ -671,10 +685,11 @@
       </div>
       <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดอุปกรณ์ / งาน</h4>
       <div class="table-scroll"><table class="items-table">
-        <thead><tr><th style="width:36px;">#</th><th>รายการ *</th><th>รายละเอียด</th><th style="width:80px;">จำนวน</th><th style="width:80px;">หน่วย</th><th>สถานที่ติดตั้ง</th><th style="width:90px;">ประกัน (เดือน)</th><th style="width:140px;">เริ่มรับประกัน</th><th style="width:40px;"></th></tr></thead>
+        <thead><tr><th style="width:36px;">#</th><th>รายการ *</th><th>รายละเอียด</th><th style="width:80px;">จำนวน</th><th style="width:80px;">หน่วย</th><th>สถานที่ติดตั้ง</th><th style="width:90px;">ประกัน (เดือน)</th><th style="width:190px;">เริ่มรับประกัน</th><th style="width:120px;">หมดประกัน</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjItemsBody"></tbody>
       </table></div>
       <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มแถว</button>
+      <p class="panel-note" style="margin:10px 0 0;">วันเริ่มรับประกันที่เว้นว่างไว้ (แสดงเป็นตัวเอียงสีเทา) จะนับจากวันที่เริ่มต้นโครงการ และเปลี่ยนตามอัตโนมัติถ้าแก้วันเริ่มโครงการ</p>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกโครงการ</button>
@@ -834,7 +849,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.5.0';
+const APP_VERSION = '1.5.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1380,7 +1395,7 @@ function renderProjects(){
 
 let editingProjectId = null;
 let editingItems = [];
-const blankItem = () => ({ name:'', detail:'', qty:1, unit:'', location:'', warrantyMonths:'', warrantyStart:'' });
+const blankItem = () => ({ name:'', detail:'', qty:1, unit:'', location:'', warrantyMonths:12, warrantyStart:'' });   // new rows default to a 12-month warranty
 
 function fillProjectSelects(selectedCustomer, selectedCompany){
   const customers = [...data.customers].sort((a,b) => (a.name||'').localeCompare(b.name||''));
@@ -1408,6 +1423,23 @@ function openProjectForm(id){
   renderItemRows();
   openModal('projectModal');
 }
+// Warranty start shown in Thai Buddhist-year format (the native date box would show e.g. 10/01/2026, ambiguous day/month order);
+// an empty start means "count from the project's start date", which is also what the Equipment page does.
+function itemStartText(it){
+  if (it.warrantyStart) return fmtDate(it.warrantyStart);
+  const ps = $('prjStart').value;
+  return ps ? `ตามโครงการ ${fmtDate(ps)}` : 'ตามวันเริ่มโครงการ';
+}
+function itemExpiryText(it){
+  const months = Number(it.warrantyMonths) || 0;
+  const start = it.warrantyStart || $('prjStart').value;
+  return months > 0 && start ? fmtDate(addMonths(start, months)) : '-';
+}
+function updateItemExpiry(i){
+  const cell = $('itemExpiry' + i);
+  if (cell) cell.textContent = itemExpiryText(editingItems[i]);
+}
+$('prjStart').addEventListener('input', () => { if ($('projectModal').style.display === 'flex') renderItemRows(); });
 function renderItemRows(){
   $('prjItemsBody').innerHTML = editingItems.map((it, i) => `
     <tr>
@@ -1417,8 +1449,12 @@ function renderItemRows(){
       <td><input type="number" min="0" step="any" value="${escapeHtml(it.qty)}" oninput="editingItems[${i}].qty=this.value"></td>
       <td><input type="text" value="${escapeHtml(it.unit)}" oninput="editingItems[${i}].unit=this.value"></td>
       <td><input type="text" value="${escapeHtml(it.location)}" oninput="editingItems[${i}].location=this.value"></td>
-      <td><input type="number" min="0" step="1" value="${escapeHtml(it.warrantyMonths)}" oninput="editingItems[${i}].warrantyMonths=this.value"></td>
-      <td><input type="date" value="${escapeHtml(it.warrantyStart)}" oninput="editingItems[${i}].warrantyStart=this.value"></td>
+      <td><input type="number" min="0" step="1" value="${escapeHtml(it.warrantyMonths)}" oninput="editingItems[${i}].warrantyMonths=this.value; updateItemExpiry(${i})"></td>
+      <td><div class="date-edit-wrap">
+        <input type="date" value="${escapeHtml(it.warrantyStart)}" onchange="editingItems[${i}].warrantyStart=this.value; renderItemRows()">
+        <span class="date-display ${it.warrantyStart ? '' : 'placeholder'}" title="${it.warrantyStart ? '' : 'ว่าง = นับจากวันเริ่มต้นโครงการ'}">${itemStartText(it)}</span>
+      </div></td>
+      <td class="cell-sub" id="itemExpiry${i}" style="white-space:nowrap;">${itemExpiryText(it)}</td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
     </tr>`).join('');
 }
