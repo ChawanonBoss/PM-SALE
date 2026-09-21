@@ -369,25 +369,26 @@
     #printArea .gantt .g-num{ white-space:nowrap; }
     #printArea .badge{ font-size:10pt; padding:0 5px; }
     .hd-head{ display:flex; align-items:center; justify-content:space-between; gap:6mm; }
-    .hd-head img{ max-width:34mm; max-height:26mm; object-fit:contain; }
-    .hd-co{ flex:1; text-align:right; font-size:18pt; font-weight:700; line-height:1.2; }
-    .hd-addr{ text-align:center; font-weight:700; border-bottom:0.4mm solid #000; padding:2mm 0 2.5mm; margin-bottom:5mm; line-height:1.25; }
+    .hd-head img{ max-width:42mm; max-height:28mm; object-fit:contain; }
+    .hd-co{ flex:1; text-align:right; font-size:16pt; font-weight:700; line-height:1.2; }
+    .hd-addr{ text-align:center; font-weight:700; font-size:11pt; border-bottom:0.4mm solid #000; padding:2mm 0 2.5mm; margin-bottom:4mm; line-height:1.25; }
     .hd-tbl{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; }
     .hd-tbl{ border-bottom:0.3mm solid #000; }
     .hd-tbl tr:last-child > td{ border-bottom:none; }
     .hd-tbl tr > :first-child{ border-left:0.3mm solid #000 !important; }
     .hd-tbl:first-of-type tr:first-child > td{ border-top:0.3mm solid #000 !important; }
-    .hd-tbl td, .hd-tbl th{ border:none; border-right:0.3mm solid #000; border-bottom:0.3mm solid #000; padding:0.9mm 1.6mm; font-size:16pt; line-height:1.2; text-align:center; vertical-align:middle; font-weight:400; color:#000; background:none; overflow-wrap:anywhere; }
+    .hd-tbl td, .hd-tbl th{ border:none; border-right:0.3mm solid #000; border-bottom:0.3mm solid #000; padding:0.8mm 1.6mm; font-size:12pt; line-height:1.3; text-align:center; vertical-align:middle; font-weight:400; color:#000; background:none; overflow-wrap:anywhere; }
     .hd-tbl td.hd-l{ font-weight:700; white-space:nowrap; }
-    .hd-tbl td.hd-t{ font-weight:700; font-size:18pt; padding:1.5mm; }
+    .hd-tbl td.hd-t{ font-weight:700; font-size:14pt; padding:1.2mm; }
     .hd-tbl td.hd-sec{ padding:1mm; }
     .hd-tbl td.hd-tl{ text-align:left; }
     .hd-tbl .hd-top{ vertical-align:top; }
     .hd-tbl .hd-nm{ font-weight:700; }
-    .hd-sign{ display:flex; justify-content:space-around; margin-top:16mm; page-break-inside:avoid; text-align:center; font-size:16pt; }
-    .hd-sg{ width:72mm; }
+    .hd-sign{ display:flex; justify-content:space-around; margin-top:14mm; page-break-inside:avoid; text-align:center; font-size:12pt; }
+    .hd-sg{ width:66mm; }
     .hd-sg .ln{ display:flex; align-items:flex-end; margin-bottom:1mm; }
-    .hd-sg .ln i{ flex:1; border-bottom:0.3mm solid #000; margin:0 2mm; height:1.1em; }
+    .hd-sg .ln i{ flex:1; border-bottom:0.3mm solid #000; margin:0 2mm; height:1.2em; }
+    .hd-sg .ln b{ flex:1; border-bottom:0.3mm solid #000; margin:0 2mm; font-weight:400; min-height:1.3em; }
     .pr-foot{ margin-top:4mm; font-size:11pt; color:#333; }
     .pr-sign{ display:flex; justify-content:space-around; margin-top:24mm; text-align:center; page-break-inside:avoid; font-size:16pt; }
     .pr-sign div{ width:62mm; border-top:0.3mm solid #000; padding-top:2mm; }
@@ -1128,7 +1129,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.5';
+const APP_VERSION = '1.10.6';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2178,10 +2179,11 @@ function buildProjectPrintHtml(p){
   const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
   const wr = projectWarranty(p);
   const sale = isSale(p);
+  const taxId = cu.type === 'gov' ? '' : cu.taxId;   // government agencies have no tax id: left out of the printout
   const contactLine = [cu.contactName, cu.contactPhone].filter(Boolean).join(' · ');
   const head = co ? `
     <div class="hd-head">${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : '<span></span>'}<div class="hd-co">${escapeHtml(co.name)}</div></div>
-    <div class="hd-addr">${[co.address, [co.phone ? 'โทร. ' + co.phone : '', co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + co.taxId : ''].filter(Boolean).join('   |   ')].filter(Boolean).map(escapeHtml).join('<br>')}</div>` : '';
+    <div class="hd-addr">${[co.address, [co.phone ? 'โทร. ' + co.phone : '', co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + co.taxId : ''].filter(Boolean).join('   ')].filter(Boolean).map(escapeHtml).join('  ')}</div>` : '';
   // grid: label | value | label | value. pair() = two label/value pairs in one row (a lone pair spans the rest of the row); full() = one wide row
   const lab = t => `<td class="hd-l">${t}</td>`;
   const val = (v, span, cls) => `<td${span ? ` colspan="${span}"` : ''}${cls ? ` class="${cls}"` : ''}>${escapeHtml(v || '-')}</td>`;
@@ -2200,26 +2202,25 @@ function buildProjectPrintHtml(p){
     </tr>`).join('') || `<tr><td colspan="4">ไม่มีรายการ</td></tr>`;
   return `${head}
     <table class="hd-tbl">
-      <colgroup><col style="width:34mm"><col><col style="width:38mm"><col style="width:46mm"></colgroup>
+      <colgroup><col style="width:30mm"><col><col style="width:30mm"><col style="width:46mm"></colgroup>
       <tr><td colspan="4" class="hd-t">เอกสารส่งมอบงาน</td></tr>
       ${pair(['ชื่อบริษัท :', cu.name || '-'], ['วันที่ :', fmtDate(p.startDate)])}
       ${full('ที่อยู่ :', cu.address || '-')}
       ${pair(['ชื่อลูกค้า :', contactLine || '-'], ['เลขที่เอกสาร :', p.docNo || '-'])}
       ${full(sale ? 'ชื่องาน :' : 'โครงการ :', p.name || '-')}
-      ${pair(['เลขที่สัญญา :', p.contractNo], ['เลขผู้เสียภาษี :', cu.taxId])}
       ${sale
-        ? pair(['การรับประกัน :', wr.months ? wr.months + ' เดือน' : ''], ['หมดประกัน :', wr.months ? fmtDate(wr.expiry) : '']) + full('สถานที่ส่งของ :', wr.location)
-        : pair(['ระยะเวลา :', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`], ['การรับประกัน :', wr.months ? wr.months + ' เดือน' : '']) + pair(['สถานที่ติดตั้ง :', wr.location], ['หมดประกัน :', wr.months ? fmtDate(wr.expiry) : ''])}
+        ? pair(['การรับประกัน :', wr.months ? wr.months + ' เดือน' : ''], ['หมดประกัน :', wr.months ? fmtDate(wr.expiry) : '']) + pair(['สถานที่ส่งของ :', wr.location], ['เลขผู้เสียภาษี :', taxId])
+        : pair(['ระยะเวลา :', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`], ['เลขที่สัญญา :', p.contractNo]) + pair(['สถานที่ติดตั้ง :', wr.location], ['การรับประกัน :', wr.months ? wr.months + ' เดือน' : '']) + pair(['หมดประกัน :', wr.months ? fmtDate(wr.expiry) : ''], ['เลขผู้เสียภาษี :', taxId])}
       <tr><td colspan="4" class="hd-sec">รายละเอียดอุปกรณ์ของ${sale ? 'งาน' : 'โครงการ'}</td></tr>
     </table>
     <table class="hd-tbl">
-      <colgroup><col style="width:24mm"><col><col style="width:62mm"><col style="width:22mm"></colgroup>
+      <colgroup><col style="width:22mm"><col><col style="width:58mm"><col style="width:20mm"></colgroup>
       <thead><tr><th>ลำดับ</th><th>รายละเอียด</th><th>รหัสอุปกรณ์</th><th>จำนวน</th></tr></thead>
       <tbody>${rows}
       <tr><td class="hd-l">หมายเหตุ :</td><td colspan="3" class="hd-tl">${escapeHtml(p.notes || '')}&nbsp;</td></tr></tbody>
     </table>
     <div class="hd-sign">
-      <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ขอส่งมอบงาน</div></div>
+      <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><b>${escapeHtml(p.createdBy ? getUserDisplayName(p.createdBy) : '')}</b><span>)</span></div><div>ผู้ขอส่งมอบงาน</div></div>
       <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ตรวจรับงาน</div></div>
     </div>`;
 }
