@@ -27,7 +27,7 @@
       allow update: if pmIsAdmin()
         || (request.auth != null && resource.data.createdBy == request.auth.uid
             && request.resource.data.createdBy == resource.data.createdBy);
-      allow delete: if pmIsAdmin() || (request.auth != null && resource.data.createdBy == request.auth.uid);
+      allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
     match /pm_customers/{id} {
@@ -36,7 +36,7 @@
       allow update: if pmIsAdmin()
         || (request.auth != null && resource.data.createdBy == request.auth.uid
             && request.resource.data.createdBy == resource.data.createdBy);
-      allow delete: if pmIsAdmin() || (request.auth != null && resource.data.createdBy == request.auth.uid);
+      allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
     // Company profiles (letterhead): everyone signed in can read (needed to print), only admin edits.
@@ -47,11 +47,21 @@
 
     // Warehouse stock is shared: any signed-in user can read, add and edit items; only admin can delete
     // (a soft-delete is an update that sets deletedAt, so that key is blocked for non-admins here).
+    // Non-admins are limited to the fields the app itself writes (item details, quantity, serials, history), the quantity must stay a
+    // non-negative number, createdBy / deletedAt / any other key cannot be touched, and the withdrawal history can only grow
+    // (it is capped at 500 by the app, so it never shrinks legitimately).
     match /pm_warehouse/{id} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.resource.data.createdBy == request.auth.uid;
+      allow create: if pmIsAdmin()
+        || (request.auth != null && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.keys().hasOnly(['part','name','type','brand','quantity','serials','note','createdBy','createdAt'])
+            && request.resource.data.quantity is number && request.resource.data.quantity >= 0);
       allow update: if pmIsAdmin()
-        || (request.auth != null && !('deletedAt' in request.resource.data.diff(resource.data).affectedKeys()));
+        || (request.auth != null
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['part','name','type','brand','quantity','serials','note','history'])
+            && request.resource.data.quantity is number && request.resource.data.quantity >= 0
+            && (!('history' in resource.data)
+                || (request.resource.data.history is list && request.resource.data.history.size() >= resource.data.history.size())));
       allow delete: if pmIsAdmin();
     }
 
