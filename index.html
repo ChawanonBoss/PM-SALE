@@ -408,6 +408,17 @@
     .sidebar.open{ transform:translateX(0); }
     .mobile-backdrop.show{ display:block; position:fixed; inset:0; background:rgba(20,24,34,.4); z-index:650; }
     .table-scroll table{ min-width:640px; }
+    /* tables marked .m-cards turn every row into a small card: "label  value" lines (the labels are copied from the column headings by labelCardCells) */
+    .table-scroll table.m-cards{ min-width:0; }
+    table.m-cards thead{ display:none; }
+    table.m-cards, table.m-cards tbody, table.m-cards tr, table.m-cards td{ display:block; width:auto; }
+    table.m-cards tbody tr{ border:1px solid var(--line); border-radius:14px; padding:8px 12px; margin:0 0 12px; background:var(--card); animation:none; }
+    table.m-cards td{ border:none !important; padding:5px 0 !important; display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:right; min-width:0; }
+    table.m-cards td[data-label]:not([data-label=""])::before{ content:attr(data-label); flex:0 0 34%; text-align:left; color:var(--ink-soft); font-size:12px; }
+    table.m-cards td.empty-row{ display:block; text-align:center; }
+    table.m-cards td input, table.m-cards td select{ flex:1; min-width:0; max-width:100%; width:auto; }
+    table.m-cards td .row-actions{ flex-wrap:wrap; justify-content:flex-end; }
+    table.m-cards td > div:not(.row-actions){ text-align:right; min-width:0; }
     #targetUserFilter{ display:none !important; }
   }
 </style>
@@ -594,7 +605,7 @@
             </div>
           </div>
           <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · <b>ซื้อขาย</b> — ดูจากสถานะของแต่ละรายการอุปกรณ์: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว</p>
-          <div class="table-scroll"><table>
+          <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน / โครงการ</th><th>ประเภทงาน</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>วันที่</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
             <tbody id="projectsBody"></tbody>
           </table></div>
@@ -670,7 +681,7 @@
             </div>
           </div>
           <p class="panel-note">ข้อมูลมาจากช่อง "สถานที่" และ "การรับประกัน (เดือน)" ในฟอร์มเพิ่มรายการ — โครงการนับจากวันที่สิ้นสุดโครงการ, ซื้อขายนับจากวันที่สั่งซื้อ</p>
-          <div class="table-scroll"><table>
+          <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>เลขที่เอกสาร</th><th>ซื้อขาย/โครงการ · ลูกค้า</th><th>ประเภท</th><th>สถานที่ติดตั้ง / ส่งสินค้า</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
             <tbody id="equipmentBody"></tbody>
           </table></div>
@@ -697,7 +708,7 @@
             </div>
           </div>
           <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number และประวัติการเบิก/คืน (เบิกไปซื้อขาย/โครงการไหน) — การเรียงตามจำนวนดูจากจำนวนที่เหลืออยู่ในโกดังเท่านั้น</p>
-          <div class="table-scroll"><table>
+          <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>Part</th><th>ยี่ห้อ</th><th>ประเภท</th><th>ชื่ออุปกรณ์</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warehouseBody"></tbody>
           </table></div>
@@ -746,7 +757,7 @@
               <button class="btn outline" type="button" id="customersClearBtn">เคลียร์</button>
             </div>
           </div>
-          <div class="table-scroll"><table>
+          <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>ชื่อบริษัท</th><th>ประเภท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>ซื้อขาย/โครงการ</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table></div>
@@ -792,7 +803,7 @@
             </div>
           </div>
           <p class="panel-note">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกโดยไม่มีชื่อในลิสต์จะได้เป็น "ผู้ใช้งานทั่วไป" อัตโนมัติ</p>
-          <div class="table-scroll"><table>
+          <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>รูป</th><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table></div>
@@ -817,7 +828,7 @@
               </div>
             </div>
             <p class="panel-note">บันทึกการสร้าง/แก้ไข/ลบ/กู้คืนรายการต่างๆ ในระบบ แสดง 300 รายการล่าสุด เรียงจากใหม่ไปเก่า</p>
-            <div class="table-scroll"><table>
+            <div class="table-scroll"><table class="m-cards">
               <thead><tr><th>เวลา</th><th>ผู้ทำรายการ</th><th>การกระทำ</th><th>รายการ</th><th>รายละเอียด</th></tr></thead>
               <tbody id="auditBody"></tbody>
             </table></div>
@@ -828,7 +839,7 @@
           <div class="panel">
             <div class="panel-head"><h3>ข้อผิดพลาดระบบ <span class="count-pill" id="errorCount"></span></h3></div>
             <p class="panel-note">ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน แสดง 200 รายการล่าสุด</p>
-            <div class="table-scroll"><table>
+            <div class="table-scroll"><table class="m-cards">
               <thead><tr><th>เวลา</th><th>ผู้ใช้งาน</th><th>ข้อความ</th><th>หน้า</th></tr></thead>
               <tbody id="errorBody"></tbody>
             </table></div>
@@ -862,7 +873,7 @@
             <button class="btn danger" type="button" id="trashBulkPurgeBtn">ลบถาวรที่เลือก</button>
             <button class="btn outline" type="button" id="trashBulkClearBtn">ยกเลิกการเลือก</button>
           </div>
-          <div class="table-scroll"><table>
+          <div class="table-scroll"><table class="m-cards">
             <thead><tr><th style="width:36px;"><input type="checkbox" class="trash-cb" id="trashSelAll" title="เลือกทั้งหมด (ทุกหน้าที่ตรงกับตัวกรอง)"></th><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
             <tbody id="trashBody"><tr><td colspan="6" class="empty-row">กด "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
           </table></div>
@@ -898,7 +909,7 @@
         <div class="field"><label>หมายเหตุ</label><input type="text" id="prjNotes"></div>
       </div>
       <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดของงาน</h4>
-      <div class="table-scroll"><table class="items-table">
+      <div class="table-scroll"><table class="items-table m-cards">
         <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดัง)</th><th>ยี่ห้อ</th><th>ชื่อ</th><th>ประเภท</th><th style="width:160px;">รหัสอุปกรณ์</th><th style="width:80px;">จำนวน</th><th style="width:150px;">สถานะ</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjItemsBody"></tbody>
       </table></div>
@@ -917,7 +928,7 @@
   <div class="modal wide">
     <h3 class="serif" style="font-size:19px; margin-bottom:4px;">แก้ไขแผนดำเนินการ</h3>
     <p id="planModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;"></p>
-    <div class="table-scroll"><table class="items-table">
+    <div class="table-scroll"><table class="items-table m-cards">
       <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:140px;"></th></tr></thead>
       <tbody id="planEditBody"></tbody>
     </table></div>
@@ -1154,7 +1165,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.11.2';
+const APP_VERSION = '1.11.3';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1396,10 +1407,39 @@ document.addEventListener('click', e => {
   refreshClearButtons();
 });
 let renderQueued = false;
+// Card layout on phones: give every cell of an .m-cards table its column heading as data-label (the CSS prints it before the value)
+function labelCardCells(tb){
+  const table = tb.closest('table.m-cards');
+  if (!table) return;
+  const heads = [...table.querySelectorAll('thead th')].map(h => h.textContent.trim());
+  tb.querySelectorAll('tr').forEach(tr => {
+    const cells = [...tr.children];
+    if (cells.length === 1 && cells[0].colSpan > 1) return;
+    cells.forEach((td, i) => { if (heads[i] && !td.dataset.label) td.dataset.label = heads[i]; });
+  });
+}
+document.querySelectorAll('table.m-cards tbody').forEach(tb => { new MutationObserver(() => labelCardCells(tb)).observe(tb, { childList: true }); labelCardCells(tb); });
+
 function onAnyUpdate(){
   if (renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(() => { renderQueued = false; refreshTargetUserFilter(); renderActiveTab(); });
+  requestAnimationFrame(() => { renderQueued = false; refreshTargetUserFilter(); renderActiveTab(); syncDocCounters(); });
+}
+// A regular user only sees their own projects, so when pm_counters/<SO20260921> does not exist yet their next number could repeat one an admin
+// already used. The admin's session (which sees everything) therefore raises each day's counter to the highest number in use, once per change.
+let counterSyncSig = '';
+async function syncDocCounters(){
+  if (currentUserRole !== 'admin' || !loaded.projects) return;
+  const max = {};
+  data.projects.forEach(pr => { const m = /^((?:SO|PJ)\d{8})-(\d+)$/.exec(pr.docNo || ''); if (m) max[m[1]] = Math.max(max[m[1]] || 0, Number(m[2])); });
+  const sig = JSON.stringify(max);
+  if (sig === counterSyncSig) return;
+  counterSyncSig = sig;
+  for (const [key, n] of Object.entries(max)){
+    const ref = db.collection(COL.counters).doc(key);
+    try{ await db.runTransaction(async tx => { const snap = await tx.get(ref); if ((snap.exists ? Number(snap.data().n) || 0 : 0) < n) tx.set(ref, { n }); }); }
+    catch(e){ counterSyncSig = ''; }   // rules not published / offline: try again on the next update
+  }
 }
 
 /* ====== Audit / error logging ====== */
@@ -1998,7 +2038,7 @@ function renderItemRows(){
     const hint = wh ? `<div class="cell-sub ${over ? 'over' : ''}">คงเหลือ ${fmtNum(wh.quantity)}${over ? ' — เกินจำนวนในโกดัง' : ''}</div>` : '';
     let ser;
     if (locked) ser = it.serials.length ? it.serials.map(escapeHtml).join('<br>') : '<span class="cell-sub">-</span>';
-    else if (!wh || !(wh.serials || []).length) ser = '<span class="cell-sub">-</span>';
+    else if (!wh || !(wh.serials || []).length) ser = it.serials.length ? it.serials.map(escapeHtml).join('<br>') : '<span class="cell-sub">-</span>';
     else {
       const taken = pickedElsewhere(i, it.whId);
       ser = Array.from({ length: Math.min(it.qty, MAX_ITEM_SERIAL_BOXES) }, (_, k) => `<select onchange="setItemSerial(${i},${k},this.value)"><option value="">— เลือก SN —</option>`
@@ -2008,7 +2048,7 @@ function renderItemRows(){
     return `
     <tr>
       <td class="cell-sub">${i+1}</td>
-      <td><select ${locked ? 'disabled' : ''} onchange="pickItemWh(${i}, this.value)">${opts}</select>${hint}</td>
+      <td>${!it.whId && (it.part || it.name) ? `<div><b>${escapeHtml(it.part || '-')}</b></div><div class="cell-sub">ไม่ได้ผูกกับอุปกรณ์ในโกดัง${locked ? '' : ' — เลือกด้านล่างเพื่อผูก'}</div>` : ''}<select ${locked ? 'disabled' : ''} onchange="pickItemWh(${i}, this.value)">${opts}</select>${hint}</td>
       <td>${escapeHtml(it.brand || '-')}</td>
       <td>${escapeHtml(it.name || '-')}</td>
       <td>${escapeHtml(it.type || '-')}</td>
