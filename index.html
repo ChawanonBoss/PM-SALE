@@ -194,6 +194,9 @@
   .items-table input:focus{ outline:none; border-color:var(--accent); background:var(--card); }
   .items-table td{ padding:6px 6px; }
   .items-table th{ padding:6px; }
+  .items-table select{ width:100%; min-width:110px; height:32px; padding:4px 8px; border:1px solid var(--line); border-radius:8px; background:var(--paper); color:var(--ink); font-size:13px; }
+  .items-table select:focus{ outline:none; border-color:var(--accent); background:var(--card); }
+  .field .date-edit-wrap .date-display{ left:13px; font-size:13.5px; }
 
   /* native <input type=date> with a readable Thai-format label laid over it (the browser's own calendar button still works) */
   .date-edit-wrap{ position:relative; }
@@ -249,6 +252,12 @@
   .g-prog-bar i{ display:block; height:100%; background:var(--ok); }
   .badge.doing{ background:var(--accent-soft); color:var(--accent); }
   #planDragTip{ position:fixed; z-index:950; background:var(--ink); color:var(--paper); font-size:12px; padding:5px 10px; border-radius:8px; pointer-events:none; white-space:nowrap; display:none; }
+  .plan-cards{ display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:16px; }
+  .plan-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; gap:8px; transition:transform .15s ease, box-shadow .2s ease, border-color .15s ease; }
+  .plan-card:hover{ transform:translateY(-2px); border-color:var(--accent); box-shadow:0 10px 22px rgba(20,24,34,0.1); }
+  .plan-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .plan-card-top b{ font-size:14.5px; line-height:1.35; }
+  .g-prog-bar.wide{ display:block; width:100%; height:6px; margin:0; }
   .plan-head{ display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; }
   .plan-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--ink-soft); }
   .plan-meta b{ color:var(--ink); font-weight:500; }
@@ -484,24 +493,46 @@
         </div>
       </div>
 
-      <!-- Action plan -->
+      <!-- Action plan: a list of projects; opening one shows that project's own plan -->
       <div id="tab-actionplan" class="tab-panel" style="display:none;">
-        <div class="panel">
-          <div class="plan-head">
-            <div style="flex:1; min-width:260px;">
-              <div class="field" style="max-width:420px;"><label>เลือกโครงการ</label><select id="planProjectSelect"></select></div>
-              <div class="plan-meta" id="planMeta"></div>
+        <div id="planListView">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>แผนดำเนินการรายโครงการ <span class="count-pill" id="planListCount"></span></h3>
+              <div class="filter-bar">
+                <input type="text" id="planListSearch" class="filter-control" placeholder="ค้นหาโครงการ, ลูกค้า, เลขที่สัญญา" style="width:250px;">
+                <select id="planListStatus" class="filter-control">
+                  <option value="all">ทุกสถานะ</option>
+                  <option value="pending">รอดำเนินการ</option>
+                  <option value="active">กำลังดำเนินการ</option>
+                  <option value="ended">สิ้นสุดสัญญาโครงการ</option>
+                </select>
+              </div>
             </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <button class="btn outline" id="planPrintBtn" type="button">พิมพ์ PDF</button>
-              <button class="btn outline" id="planEditProjectBtn" type="button">ข้อมูลโครงการ</button>
-              <button class="btn" id="planEditBtn" type="button">แก้ไขแผนดำเนินการ</button>
-            </div>
+            <p class="panel-note">แต่ละโครงการมีแผนดำเนินการของตัวเอง — กดที่โครงการเพื่อเปิดแผนของโครงการนั้น</p>
+            <div class="plan-cards" id="planCards"></div>
           </div>
         </div>
-        <div class="panel">
-          <p class="panel-note" id="planNote" style="margin-top:0;">สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด (ส่วนสีเข้มคือความคืบหน้า) · ลากแถบเพื่อย้าย, ลากขอบซ้าย/ขวาเพื่อปรับความยาว (เป็นรายสัปดาห์), ลากบนแถวที่ยังไม่มีวันที่เพื่อสร้างแถบ · แก้ % ได้ที่ช่องความคืบหน้าโดยตรง</p>
-          <div id="planBody"></div>
+
+        <div id="planDetailView" style="display:none;">
+          <div class="panel">
+            <div class="plan-head">
+              <div style="flex:1; min-width:260px;">
+                <button class="btn outline" id="planBackBtn" type="button" style="margin-bottom:14px;">← กลับไปรายการโครงการ</button>
+                <h3 class="serif" id="planProjectName" style="font-size:21px; font-weight:500;"></h3>
+                <div class="plan-meta" id="planMeta"></div>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button class="btn outline" id="planPrintBtn" type="button">พิมพ์ PDF</button>
+                <button class="btn outline" id="planEditProjectBtn" type="button">ข้อมูลโครงการ</button>
+                <button class="btn" id="planEditBtn" type="button">แก้ไขแผนดำเนินการ</button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <p class="panel-note" id="planNote" style="margin-top:0;">สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด (ส่วนสีเข้มคือความคืบหน้า) · ลากแถบเพื่อย้าย, ลากขอบซ้าย/ขวาเพื่อปรับความยาว (เป็นรายสัปดาห์), ลากบนแถวที่ยังไม่มีวันที่เพื่อสร้างแถบ · แก้ % ได้ที่ช่องความคืบหน้าโดยตรง</p>
+            <div id="planBody"></div>
+          </div>
         </div>
       </div>
 
@@ -509,9 +540,9 @@
       <div id="tab-equipment" class="tab-panel" style="display:none;">
         <div class="panel">
           <div class="panel-head">
-            <h3>รายการอุปกรณ์และการรับประกัน <span class="count-pill" id="equipmentCount"></span></h3>
+            <h3>การรับประกันและสถานที่ติดตั้ง <span class="count-pill" id="equipmentCount"></span></h3>
             <div class="filter-bar">
-              <input type="text" id="equipmentSearch" class="filter-control" placeholder="ค้นหาอุปกรณ์, โครงการ, สถานที่" style="width:230px;">
+              <input type="text" id="equipmentSearch" class="filter-control" placeholder="ค้นหาโครงการ, ลูกค้า, สถานที่ติดตั้ง" style="width:230px;">
               <select id="equipmentWarrantyFilter" class="filter-control">
                 <option value="all">ทุกสถานะรับประกัน</option>
                 <option value="ok">ในประกัน</option>
@@ -521,9 +552,9 @@
               </select>
             </div>
           </div>
-          <p class="panel-note">ข้อมูลมาจากตารางรายการอุปกรณ์ในแต่ละโครงการ — แก้ไขได้ที่หน้า "โครงการ" (วันเริ่มรับประกันที่เว้นว่างไว้จะนับจากวันเริ่มต้นโครงการ)</p>
+          <p class="panel-note">ข้อมูลมาจากช่อง "สถานที่ติดตั้ง" และ "การรับประกัน (เดือน)" ในฟอร์มโครงการ — ระยะรับประกันนับจากวันที่สิ้นสุดโครงการ</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>อุปกรณ์</th><th>จำนวน</th><th>โครงการ / ลูกค้า</th><th>สถานที่ติดตั้ง</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
+            <thead><tr><th>โครงการ / ลูกค้า</th><th>สถานที่ติดตั้ง</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
             <tbody id="equipmentBody"></tbody>
           </table></div>
         </div>
@@ -542,7 +573,7 @@
           </div>
           <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number ทั้งหมดของอุปกรณ์นั้น</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>Part</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
+            <thead><tr><th>Part</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>ยี่ห้อ</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warehouseBody"></tbody>
           </table></div>
         </div>
@@ -678,18 +709,25 @@
         <div class="field full"><label>ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
         <div class="field"><label>หน่วยงาน / ลูกค้า *</label><select id="prjCustomer" required></select></div>
         <div class="field"><label>เลขที่สัญญา</label><input type="text" id="prjContract"></div>
-        <div class="field"><label>วันที่เริ่มต้น *</label><input type="date" id="prjStart" required></div>
-        <div class="field"><label>วันที่สิ้นสุด *</label><input type="date" id="prjEnd" required></div>
+        <div class="field"><label>วันที่เริ่มต้น *</label>
+          <div class="date-edit-wrap"><input type="date" id="prjStart" required><span class="date-display placeholder" id="prjStartText">dd/mm/yyyy</span></div>
+        </div>
+        <div class="field"><label>วันที่สิ้นสุด *</label>
+          <div class="date-edit-wrap"><input type="date" id="prjEnd" required><span class="date-display placeholder" id="prjEndText">dd/mm/yyyy</span></div>
+        </div>
         <div class="field"><label>บริษัทของเรา (หัวกระดาษ PDF)</label><select id="prjCompany"></select></div>
+        <div class="field"><label>สถานที่ติดตั้ง</label><input type="text" id="prjLocation"></div>
+        <div class="field"><label>การรับประกัน (เดือน)</label><input type="number" id="prjWarranty" min="0" step="1" value="12"><div class="cell-sub" id="prjWarrantyHint"></div></div>
         <div class="field"><label>หมายเหตุ</label><input type="text" id="prjNotes"></div>
       </div>
-      <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดอุปกรณ์ / งาน</h4>
+      <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดงาน</h4>
       <div class="table-scroll"><table class="items-table">
-        <thead><tr><th style="width:36px;">#</th><th>รายการ *</th><th>รายละเอียด</th><th style="width:80px;">จำนวน</th><th style="width:80px;">หน่วย</th><th>สถานที่ติดตั้ง</th><th style="width:90px;">ประกัน (เดือน)</th><th style="width:190px;">เริ่มรับประกัน</th><th style="width:120px;">หมดประกัน</th><th style="width:40px;"></th></tr></thead>
+        <thead><tr><th style="width:36px;">#</th><th style="width:220px;">หัวข้อ *</th><th>รายละเอียด</th><th style="width:160px;">ประเภท</th><th style="width:160px;">วันที่เริ่มต้น</th><th style="width:160px;">วันที่สิ้นสุด</th><th style="width:80px;">จำนวนวัน</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjItemsBody"></tbody>
       </table></div>
+      <datalist id="prjHeadingList"></datalist>
       <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มแถว</button>
-      <p class="panel-note" style="margin:10px 0 0;">วันเริ่มรับประกันที่เว้นว่างไว้ (แสดงเป็นตัวเอียงสีเทา) จะนับจากวันที่เริ่มต้นโครงการ และเปลี่ยนตามอัตโนมัติถ้าแก้วันเริ่มโครงการ</p>
+      <p class="panel-note" style="margin:10px 0 0;">หัวข้อ: พิมพ์หัวข้อใหม่ หรือกดที่ช่องเพื่อเลือกหัวข้อที่มีอยู่แล้ว (หลายแถวใช้หัวข้อเดียวกันได้) · จำนวนวันนับรวมวันเริ่มต้นและวันสิ้นสุด</p>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกโครงการ</button>
@@ -734,6 +772,17 @@
             <input type="text" id="whTypeNew" placeholder="ชื่อประเภทใหม่" autocomplete="off">
             <button type="button" class="icon-btn" id="whTypeNewOk">เพิ่ม</button>
             <button type="button" class="icon-btn" id="whTypeNewCancel">ยกเลิก</button>
+          </div>
+        </div>
+        <div class="field"><label>ยี่ห้อ</label>
+          <div class="type-row">
+            <select id="whBrand"></select>
+            <button type="button" class="serial-add-btn" id="whBrandAddBtn" title="เพิ่มยี่ห้อใหม่">+</button>
+          </div>
+          <div class="type-new" id="whBrandNewRow" style="display:none;">
+            <input type="text" id="whBrandNew" placeholder="ชื่อยี่ห้อใหม่" autocomplete="off">
+            <button type="button" class="icon-btn" id="whBrandNewOk">เพิ่ม</button>
+            <button type="button" class="icon-btn" id="whBrandNewCancel">ยกเลิก</button>
           </div>
         </div>
         <div class="field"><label>จำนวนอุปกรณ์</label><input type="number" id="whQty" min="0" step="1" value="1"></div>
@@ -849,7 +898,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.5.1';
+const APP_VERSION = '1.6.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -977,7 +1026,7 @@ const TITLES = {
   dashboard:['แดชบอร์ด','สรุปสถานะโครงการทั้งหมด'],
   projects:['โครงการ','บันทึกและจัดการข้อมูลโครงการ พิมพ์เป็น PDF ได้'],
   actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
-  equipment:['อุปกรณ์และการรับประกัน','รายการอุปกรณ์ สถานที่ติดตั้ง และระยะเวลารับประกัน'],
+  equipment:['อุปกรณ์และการรับประกัน','สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ'],
   warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
   customers:['รายชื่อลูกค้า','ข้อมูลหน่วยงานและผู้ติดต่อ'],
   companies:['ข้อมูลบริษัท','โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร'],
@@ -997,7 +1046,10 @@ function showTab(tab){
   setMobileMenu(false);
   renderActiveTab();
 }
-document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventListener('click', () => showTab(btn.dataset.tab)));
+document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventListener('click', () => {
+  if (btn.dataset.tab === 'actionplan') selectedPlanProjectId = null;   // clicking the tab returns to the project list
+  showTab(btn.dataset.tab);
+}));
 
 function renderActiveTab(){
   const fn = {
@@ -1283,15 +1335,25 @@ function warrantyStatus(expiry, months){
   const d = daysBetween(todayStr(), expiry);
   return d < 0 ? 'expired' : d <= 30 ? 'soon' : 'ok';
 }
-function getEquipmentRows(){
-  const rows = [];
-  getVisibleProjects().forEach(p => (p.items || []).forEach(item => {
-    const start = item.warrantyStart || p.startDate || '';
-    const months = Number(item.warrantyMonths) || 0;
-    const expiry = (start && months) ? addMonths(start, months) : '';
-    rows.push({ project:p, item, start, months, expiry, wstatus: warrantyStatus(expiry, months) });
-  }));
-  return rows;
+// Installation place and warranty now live on the project itself. Projects saved before that (item-level location / warrantyMonths)
+// are read through the fallbacks below so they keep showing sensible values until they're next edited.
+function projectInstallLocation(p){
+  if (p.installLocation != null) return p.installLocation;
+  return [...new Set((p.items || []).map(i => (i.location || '').trim()).filter(Boolean))].join(', ');
+}
+function projectWarrantyMonths(p){
+  if (p.warrantyMonths != null) return Number(p.warrantyMonths) || 0;
+  return (p.items || []).reduce((m, i) => Math.max(m, Number(i.warrantyMonths) || 0), 0);
+}
+// Warranty is counted from the project's end date (hand-over); there is no separate warranty start any more
+function projectWarranty(p){
+  const months = projectWarrantyMonths(p);
+  const start = p.endDate || '';
+  const expiry = (start && months) ? addMonths(start, months) : '';
+  return { months, start, expiry, wstatus: warrantyStatus(expiry, months), location: projectInstallLocation(p) };
+}
+function getWarrantyRows(){
+  return getVisibleProjects().map(p => ({ project: p, ...projectWarranty(p) }));
 }
 function statusBadge(status){ return `<span class="badge ${status}">${STATUS_LABEL[status]}</span>`; }
 function warrantyBadge(status){ return `<span class="badge ${status}">${WARRANTY_LABEL[status]}</span>`; }
@@ -1304,7 +1366,7 @@ function goProjects(status){
 function getDashAlerts(){
   const t = todayStr();
   const endingSoon = getVisibleProjects().filter(p => projectStatus(p) === 'active' && p.endDate && daysBetween(t, p.endDate) <= 30);
-  const warrantySoon = getEquipmentRows().filter(r => r.wstatus === 'soon');
+  const warrantySoon = getWarrantyRows().filter(r => r.wstatus === 'soon');
   return { endingSoon, warrantySoon };
 }
 function updateNavBadge(){
@@ -1324,7 +1386,7 @@ function renderDashboard(){
   const alerts = getDashAlerts();
   const lines = [];
   if (alerts.endingSoon.length) lines.push(`⏰ มี ${alerts.endingSoon.length} โครงการที่สัญญาจะสิ้นสุดภายใน 30 วัน: ` + alerts.endingSoon.map(p => escapeHtml(p.name)).join(', '));
-  if (alerts.warrantySoon.length) lines.push(`🛡️ มี ${alerts.warrantySoon.length} รายการอุปกรณ์ที่ใกล้หมดประกันภายใน 30 วัน`);
+  if (alerts.warrantySoon.length) lines.push(`🛡️ มี ${alerts.warrantySoon.length} โครงการที่ใกล้หมดประกันภายใน 30 วัน`);
   const banner = $('dashAlert');
   banner.style.display = lines.length ? 'flex' : 'none';
   banner.innerHTML = lines.map(l => `<div>${l}</div>`).join('');
@@ -1395,7 +1457,17 @@ function renderProjects(){
 
 let editingProjectId = null;
 let editingItems = [];
-const blankItem = () => ({ name:'', detail:'', qty:1, unit:'', location:'', warrantyMonths:12, warrantyStart:'' });   // new rows default to a 12-month warranty
+const WORK_TYPES = ['ผู้จัดการ', 'ทีมติดตั้ง', 'ติดตั้งโปรแกรม', 'ฝ่ายขาย', 'ลูกค้า'];
+const blankItem = () => ({ title:'', detail:'', type:'', start:'', end:'' });
+// Work rows: {title (heading), detail, type, start, end}. Rows saved in the old equipment shape (name/qty/unit/...) are mapped on read.
+function toWorkRow(it){
+  return { title: it.title != null ? it.title : (it.name || ''), detail: it.detail || '', type: WORK_TYPES.includes(it.type) ? it.type : '', start: it.start || '', end: it.end || '' };
+}
+function fmtDMY(iso){
+  if (!iso) return '';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return `${d}/${m}/${y}`;
+}
 
 function fillProjectSelects(selectedCustomer, selectedCompany){
   const customers = [...data.customers].sort((a,b) => (a.name||'').localeCompare(b.name||''));
@@ -1419,42 +1491,51 @@ function openProjectForm(id){
   $('prjStart').value = p ? p.startDate || '' : '';
   $('prjEnd').value = p ? p.endDate || '' : '';
   $('prjNotes').value = p ? p.notes || '' : '';
-  editingItems = p && (p.items || []).length ? p.items.map(i => ({ ...blankItem(), ...i })) : [blankItem()];
+  $('prjLocation').value = p ? projectInstallLocation(p) : '';
+  $('prjWarranty').value = p ? projectWarrantyMonths(p) : 12;   // new projects default to a 12-month warranty
+  editingItems = p && (p.items || []).length ? p.items.map(toWorkRow) : [blankItem()];
+  syncProjectDateTexts();
   renderItemRows();
   openModal('projectModal');
 }
-// Warranty start shown in Thai Buddhist-year format (the native date box would show e.g. 10/01/2026, ambiguous day/month order);
-// an empty start means "count from the project's start date", which is also what the Equipment page does.
-function itemStartText(it){
-  if (it.warrantyStart) return fmtDate(it.warrantyStart);
-  const ps = $('prjStart').value;
-  return ps ? `ตามโครงการ ${fmtDate(ps)}` : 'ตามวันเริ่มโครงการ';
+// The native date box shows its own locale's order (10/01/2026 can be read either way), so each date input has a label laid over
+// it that always reads dd/mm/yyyy; the browser's calendar button and typing still work underneath.
+function dateText(v){ return v ? fmtDMY(v) : 'dd/mm/yyyy'; }
+function syncProjectDateTexts(){
+  ['prjStart', 'prjEnd'].forEach(id => {
+    const v = $(id).value;
+    $(id + 'Text').textContent = dateText(v);
+    $(id + 'Text').classList.toggle('placeholder', !v);
+  });
+  updateWarrantyHint();
 }
-function itemExpiryText(it){
-  const months = Number(it.warrantyMonths) || 0;
-  const start = it.warrantyStart || $('prjStart').value;
-  return months > 0 && start ? fmtDate(addMonths(start, months)) : '-';
+function updateWarrantyHint(){
+  const months = Math.max(0, Math.floor(Number($('prjWarranty').value) || 0));
+  const end = $('prjEnd').value;
+  $('prjWarrantyHint').textContent = !months ? 'ไม่มีประกัน'
+    : end ? `หมดประกัน ${fmtDMY(addMonths(end, months))} (นับจากวันสิ้นสุดโครงการ)` : 'เลือกวันที่สิ้นสุดโครงการเพื่อคำนวณวันหมดประกัน';
 }
-function updateItemExpiry(i){
-  const cell = $('itemExpiry' + i);
-  if (cell) cell.textContent = itemExpiryText(editingItems[i]);
+['prjStart', 'prjEnd'].forEach(id => { $(id).addEventListener('input', syncProjectDateTexts); $(id).addEventListener('change', syncProjectDateTexts); });
+$('prjWarranty').addEventListener('input', updateWarrantyHint);
+
+function updateHeadingList(){
+  const titles = [...new Set(editingItems.map(it => (it.title || '').trim()).filter(Boolean))];
+  $('prjHeadingList').innerHTML = titles.map(t2 => `<option value="${escapeHtml(t2)}">`).join('');
 }
-$('prjStart').addEventListener('input', () => { if ($('projectModal').style.display === 'flex') renderItemRows(); });
 function renderItemRows(){
+  updateHeadingList();
+  const dateCell = (val, handler) => `<div class="date-edit-wrap">
+        <input type="date" value="${escapeHtml(val)}" onchange="${handler}=this.value; renderItemRows()">
+        <span class="date-display ${val ? '' : 'placeholder'}">${dateText(val)}</span></div>`;
   $('prjItemsBody').innerHTML = editingItems.map((it, i) => `
     <tr>
       <td class="cell-sub">${i+1}</td>
-      <td><input type="text" value="${escapeHtml(it.name)}" oninput="editingItems[${i}].name=this.value"></td>
+      <td><input type="text" list="prjHeadingList" placeholder="พิมพ์หรือเลือกหัวข้อ" value="${escapeHtml(it.title)}" oninput="editingItems[${i}].title=this.value; updateHeadingList()"></td>
       <td><input type="text" value="${escapeHtml(it.detail)}" oninput="editingItems[${i}].detail=this.value"></td>
-      <td><input type="number" min="0" step="any" value="${escapeHtml(it.qty)}" oninput="editingItems[${i}].qty=this.value"></td>
-      <td><input type="text" value="${escapeHtml(it.unit)}" oninput="editingItems[${i}].unit=this.value"></td>
-      <td><input type="text" value="${escapeHtml(it.location)}" oninput="editingItems[${i}].location=this.value"></td>
-      <td><input type="number" min="0" step="1" value="${escapeHtml(it.warrantyMonths)}" oninput="editingItems[${i}].warrantyMonths=this.value; updateItemExpiry(${i})"></td>
-      <td><div class="date-edit-wrap">
-        <input type="date" value="${escapeHtml(it.warrantyStart)}" onchange="editingItems[${i}].warrantyStart=this.value; renderItemRows()">
-        <span class="date-display ${it.warrantyStart ? '' : 'placeholder'}" title="${it.warrantyStart ? '' : 'ว่าง = นับจากวันเริ่มต้นโครงการ'}">${itemStartText(it)}</span>
-      </div></td>
-      <td class="cell-sub" id="itemExpiry${i}" style="white-space:nowrap;">${itemExpiryText(it)}</td>
+      <td><select onchange="editingItems[${i}].type=this.value"><option value="">— เลือก —</option>${WORK_TYPES.map(w => `<option value="${w}" ${it.type === w ? 'selected' : ''}>${w}</option>`).join('')}</select></td>
+      <td>${dateCell(it.start, `editingItems[${i}].start`)}</td>
+      <td>${dateCell(it.end, `editingItems[${i}].end`)}</td>
+      <td class="cell-sub" style="text-align:center;">${inclusiveDays(it.start, it.end) || '-'}</td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
     </tr>`).join('');
 }
@@ -1474,14 +1555,16 @@ $('projectForm').addEventListener('submit', async e => {
   const customerId = $('prjCustomer').value;
   const customer = data.customers.find(c => c.id === customerId);
   if (!customer){ toast('กรุณาเลือกลูกค้า'); return; }
-  const items = editingItems.filter(i => (i.name || '').trim()).map(i => ({
-    name: i.name.trim(), detail: (i.detail || '').trim(), qty: Number(i.qty) || 0, unit: (i.unit || '').trim(),
-    location: (i.location || '').trim(), warrantyMonths: Number(i.warrantyMonths) || 0, warrantyStart: i.warrantyStart || ''
-  }));
+  const filled = editingItems.filter(i => (i.title || '').trim() || (i.detail || '').trim() || i.type || i.start || i.end);   // untouched empty rows are dropped silently
+  if (filled.some(i => !(i.title || '').trim())){ toast('กรุณากรอกหัวข้อให้ครบทุกแถวที่มีข้อมูล'); return; }
+  const badRow = filled.find(i => i.start && i.end && i.end < i.start);
+  if (badRow){ toast(`วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น: ${badRow.title}`); return; }
+  const items = filled.map(i => ({ title: i.title.trim(), detail: (i.detail || '').trim(), type: i.type || '', start: i.start || '', end: i.end || '' }));
   const doc = {
     name: $('prjName').value.trim(), customerId, customerName: customer.name,
     contractNo: $('prjContract').value.trim(), startDate: start, endDate: end,
-    companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(), items
+    companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(),
+    installLocation: $('prjLocation').value.trim(), warrantyMonths: Math.max(0, Math.floor(Number($('prjWarranty').value) || 0)), items
   };
   $('projectSaveBtn').disabled = true;
   setSync('saving');
@@ -1519,6 +1602,7 @@ function buildProjectPrintHtml(p){
   const co = data.companies.find(c => c.id === p.companyId);
   const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
   const head = letterheadHtml(co);
+  const wr = projectWarranty(p);
   const info = [
     ['ชื่อโครงการ', p.name],
     ['หน่วยงาน / ลูกค้า', cu.name],
@@ -1527,21 +1611,34 @@ function buildProjectPrintHtml(p){
     ['เลขที่ผู้เสียภาษี', cu.taxId],
     ['เลขที่สัญญา', p.contractNo],
     ['ระยะเวลาโครงการ', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`],
+    ['สถานที่ติดตั้ง', wr.location],
+    ['การรับประกัน', wr.months ? `${wr.months} เดือน (หมดประกัน ${fmtDate(wr.expiry)})` : ''],
     ['สถานะ', STATUS_LABEL[projectStatus(p)]],
     ['หมายเหตุ', p.notes]
   ].filter(r => r[1]).map(r => `<tr><td>${r[0]}</td><td>${escapeHtml(r[1])}</td></tr>`).join('');
-  const items = (p.items || []).map((it, i) => `
+  // work rows grouped under their heading (first appearance order): a bold heading row, then its detail rows numbered 1.1, 1.2 ...
+  const groups = new Map();
+  (p.items || []).map(toWorkRow).forEach(r => {
+    const key = r.title || '-';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+  let g = 0;
+  const work = [...groups.entries()].map(([title, rows]) => {
+    g++;
+    return `<tr class="pr-group"><td style="text-align:center;"><b>${g}</b></td><td colspan="5"><b>${escapeHtml(title)}</b></td></tr>` + rows.map((r, k) => `
     <tr>
-      <td style="text-align:center;">${i+1}</td><td>${escapeHtml(it.name)}</td><td>${escapeHtml(it.detail)}</td>
-      <td style="text-align:center;">${escapeHtml(it.qty)}</td><td style="text-align:center;">${escapeHtml(it.unit)}</td>
-      <td>${escapeHtml(it.location)}</td><td style="text-align:center;">${it.warrantyMonths ? escapeHtml(it.warrantyMonths) + ' เดือน' : '-'}</td>
-    </tr>`).join('') || `<tr><td colspan="7" style="text-align:center;">ไม่มีรายการ</td></tr>`;
+      <td style="text-align:center;">${g}.${k+1}</td><td>${escapeHtml(r.detail || '-')}</td><td style="text-align:center;">${escapeHtml(r.type || '-')}</td>
+      <td style="text-align:center;">${r.start ? fmtDate(r.start) : '-'}</td><td style="text-align:center;">${r.end ? fmtDate(r.end) : '-'}</td>
+      <td style="text-align:center;">${inclusiveDays(r.start, r.end) || '-'}</td>
+    </tr>`).join('');
+  }).join('') || `<tr><td colspan="6" style="text-align:center;">ไม่มีรายการ</td></tr>`;
   return `${head}
     <div class="pr-title">รายละเอียดโครงการ</div>
     <table class="pr-info">${info}</table>
     <table class="pr-items">
-      <thead><tr><th style="width:34px;">ลำดับ</th><th>รายการ</th><th>รายละเอียด</th><th style="width:50px;">จำนวน</th><th style="width:50px;">หน่วย</th><th>สถานที่ติดตั้ง</th><th style="width:70px;">รับประกัน</th></tr></thead>
-      <tbody>${items}</tbody>
+      <thead><tr><th style="width:44px;">ลำดับ</th><th>รายละเอียดงาน</th><th style="width:100px;">ประเภท</th><th style="width:88px;">วันที่เริ่มต้น</th><th style="width:88px;">วันที่สิ้นสุด</th><th style="width:56px;">จำนวนวัน</th></tr></thead>
+      <tbody>${work}</tbody>
     </table>
     <div class="pr-sign"><div>ผู้จัดทำ</div><div>ผู้อนุมัติ</div></div>`;
 }
@@ -1696,36 +1793,58 @@ function setPlanBodyHtml(html){
   if (fresh) fresh.scrollLeft = left;
 }
 function getPlanProject(){ return data.projects.find(x => x.id === selectedPlanProjectId); }
+function planSummary(p){
+  const late = buildPlanRows(p).filter(r => r.leaf && r.kind !== 'proj' && planItemStatus(r.end, r.progress) === 'late').length;
+  return { steps: (p.plan || []).length, progress: projectProgress(p.plan), late };
+}
 function renderActionPlan(){
   if (planDrag) return;   // don't rebuild the DOM under an in-progress drag
-  const sel = $('planProjectSelect');
+  const visible = getVisibleProjects();
+  const p = visible.find(pr => pr.id === selectedPlanProjectId);
+  if (selectedPlanProjectId && !p) selectedPlanProjectId = null;   // project was deleted, or hidden by the person filter
+  $('planListView').style.display = p ? 'none' : '';
+  $('planDetailView').style.display = p ? '' : 'none';
+  if (p) renderPlanDetail(p); else renderPlanList(visible);
+}
+function renderPlanList(projects){
   const order = { active:0, pending:1, ended:2 };
-  const projects = getVisibleProjects().slice().sort((a,b) => order[projectStatus(a)] - order[projectStatus(b)] || (a.name||'').localeCompare(b.name||''));
-  if (!projects.some(pr => pr.id === selectedPlanProjectId)) selectedPlanProjectId = projects.length ? projects[0].id : null;
-  sel.innerHTML = projects.length
-    ? projects.map(pr => `<option value="${pr.id}">${escapeHtml(pr.name)} — ${STATUS_LABEL[projectStatus(pr)]}</option>`).join('')
-    : `<option value="">ยังไม่มีโครงการ</option>`;
-  sel.value = selectedPlanProjectId || '';
-  const p = projects.find(pr => pr.id === selectedPlanProjectId);
-  $('planEditBtn').disabled = $('planEditProjectBtn').disabled = $('planPrintBtn').disabled = !p;
-  if (!p){
-    $('planMeta').innerHTML = '';
-    $('planBody').innerHTML = `<div class="dash-empty" style="text-align:center; padding:30px 0;">สร้างโครงการที่หน้า "โครงการ" ก่อน แล้วโครงการจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ</div>`;
-    return;
-  }
-  const late = buildPlanRows(p).filter(r => r.leaf && r.kind !== 'proj' && planItemStatus(r.end, r.progress) === 'late').length;
+  const q = $('planListSearch').value.trim().toLowerCase();
+  const sf = $('planListStatus').value;
+  const list = projects
+    .filter(pr => sf === 'all' || projectStatus(pr) === sf)
+    .filter(pr => !q || [pr.name, pr.customerName, pr.contractNo].some(v => (v || '').toLowerCase().includes(q)))
+    .sort((a, b) => order[projectStatus(a)] - order[projectStatus(b)] || (a.name || '').localeCompare(b.name || ''));
+  $('planListCount').textContent = list.length;
+  $('planCards').innerHTML = list.length ? list.map(pr => {
+    const sm = planSummary(pr);
+    return `<div class="plan-card" onclick="openActionPlan('${pr.id}')">
+      <div class="plan-card-top"><b>${escapeHtml(pr.name)}</b>${statusBadge(projectStatus(pr))}</div>
+      <div class="cell-sub">${escapeHtml(pr.customerName || '-')}${pr.contractNo ? ' · ' + escapeHtml(pr.contractNo) : ''}</div>
+      <div class="cell-sub">${fmtDate(pr.startDate)} – ${fmtDate(pr.endDate)}</div>
+      <div><span class="g-prog-bar wide"><i style="width:${sm.progress}%"></i></span></div>
+      <div class="cell-sub" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>${sm.steps ? `${sm.steps} หัวข้อ · ความคืบหน้า <b style="color:var(--ink);">${sm.progress}%</b>` : 'ยังไม่มีแผนดำเนินการ'}</span>
+        ${sm.late ? `<span class="badge expired">ล่าช้า ${sm.late}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${projects.length ? 'ไม่พบโครงการตามเงื่อนไข' : 'ยังไม่มีโครงการ — สร้างโครงการที่หน้า "โครงการ" แล้วจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ'}</div>`;
+}
+function renderPlanDetail(p){
+  const sm = planSummary(p);
+  $('planProjectName').textContent = p.name;
   $('planMeta').innerHTML =
     `<span>ลูกค้า <b>${escapeHtml(p.customerName || '-')}</b></span>` +
     `<span>เลขที่สัญญา <b>${escapeHtml(p.contractNo || '-')}</b></span>` +
     `<span>ระยะเวลา <b>${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}</b> (${inclusiveDays(p.startDate, p.endDate)} วัน)</span>` +
-    ((p.plan || []).length ? `<span>ความคืบหน้ารวม <b>${projectProgress(p.plan)}%</b></span>` : '') +
-    (late ? `<span><span class="badge expired">ล่าช้า ${late} ขั้นตอน</span></span>` : '') +
+    (sm.steps ? `<span>ความคืบหน้ารวม <b>${sm.progress}%</b></span>` : '') +
+    (sm.late ? `<span><span class="badge expired">ล่าช้า ${sm.late} ขั้นตอน</span></span>` : '') +
     `<span>${statusBadge(projectStatus(p))}</span>`;
-  setPlanBodyHtml((p.plan || []).length
+  setPlanBodyHtml(sm.steps
     ? renderPlanTable(p)
     : `<div class="dash-empty" style="text-align:center; padding:30px 0;">โครงการนี้ยังไม่มีแผนดำเนินการ — กด "แก้ไขแผนดำเนินการ" เพื่อเพิ่มหัวข้อและกำหนดวันที่</div>${renderPlanTable(p)}`);
 }
-$('planProjectSelect').addEventListener('change', e => { selectedPlanProjectId = e.target.value || null; renderActionPlan(); });
+['planListSearch', 'planListStatus'].forEach(id => $(id).addEventListener('input', renderActionPlan));
+$('planBackBtn').addEventListener('click', () => { selectedPlanProjectId = null; renderActionPlan(); window.scrollTo(0, 0); });
 $('planEditProjectBtn').addEventListener('click', () => { if (selectedPlanProjectId) openProjectForm(selectedPlanProjectId); });
 function openActionPlan(id){ selectedPlanProjectId = id; showTab('actionplan'); }
 
@@ -1973,26 +2092,24 @@ $('planSaveBtn').addEventListener('click', async () => {
   $('planSaveBtn').disabled = false;
 });
 
-/* ====== Equipment ====== */
+/* ====== Equipment & warranty (one row per project) ====== */
 function renderEquipment(){
   const q = $('equipmentSearch').value.trim().toLowerCase();
   const wf = $('equipmentWarrantyFilter').value;
-  const rows = getEquipmentRows()
+  const rows = getWarrantyRows()
     .filter(r => wf === 'all' || r.wstatus === wf)
-    .filter(r => !q || [r.item.name, r.item.detail, r.item.location, r.project.name, r.project.customerName].some(v => (v||'').toLowerCase().includes(q)))
+    .filter(r => !q || [r.project.name, r.project.customerName, r.location].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (a.expiry || '9999').localeCompare(b.expiry || '9999'));
   $('equipmentCount').textContent = rows.length;
   $('equipmentBody').innerHTML = rows.length ? rows.map(r => `
     <tr>
-      <td><b>${escapeHtml(r.item.name)}</b>${r.item.detail ? `<div class="cell-sub">${escapeHtml(r.item.detail)}</div>` : ''}</td>
-      <td>${fmtNum(r.item.qty)} ${escapeHtml(r.item.unit || '')}</td>
-      <td><a href="#" onclick="openProjectForm('${r.project.id}'); return false;" style="color:var(--accent);">${escapeHtml(r.project.name)}</a><div class="cell-sub">${escapeHtml(r.project.customerName || '')}</div></td>
-      <td>${escapeHtml(r.item.location || '-')}</td>
+      <td><a href="#" onclick="openProjectForm('${r.project.id}'); return false;" style="color:var(--accent);"><b>${escapeHtml(r.project.name)}</b></a><div class="cell-sub">${escapeHtml(r.project.customerName || '')}</div></td>
+      <td>${escapeHtml(r.location || '-')}</td>
       <td style="white-space:nowrap;">${r.months ? fmtDate(r.start) : '-'}</td>
       <td>${r.months || '-'}</td>
       <td style="white-space:nowrap;">${r.expiry ? fmtDate(r.expiry) : '-'}</td>
       <td>${warrantyBadge(r.wstatus)}</td>
-    </tr>`).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีรายการอุปกรณ์</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีโครงการ</td></tr>`;
 }
 ['equipmentSearch','equipmentWarrantyFilter'].forEach(id => $(id).addEventListener('input', renderEquipment));
 
@@ -2016,27 +2133,51 @@ function deleteEntity(type, id){
 /* ====== Warehouse ====== */
 const WAREHOUSE_DEFAULT_TYPES = ['Industrial', 'Switch', 'Router', 'Computer Set'];
 const MAX_SERIAL_BOXES = 500;   // guards against an accidental huge quantity creating thousands of inputs
-let extraWhTypes = [];          // types added with "+" in the open form (they're kept once an item using them is saved)
-// Dropdown options = the built-in types, then every type already used by a saved item, then ones just added in this form.
-// (There is no separate "types" collection — a type exists for everyone as soon as one saved item uses it.)
-function allWarehouseTypes(){
-  const seen = new Set(), out = [];
-  const add = ty => {
-    ty = (ty || '').trim();
-    if (!ty || seen.has(ty.toLowerCase())) return;
-    seen.add(ty.toLowerCase()); out.push(ty);
+// A dropdown whose options are: built-in values, then every value already used by a saved item, then ones just added with "+" in the open
+// form. There is no separate collection for these lists — a value exists for everyone as soon as one saved item uses it.
+function makeAddableSelect(cfg){
+  const extra = [];
+  const options = () => {
+    const seen = new Set(), out = [];
+    const add = v => {
+      v = (v || '').trim();
+      if (!v || seen.has(v.toLowerCase())) return;
+      seen.add(v.toLowerCase()); out.push(v);
+    };
+    cfg.builtin.forEach(add);
+    [...new Set(cfg.used().map(v => (v || '').trim()).filter(Boolean))].sort().forEach(add);
+    extra.forEach(add);
+    return out;
   };
-  WAREHOUSE_DEFAULT_TYPES.forEach(add);
-  [...new Set(data.warehouse.map(w => (w.type || '').trim()).filter(Boolean))].sort().forEach(add);
-  extraWhTypes.forEach(add);
-  return out;
+  const fill = selected => {
+    const list = options();
+    const match = list.find(v => v.toLowerCase() === (selected || '').trim().toLowerCase());
+    $(cfg.sel).innerHTML = `<option value="">${cfg.placeholder}</option>` + list.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    $(cfg.sel).value = match || '';
+  };
+  const close = () => { $(cfg.newRow).style.display = 'none'; $(cfg.newInput).value = ''; };
+  const confirmNew = () => {
+    const name = $(cfg.newInput).value.trim();
+    if (!name){ $(cfg.newInput).focus(); return; }
+    const existing = options().find(v => v.toLowerCase() === name.toLowerCase());
+    if (!existing) extra.push(name);
+    fill(existing || name);
+    close();
+    if (existing) toast(`มี${cfg.noun} "${existing}" อยู่แล้ว เลือกให้แล้ว`);
+  };
+  $(cfg.addBtn).addEventListener('click', () => { $(cfg.newRow).style.display = 'flex'; $(cfg.newInput).focus(); });
+  $(cfg.ok).addEventListener('click', confirmNew);
+  $(cfg.cancel).addEventListener('click', close);
+  $(cfg.newInput).addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); confirmNew(); }
+    else if (e.key === 'Escape'){ e.stopPropagation(); close(); }   // Escape here closes only the mini-form, not the whole modal
+  });
+  return { fill, reset(){ extra.length = 0; close(); } };
 }
-function fillWhTypeSelect(selected){
-  const types = allWarehouseTypes();
-  const match = types.find(ty => ty.toLowerCase() === (selected || '').trim().toLowerCase());
-  $('whType').innerHTML = `<option value="">— เลือกประเภท —</option>` + types.map(ty => `<option value="${escapeHtml(ty)}">${escapeHtml(ty)}</option>`).join('');
-  $('whType').value = match || '';
-}
+const whTypeSel = makeAddableSelect({ sel:'whType', addBtn:'whTypeAddBtn', newRow:'whTypeNewRow', newInput:'whTypeNew', ok:'whTypeNewOk', cancel:'whTypeNewCancel',
+  placeholder:'— เลือกประเภท —', noun:'ประเภท', builtin: WAREHOUSE_DEFAULT_TYPES, used: () => data.warehouse.map(w => w.type) });
+const whBrandSel = makeAddableSelect({ sel:'whBrand', addBtn:'whBrandAddBtn', newRow:'whBrandNewRow', newInput:'whBrandNew', ok:'whBrandNewOk', cancel:'whBrandNewCancel',
+  placeholder:'— เลือกยี่ห้อ —', noun:'ยี่ห้อ', builtin: [], used: () => data.warehouse.map(w => w.brand) });
 
 function renderWarehouse(){
   const typeSel = $('warehouseTypeFilter');
@@ -2047,7 +2188,7 @@ function renderWarehouse(){
   const q = $('warehouseSearch').value.trim().toLowerCase();
   const rows = data.warehouse
     .filter(w => typeSel.value === 'all' || (w.type || '').trim() === typeSel.value)
-    .filter(w => !q || [w.part, w.name, w.type, w.note].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
+    .filter(w => !q || [w.part, w.name, w.type, w.brand, w.note].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
     .sort((a,b) => (a.name||'').localeCompare(b.name||''));
   $('warehouseCount').textContent = rows.length;
   $('warehouseBody').innerHTML = rows.length ? rows.map(w => `
@@ -2055,13 +2196,14 @@ function renderWarehouse(){
       <td>${escapeHtml(w.part || '-')}</td>
       <td><b>${escapeHtml(w.name)}</b></td>
       <td>${escapeHtml(w.type || '-')}</td>
+      <td>${escapeHtml(w.brand || '-')}</td>
       <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length}/${fmtNum(w.quantity)}</div></td>
       <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(w.note || '-')}</td>
       <td><div class="row-actions">
         <button class="icon-btn" onclick="event.stopPropagation(); openWarehouseForm('${w.id}')">แก้ไข</button>
         ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('warehouse','${w.id}')">ลบ</button>` : ''}
       </div></td>
-    </tr>`).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="7" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;
 }
 ['warehouseSearch','warehouseTypeFilter'].forEach(id => $(id).addEventListener('input', renderWarehouse));
 
@@ -2099,28 +2241,6 @@ function serialKey(e, i){
 }
 $('whQty').addEventListener('input', () => renderSerialInputs());
 
-/* ---- "+" beside the type dropdown: add a new type ---- */
-function closeWhTypeNew(){ $('whTypeNewRow').style.display = 'none'; $('whTypeNew').value = ''; }
-$('whTypeAddBtn').addEventListener('click', () => {
-  $('whTypeNewRow').style.display = 'flex';
-  $('whTypeNew').focus();
-});
-function confirmWhTypeNew(){
-  const name = $('whTypeNew').value.trim();
-  if (!name){ $('whTypeNew').focus(); return; }
-  const existing = allWarehouseTypes().find(ty => ty.toLowerCase() === name.toLowerCase());
-  if (!existing) extraWhTypes.push(name);
-  fillWhTypeSelect(existing || name);
-  closeWhTypeNew();
-  if (existing) toast(`มีประเภท "${existing}" อยู่แล้ว เลือกให้แล้ว`);
-}
-$('whTypeNewOk').addEventListener('click', confirmWhTypeNew);
-$('whTypeNewCancel').addEventListener('click', closeWhTypeNew);
-$('whTypeNew').addEventListener('keydown', e => {
-  if (e.key === 'Enter'){ e.preventDefault(); confirmWhTypeNew(); }
-  else if (e.key === 'Escape'){ e.stopPropagation(); closeWhTypeNew(); }   // Escape here closes only the mini-form, not the whole modal
-});
-
 function openWarehouseForm(id){
   const w = id ? data.warehouse.find(x => x.id === id) : null;
   if (id && !w) return;
@@ -2130,9 +2250,9 @@ function openWarehouseForm(id){
   $('whName').value = w ? w.name || '' : '';
   $('whQty').value = w ? (w.quantity == null ? 1 : w.quantity) : 1;
   $('whNote').value = w ? w.note || '' : '';
-  extraWhTypes = [];
-  closeWhTypeNew();
-  fillWhTypeSelect(w ? w.type : '');
+  whTypeSel.reset(); whBrandSel.reset();
+  whTypeSel.fill(w ? w.type : '');
+  whBrandSel.fill(w ? w.brand : '');
   editingSerials = w ? [...(w.serials || [])] : [];
   renderSerialInputs();
   closeModal('serialModal');
@@ -2146,7 +2266,7 @@ $('warehouseForm').addEventListener('submit', async e => {
   const serials = editingSerials.slice(0, Math.min(qty, MAX_SERIAL_BOXES)).map(sn => sn.trim()).filter(Boolean);
   if (new Set(serials.map(sn => sn.toLowerCase())).size !== serials.length){ toast('มี Serial Number ซ้ำกัน'); return; }
   const doc = {
-    part: $('whPart').value.trim(), name: $('whName').value.trim(), type: $('whType').value,
+    part: $('whPart').value.trim(), name: $('whName').value.trim(), type: $('whType').value, brand: $('whBrand').value,
     quantity: qty, serials, note: $('whNote').value.trim()
   };
   if (!doc.part){ toast('กรุณากรอก Part'); $('whPart').focus(); return; }
@@ -2174,7 +2294,7 @@ function openSerialModal(id){
   serialModalItemId = id;
   const serials = w.serials || [];
   $('serialModalTitle').textContent = w.name;
-  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.type ? w.type + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
+  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.type ? w.type + ' · ' : ''}${w.brand ? 'ยี่ห้อ ' + w.brand + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
   $('serialModalNote').textContent = w.note ? 'หมายเหตุ: ' + w.note : '';
   $('serialModalNote').style.whiteSpace = 'pre-line';
   $('serialModalBody').innerHTML = serials.length
