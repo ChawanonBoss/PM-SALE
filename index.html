@@ -671,21 +671,14 @@
               <input type="text" id="catalogSearch" class="filter-control" placeholder="ค้นหาชื่อ Catalog, ยี่ห้อ, หมวดสินค้า" style="width:250px;">
               <select id="catalogBrandFilter" class="filter-control"><option value="all">ทุกยี่ห้อ</option></select>
               <button class="btn" id="catalogUploadBtn" type="button" style="display:none;">+ อัปโหลด Catalog (PDF)</button>
+              <button class="btn outline" id="catalogImportSamplesBtn" type="button" style="display:none;">นำตัวอย่างเข้าระบบ</button>
               <button class="btn outline" type="button" id="catalogClearBtn">เคลียร์</button>
             </div>
           </div>
           <div class="alert-banner" id="catalogNotice" style="display:none;"></div>
-          <p class="panel-note">ภาพโปสการ์ดคือหน้าแรกของ Catalog — กดที่ภาพเพื่อเปิดดู PDF ออนไลน์ และกด "ดาวน์โหลด" เพื่อเก็บไฟล์ไว้ (ผู้ดูแลระบบอัปโหลด/แก้ไข/ลบได้ ไฟล์ขนาดไม่เกิน 15 MB)</p>
+          <p class="panel-note">ภาพโปสการ์ดคือหน้าแรกของ Catalog — กดที่ภาพเพื่อเปิดดู PDF ออนไลน์ และกด "ดาวน์โหลด" เพื่อเก็บไฟล์ไว้ (ผู้ดูแลระบบอัปโหลด/แก้ไข/ลบได้ ไฟล์ขนาดไม่เกิน 15 MB) · การ์ดที่มีป้าย "ตัวอย่าง" เป็นไฟล์ตัวอย่าง — จะแสดงตอนที่ในระบบยังไม่มี Catalog</p>
           <div class="postcard-grid" id="catalogGrid"></div>
           <div class="pager" id="catalogPager"></div>
-        </div>
-        <div class="panel">
-          <div class="panel-head">
-            <h3>ตัวอย่าง Catalog <span class="count-pill">3</span></h3>
-            <button class="btn outline" id="catalogImportSamplesBtn" type="button" style="display:none;">นำตัวอย่างเข้าระบบ</button>
-          </div>
-          <p class="panel-note">ไฟล์ตัวอย่างสำหรับทดลองดู/ดาวน์โหลด (ข้อมูลเป็นข้อมูลสมมติ) — ผู้ดูแลระบบกด "นำตัวอย่างเข้าระบบ" เพื่อเพิ่มเป็น Catalog จริงไว้ทดสอบการแก้ไข/ลบ</p>
-          <div class="postcard-grid" id="catalogSampleGrid"></div>
         </div>
       </div>
 
@@ -1112,7 +1105,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.1';
+const APP_VERSION = '1.10.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3021,30 +3014,33 @@ function postcardHtml(o){
 function renderCatalogs(){
   const isAdmin = currentUserRole === 'admin';
   $('catalogUploadBtn').style.display = isAdmin ? '' : 'none';
-  $('catalogImportSamplesBtn').style.display = isAdmin ? '' : 'none';
   const notice = $('catalogNotice');
   notice.style.display = catalogsUnavailable ? 'flex' : 'none';
-  notice.innerHTML = catalogsUnavailable ? `<div>⚠️ ยังใช้งาน Catalog ที่อัปโหลดไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_catalogs, pm_catalogChunks) ที่ Firebase Console ก่อน — ดูตัวอย่างด้านล่างได้ตามปกติ</div>` : '';
+  notice.innerHTML = catalogsUnavailable ? `<div>⚠️ ยังใช้งาน Catalog ที่อัปโหลดไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_catalogs, pm_catalogChunks) ที่ Firebase Console ก่อน — ดูตัวอย่างได้ตามปกติ</div>` : '';
+  // The built-in sample files share the one grid (tagged "ตัวอย่าง") only while the system holds no catalog at all. Once anything is in
+  // there (uploaded, or imported samples) they stay out, so deleting an imported sample never makes its built-in twin pop back up.
+  const builtin = data.catalogs.length ? [] : SAMPLE_CATALOGS.map((c, i) => ({ ...c, builtin: true, idx: i }));
+  $('catalogImportSamplesBtn').style.display = isAdmin && builtin.length && !catalogsUnavailable ? '' : 'none';
   const brandSel = $('catalogBrandFilter'), prev = brandSel.value || 'all';
-  const brands = [...new Set(data.catalogs.map(c => (c.brand || '').trim()).filter(Boolean))].sort();
+  const brands = [...new Set([...data.catalogs, ...builtin].map(c => (c.brand || '').trim()).filter(Boolean))].sort();
   brandSel.innerHTML = `<option value="all">ทุกยี่ห้อ</option>` + brands.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
   brandSel.value = brands.includes(prev) ? prev : 'all';
   const q = $('catalogSearch').value.trim().toLowerCase();
-  const rows = data.catalogs
-    .filter(c => brandSel.value === 'all' || (c.brand || '').trim() === brandSel.value)
-    .filter(c => !q || [c.title, c.brand, c.category, c.note, c.fileName].some(v => (v || '').toLowerCase().includes(q)))
-    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const match = c => (brandSel.value === 'all' || (c.brand || '').trim() === brandSel.value)
+    && (!q || [c.title, c.brand, c.category, c.note, c.fileName].some(v => (v || '').toLowerCase().includes(q)));
+  const rows = [
+    ...data.catalogs.filter(match).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+    ...builtin.filter(match)
+  ];
   $('catalogCount').textContent = rows.length;
   const view = pageSlice('catalogs', rows);
-  $('catalogGrid').innerHTML = rows.length ? view.map(c => postcardHtml({
-    open: `openCatalog('${c.id}')`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size,
-    actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadCatalog('${c.id}')">ดาวน์โหลด</button>`
-      + (isAdmin ? `<button class="icon-btn" onclick="event.stopPropagation(); openCatalogForm('${c.id}')">แก้ไข</button><button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('catalogs','${c.id}')">ลบ</button>` : '')
-  })).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${catalogsUnavailable ? '' : (isAdmin ? 'ยังไม่มี Catalog — กด "+ อัปโหลด Catalog (PDF)" หรือ "นำตัวอย่างเข้าระบบ"' : 'ยังไม่มี Catalog')}</div>`;
-  $('catalogSampleGrid').innerHTML = SAMPLE_CATALOGS.map((c, i) => postcardHtml({
-    open: `openSampleCatalog(${i})`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: true,
-    actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadSampleCatalog(${i})">ดาวน์โหลด</button>`
-  })).join('');
+  $('catalogGrid').innerHTML = rows.length ? view.map(c => c.builtin
+    ? postcardHtml({ open: `openSampleCatalog(${c.idx})`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: true,
+        actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadSampleCatalog(${c.idx})">ดาวน์โหลด</button>` })
+    : postcardHtml({ open: `openCatalog('${c.id}')`, thumb: c.thumb, title: c.title, brand: c.brand, category: c.category, pages: c.pages, size: c.size, sample: !!c.sample,
+        actions: `<button class="icon-btn pdf-btn" onclick="event.stopPropagation(); downloadCatalog('${c.id}')">ดาวน์โหลด</button>`
+          + (isAdmin ? `<button class="icon-btn" onclick="event.stopPropagation(); openCatalogForm('${c.id}')">แก้ไข</button><button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('catalogs','${c.id}')">ลบ</button>` : '') })
+  ).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${catalogsUnavailable ? '' : (isAdmin ? 'ยังไม่มี Catalog — กด "+ อัปโหลด Catalog (PDF)"' : 'ยังไม่มี Catalog')}</div>`;
 }
 ['catalogSearch', 'catalogBrandFilter'].forEach(id => $(id).addEventListener('input', renderCatalogs));
 
