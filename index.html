@@ -545,7 +545,7 @@
             </div>
           </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>ชื่อบริษัท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>โครงการ</th><th></th></tr></thead>
+            <thead><tr><th>ชื่อบริษัท</th><th>ประเภท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>โครงการ</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table></div>
         </div>
@@ -758,11 +758,14 @@
     <h3 class="serif" id="customerModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มลูกค้า</h3>
     <form id="customerForm">
       <div class="form-grid">
+        <div class="field full"><label>ประเภทลูกค้า</label>
+          <select id="cusType"><option value="gov">หน่วยงานรัฐ</option><option value="private">บริษัทเอกชน</option></select>
+        </div>
         <div class="field full"><label>ชื่อบริษัท / หน่วยงาน *</label><input type="text" id="cusName" required></div>
         <div class="field full"><label>ที่อยู่</label><textarea id="cusAddress"></textarea></div>
         <div class="field"><label>ชื่อผู้ติดต่อ</label><input type="text" id="cusContact"></div>
         <div class="field"><label>เบอร์ติดต่อ</label><input type="text" id="cusPhone" inputmode="tel"></div>
-        <div class="field full"><label>เลขที่ผู้เสียภาษี</label><input type="text" id="cusTax" inputmode="numeric" maxlength="13"></div>
+        <div class="field full" id="cusTaxField"><label>เลขที่ผู้เสียภาษี</label><input type="text" id="cusTax" inputmode="numeric" maxlength="13"></div>
       </div>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="customerCancelBtn">ยกเลิก</button>
@@ -831,7 +834,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '1.5.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2147,16 +2150,23 @@ $('serialCloseBtn').addEventListener('click', () => closeModal('serialModal'));
 $('serialEditBtn').addEventListener('click', () => openWarehouseForm(serialModalItemId));
 
 /* ====== Customers ====== */
+// Government agencies have no tax ID field: it's hidden (and not stored) for 'gov', shown for 'private'.
+const CUSTOMER_TYPES = { gov:'หน่วยงานรัฐ', private:'บริษัทเอกชน' };
+function updateCustomerTaxVisibility(){
+  $('cusTaxField').style.display = $('cusType').value === 'gov' ? 'none' : '';
+}
+$('cusType').addEventListener('change', updateCustomerTaxVisibility);
 function projectCountForCustomer(c){ return data.projects.filter(p => p.customerId === c.id).length; }
 function renderCustomers(){
   const q = $('customersSearch').value.trim().toLowerCase();
   const rows = getVisibleCustomers()
-    .filter(c => !q || [c.name, c.contactName, c.taxId, c.address].some(v => (v||'').toLowerCase().includes(q)))
+    .filter(c => !q || [c.name, c.contactName, c.taxId, c.address, CUSTOMER_TYPES[c.type]].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (a.name||'').localeCompare(b.name||''));
   $('customersCount').textContent = rows.length;
   $('customersBody').innerHTML = rows.length ? rows.map(c => `
     <tr>
       <td><b>${escapeHtml(c.name)}</b></td>
+      <td>${c.type && CUSTOMER_TYPES[c.type] ? `<span class="badge ${c.type === 'gov' ? 'doing' : 'none'}">${CUSTOMER_TYPES[c.type]}</span>` : '-'}</td>
       <td style="max-width:260px;">${escapeHtml(c.address || '-')}</td>
       <td>${escapeHtml(c.contactName || '-')}</td>
       <td>${escapeHtml(c.contactPhone || '-')}</td>
@@ -2166,7 +2176,7 @@ function renderCustomers(){
         <button class="icon-btn" onclick="openCustomerForm('${c.id}')">แก้ไข</button>
         <button class="icon-btn delete-btn" onclick="deleteEntity('customers','${c.id}')">ลบ</button>
       </div></td>
-    </tr>`).join('') : `<tr><td colspan="7" class="empty-row">ยังไม่มีลูกค้า</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีลูกค้า</td></tr>`;
 }
 $('customersSearch').addEventListener('input', renderCustomers);
 let editingCustomerId = null;
@@ -2179,6 +2189,8 @@ function openCustomerForm(id){
   $('cusContact').value = c ? c.contactName || '' : '';
   $('cusPhone').value = c ? c.contactPhone || '' : '';
   $('cusTax').value = c ? c.taxId || '' : '';
+  $('cusType').value = c && CUSTOMER_TYPES[c.type] ? c.type : 'private';   // customers saved before this field existed open as a private company
+  updateCustomerTaxVisibility();
   openModal('customerModal');
 }
 $('customerCreateBtn').addEventListener('click', () => openCustomerForm(null));
@@ -2187,7 +2199,8 @@ $('customerForm').addEventListener('submit', async e => {
   e.preventDefault();
   const doc = {
     name: $('cusName').value.trim(), address: $('cusAddress').value.trim(), contactName: $('cusContact').value.trim(),
-    contactPhone: $('cusPhone').value.trim(), taxId: $('cusTax').value.trim()
+    contactPhone: $('cusPhone').value.trim(), type: $('cusType').value,
+    taxId: $('cusType').value === 'gov' ? '' : $('cusTax').value.trim()
   };
   setSync('saving');
   try{
