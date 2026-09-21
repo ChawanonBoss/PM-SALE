@@ -227,6 +227,9 @@
   .gantt thead .g-chk{ z-index:3; background:var(--paper-dim); }
   .g-chk-input{ width:17px; height:17px; cursor:pointer; accent-color:var(--ok); vertical-align:middle; }
   .g-chk-input:disabled{ cursor:default; opacity:.7; }
+  .trash-cb{ width:17px; height:17px; min-width:0; padding:0; cursor:pointer; accent-color:var(--accent); vertical-align:middle; }
+  .bulk-bar{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:0 0 12px; padding:10px 14px; border:1px solid var(--line); border-radius:14px; background:var(--accent-soft); font-size:13.5px; }
+  .bulk-bar .grow{ flex:1; }
   .g-alert{ margin-right:5px; }
   .gantt tr.g-warn-soon td.g-chk, .gantt tr.g-warn-soon td.g-no, .gantt tr.g-warn-soon td.g-detail{ background:var(--sun-soft); }
   .gantt tr.g-warn-late td.g-chk, .gantt tr.g-warn-late td.g-no, .gantt tr.g-warn-late td.g-detail{ background:var(--danger-soft); }
@@ -836,9 +839,15 @@
             </div>
           </div>
           <p class="panel-note">รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)</p>
+          <div class="bulk-bar" id="trashBulkBar" style="display:none;">
+            <span>เลือกแล้ว <b id="trashSelCount">0</b> รายการ</span><span class="grow"></span>
+            <button class="btn outline" type="button" id="trashBulkRestoreBtn">กู้คืนที่เลือก</button>
+            <button class="btn danger" type="button" id="trashBulkPurgeBtn">ลบถาวรที่เลือก</button>
+            <button class="btn outline" type="button" id="trashBulkClearBtn">ยกเลิกการเลือก</button>
+          </div>
           <div class="table-scroll"><table>
-            <thead><tr><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
-            <tbody id="trashBody"><tr><td colspan="5" class="empty-row">กด "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
+            <thead><tr><th style="width:36px;"><input type="checkbox" class="trash-cb" id="trashSelAll" title="เลือกทั้งหมด (ทุกหน้าที่ตรงกับตัวกรอง)"></th><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
+            <tbody id="trashBody"><tr><td colspan="6" class="empty-row">กด "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
           </table></div>
           <div class="pager" id="trashPager"></div>
         </div>
@@ -1128,7 +1137,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.11';
+const APP_VERSION = '1.10.12';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3633,7 +3642,7 @@ function renderAudit(){
 let trashItems = [];
 async function loadTrash(){
   if (currentUserRole !== 'admin') return;
-  $('trashBody').innerHTML = `<tr><td colspan="5" class="empty-row">กำลังโหลด...</td></tr>`;
+  $('trashBody').innerHTML = `<tr><td colspan="6" class="empty-row">กำลังโหลด...</td></tr>`;
   try{
     // orderBy('deletedAt') only returns docs that actually have the field, so no separate != query/index is needed
     const results = await Promise.all(Object.keys(ENTITY_LABEL).map(async type => {
@@ -3643,16 +3652,46 @@ async function loadTrash(){
     trashItems = results.flat().sort((a,b) => (b.deletedAt||'').localeCompare(a.deletedAt||''));
     renderTrash();
   }catch(err){
-    $('trashBody').innerHTML = `<tr><td colspan="5" class="empty-row">โหลดไม่สำเร็จ</td></tr>`;
+    $('trashBody').innerHTML = `<tr><td colspan="6" class="empty-row">โหลดไม่สำเร็จ</td></tr>`;
   }
 }
+// Selection = keys "kind:id". It only ever holds rows that pass the current type filter, so a bulk action can never touch a row that is hidden.
+const trashSel = new Set();
+const trashKey = x => x.kind + ':' + x.id;
+const trashRows = () => trashItems.filter(x => $('trashTypeFilter').value === 'all' || x.kind === $('trashTypeFilter').value);
+function updateTrashBar(){
+  const rows = trashRows();
+  const n = rows.filter(x => trashSel.has(trashKey(x))).length;
+  $('trashSelCount').textContent = n;
+  $('trashBulkBar').style.display = n ? '' : 'none';
+  const all = $('trashSelAll');
+  all.checked = rows.length > 0 && n === rows.length;
+  all.indeterminate = n > 0 && n < rows.length;
+}
+function toggleTrashSel(key, on){
+  if (on) trashSel.add(key); else trashSel.delete(key);
+  updateTrashBar();
+}
+$('trashSelAll').addEventListener('change', e => {
+  const rows = trashRows();
+  rows.forEach(x => { if (e.target.checked) trashSel.add(trashKey(x)); else trashSel.delete(trashKey(x)); });
+  document.querySelectorAll('#trashBody .trash-cb').forEach(cb => { cb.checked = trashSel.has(cb.dataset.k); });   // no full re-render: it would replay the row fade-in
+  updateTrashBar();
+});
+$('trashBulkClearBtn').addEventListener('click', () => {
+  trashSel.clear();
+  document.querySelectorAll('#trashBody .trash-cb').forEach(cb => { cb.checked = false; });
+  updateTrashBar();
+});
 function renderTrash(){
-  const tf = $('trashTypeFilter').value;
-  const rows = trashItems.filter(x => tf === 'all' || x.kind === tf);
+  const rows = trashRows();
+  const keys = new Set(rows.map(trashKey));
+  [...trashSel].forEach(k => { if (!keys.has(k)) trashSel.delete(k); });   // filter changed / item gone: forget hidden selections
   $('trashCount').textContent = rows.length;
   const view = pageSlice('trash', rows);
   $('trashBody').innerHTML = rows.length ? view.map(x => `
     <tr>
+      <td><input type="checkbox" class="trash-cb" data-k="${trashKey(x)}" ${trashSel.has(trashKey(x)) ? 'checked' : ''} onchange="toggleTrashSel(this.dataset.k, this.checked)"></td>
       <td><span class="badge none">${ENTITY_LABEL[x.kind]}</span></td>
       <td>${x.docNo ? `<span class="docno">${escapeHtml(x.docNo)}</span> ` : ''}${escapeHtml(x.name || '-')}</td>
       <td>${escapeHtml(getUserDisplayName(x.deletedBy))}</td>
@@ -3661,7 +3700,8 @@ function renderTrash(){
         <button class="icon-btn" onclick="restoreTrash('${x.kind}','${x.id}')">กู้คืน</button>
         <button class="icon-btn delete-btn" onclick="purgeTrash('${x.kind}','${x.id}')">ลบถาวร</button>
       </div></td>
-    </tr>`).join('') : `<tr><td colspan="5" class="empty-row">ถังขยะว่างเปล่า</td></tr>`;
+    </tr>`).join('') : `<tr><td colspan="6" class="empty-row">ถังขยะว่างเปล่า</td></tr>`;
+  updateTrashBar();
 }
 async function restoreTrash(type, id){
   const x = trashItems.find(r => r.kind === type && r.id === id);
@@ -3669,6 +3709,7 @@ async function restoreTrash(type, id){
     await db.collection(COL[type]).doc(id).update({ deletedAt: firebase.firestore.FieldValue.delete(), deletedBy: firebase.firestore.FieldValue.delete() });
     logAudit('กู้คืน' + ENTITY_LABEL[type], x ? x.name : id, '');
     trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
+    trashSel.delete(type + ':' + id);
     renderTrash();
     toast('กู้คืนแล้ว');
   }catch(err){ toast('กู้คืนไม่สำเร็จ'); }
@@ -3681,11 +3722,58 @@ function purgeTrash(type, id){
       await db.collection(COL[type]).doc(id).delete();
       logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
       trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
+      trashSel.delete(type + ':' + id);
       renderTrash();
       toast('ลบถาวรแล้ว');
     }catch(err){ toast('ลบไม่สำเร็จ'); }
   }, 'ลบถาวร');
 }
+// Bulk restore / purge run as Firestore batches (400 writes each) and log ONE summary audit entry instead of one per row.
+const selectedTrashItems = () => trashRows().filter(x => trashSel.has(trashKey(x)));
+const trashSummary = list => Object.keys(ENTITY_LABEL).map(t => [ENTITY_LABEL[t], list.filter(x => x.kind === t).length]).filter(r => r[1]).map(r => `${r[0]} ${r[1]}`).join(' · ');
+async function commitInChunks(ops){
+  for (let i = 0; i < ops.length; i += 400){
+    const batch = db.batch();
+    ops.slice(i, i + 400).forEach(fn => fn(batch));
+    await batch.commit();
+  }
+}
+function dropFromTrash(list){
+  const gone = new Set(list.map(trashKey));
+  trashItems = trashItems.filter(x => !gone.has(trashKey(x)));
+  gone.forEach(k => trashSel.delete(k));
+  renderTrash();
+}
+$('trashBulkRestoreBtn').addEventListener('click', async () => {
+  const list = selectedTrashItems();
+  if (!list.length) return;
+  $('trashBulkRestoreBtn').disabled = true;
+  try{
+    const del = firebase.firestore.FieldValue.delete();
+    await commitInChunks(list.map(x => b => b.update(db.collection(COL[x.kind]).doc(x.id), { deletedAt: del, deletedBy: del })));
+    logAudit('กู้คืนหลายรายการ', list.length + ' รายการ', trashSummary(list));
+    dropFromTrash(list);
+    toast('กู้คืน ' + list.length + ' รายการแล้ว');
+  }catch(err){ toast('กู้คืนไม่สำเร็จ'); }
+  $('trashBulkRestoreBtn').disabled = false;
+});
+$('trashBulkPurgeBtn').addEventListener('click', () => {
+  const list = selectedTrashItems();
+  if (!list.length) return;
+  confirmAction(`ลบถาวร ${list.length} รายการที่เลือก (${trashSummary(list)}) ใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
+    try{
+      const ops = [];
+      list.forEach(x => {
+        if (x.kind === 'catalogs') for (let n = 0; n < (x.chunks || 0); n++) ops.push(b => b.delete(db.collection(COL.catalogChunks).doc(`${x.id}_${n}`)));   // the PDF's stored pieces go too
+        ops.push(b => b.delete(db.collection(COL[x.kind]).doc(x.id)));
+      });
+      await commitInChunks(ops);
+      logAudit('ลบถาวรหลายรายการ', list.length + ' รายการ', trashSummary(list));
+      dropFromTrash(list);
+      toast('ลบถาวร ' + list.length + ' รายการแล้ว');
+    }catch(err){ toast('ลบไม่สำเร็จ'); }
+  }, 'ลบถาวร');
+});
 $('trashRefreshBtn').addEventListener('click', loadTrash);
 $('trashTypeFilter').addEventListener('change', renderTrash);
 // Trash isn't a live listener, so load it each time its tab is opened
