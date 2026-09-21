@@ -219,8 +219,16 @@
   .gantt thead th{ text-align:center; font-size:11.5px; color:var(--ink-soft); background:var(--paper-dim); }
   .gantt tbody tr:last-child td{ border-bottom:none; }
   .gantt .g-no, .gantt .g-detail{ position:sticky; z-index:2; text-align:left; }
-  .gantt .g-no{ left:0; width:46px; min-width:46px; color:var(--ink-soft); }
-  .gantt .g-detail{ left:46px; width:250px; min-width:250px; max-width:250px; overflow:hidden; text-overflow:ellipsis; box-shadow:2px 0 0 var(--line); }
+  .gantt .g-chk{ position:sticky; left:0; z-index:2; width:38px; min-width:38px; padding:0; text-align:center; }
+  .gantt thead .g-chk{ z-index:3; background:var(--paper-dim); }
+  .g-chk-input{ width:17px; height:17px; cursor:pointer; accent-color:var(--ok); vertical-align:middle; }
+  .g-chk-input:disabled{ cursor:default; opacity:.7; }
+  .g-alert{ margin-right:5px; }
+  .gantt tr.g-warn-soon td.g-chk, .gantt tr.g-warn-soon td.g-no, .gantt tr.g-warn-soon td.g-detail{ background:var(--sun-soft); }
+  .gantt tr.g-warn-late td.g-chk, .gantt tr.g-warn-late td.g-no, .gantt tr.g-warn-late td.g-detail{ background:var(--danger-soft); }
+  .items-table input[type="checkbox"]{ width:18px; min-width:0; height:18px; padding:0; accent-color:var(--ok); }
+  .gantt .g-no{ left:38px; width:46px; min-width:46px; color:var(--ink-soft); }
+  .gantt .g-detail{ left:84px; width:250px; min-width:250px; max-width:250px; overflow:hidden; text-overflow:ellipsis; box-shadow:2px 0 0 var(--line); }
   .gantt thead .g-no, .gantt thead .g-detail{ z-index:3; background:var(--paper-dim); }
   .gantt .g-meta{ text-align:left; }
   .gantt .g-num{ text-align:center; color:var(--ink-soft); }
@@ -246,8 +254,6 @@
   .g-bar.drag.last::after{ right:0; border-radius:0 8px 8px 0; }
   tr.g-empty .g-cell:not(.on){ cursor:crosshair; }
   body.plan-dragging{ user-select:none; cursor:grabbing; }
-  .g-prog-input{ width:50px; height:24px; padding:0 4px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font-size:12px; text-align:right; }
-  .g-prog-input:focus{ outline:none; border-color:var(--accent); }
   .g-prog-bar{ display:inline-block; width:34px; height:5px; border-radius:3px; background:var(--paper-dim); vertical-align:middle; margin-left:6px; overflow:hidden; }
   .g-prog-bar i{ display:block; height:100%; background:var(--ok); }
   .badge.doing{ background:var(--accent-soft); color:var(--accent); }
@@ -262,10 +268,10 @@
   .plan-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--ink-soft); }
   .plan-meta b{ color:var(--ink); font-weight:500; }
   .plan-edit-topic td{ background:var(--paper-dim); }
-  @media (max-width:760px){ .gantt .g-no, .gantt .g-detail{ position:static; } }
+  @media (max-width:760px){ .gantt .g-chk, .gantt .g-no, .gantt .g-detail{ position:static; } }
 
   /* ---- Warehouse ---- */
-  #warehouseBody tr{ cursor:pointer; }
+  #warehouseBody tr, #customersBody tr{ cursor:pointer; }
   .code-mask{ font-family:ui-monospace,Consolas,monospace; letter-spacing:.06em; }
   .type-row{ display:flex; gap:8px; align-items:center; }
   .type-row select{ flex:1; }
@@ -305,7 +311,7 @@
     #printArea .plan-scroll{ overflow:visible; border:none; border-radius:0; }
     #printArea .gantt{ width:100%; table-layout:fixed; border-collapse:collapse; font-size:8.5px; }
     #printArea .gantt th, #printArea .gantt td{ height:auto; padding:2px 3px; white-space:normal; border:1px solid #ccc; }
-    #printArea .gantt .g-no, #printArea .gantt .g-detail{ position:static; width:auto; min-width:0; max-width:none; box-shadow:none; overflow:visible; }
+    #printArea .gantt .g-chk, #printArea .gantt .g-no, #printArea .gantt .g-detail{ position:static; width:auto; min-width:0; max-width:none; box-shadow:none; overflow:visible; }
     #printArea .gantt .g-cell{ box-shadow:none; min-width:0; width:auto; border-left:1px solid #e2e2e2; border-right:none; }
     #printArea .gantt th.g-week{ min-width:0; width:auto; font-size:7.5px; }
     #printArea .gantt th.g-month{ box-shadow:none; }
@@ -485,7 +491,7 @@
               <button class="btn" id="projectCreateBtn" type="button">+ เพิ่มโครงการ</button>
             </div>
           </div>
-          <p class="panel-note">สถานะคำนวณอัตโนมัติจากวันที่: ก่อนวันเริ่มต้น = รอดำเนินการ, ระหว่างวันเริ่มต้น–สิ้นสุด = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ</p>
+          <p class="panel-note">สถานะคำนวณอัตโนมัติ: ก่อนวันเริ่มต้น หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนดำเนินการแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ</p>
           <div class="table-scroll"><table>
             <thead><tr><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
             <tbody id="projectsBody"></tbody>
@@ -573,7 +579,7 @@
           </div>
           <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number ทั้งหมดของอุปกรณ์นั้น</p>
           <div class="table-scroll"><table>
-            <thead><tr><th>Part</th><th>ชื่ออุปกรณ์</th><th>ประเภท</th><th>ยี่ห้อ</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
+            <thead><tr><th>Part</th><th>ยี่ห้อ</th><th>ประเภท</th><th>ชื่ออุปกรณ์</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warehouseBody"></tbody>
           </table></div>
         </div>
@@ -742,7 +748,7 @@
     <h3 class="serif" style="font-size:19px; margin-bottom:4px;">แก้ไขแผนดำเนินการ</h3>
     <p id="planModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;"></p>
     <div class="table-scroll"><table class="items-table">
-      <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:90px;">ความคืบหน้า %</th><th style="width:140px;"></th></tr></thead>
+      <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:90px;">ดำเนินการแล้ว</th><th style="width:140px;"></th></tr></thead>
       <tbody id="planEditBody"></tbody>
     </table></div>
     <datalist id="planOwnerList"></datalist>
@@ -762,18 +768,6 @@
     <form id="warehouseForm">
       <div class="form-grid">
         <div class="field"><label>Part *</label><input type="text" id="whPart" required></div>
-        <div class="field"><label>ชื่ออุปกรณ์ *</label><input type="text" id="whName" required></div>
-        <div class="field"><label>ประเภท</label>
-          <div class="type-row">
-            <select id="whType"></select>
-            <button type="button" class="serial-add-btn" id="whTypeAddBtn" title="เพิ่มประเภทใหม่">+</button>
-          </div>
-          <div class="type-new" id="whTypeNewRow" style="display:none;">
-            <input type="text" id="whTypeNew" placeholder="ชื่อประเภทใหม่" autocomplete="off">
-            <button type="button" class="icon-btn" id="whTypeNewOk">เพิ่ม</button>
-            <button type="button" class="icon-btn" id="whTypeNewCancel">ยกเลิก</button>
-          </div>
-        </div>
         <div class="field"><label>ยี่ห้อ</label>
           <div class="type-row">
             <select id="whBrand"></select>
@@ -785,6 +779,18 @@
             <button type="button" class="icon-btn" id="whBrandNewCancel">ยกเลิก</button>
           </div>
         </div>
+        <div class="field"><label>ประเภท</label>
+          <div class="type-row">
+            <select id="whType"></select>
+            <button type="button" class="serial-add-btn" id="whTypeAddBtn" title="เพิ่มประเภทใหม่">+</button>
+          </div>
+          <div class="type-new" id="whTypeNewRow" style="display:none;">
+            <input type="text" id="whTypeNew" placeholder="ชื่อประเภทใหม่" autocomplete="off">
+            <button type="button" class="icon-btn" id="whTypeNewOk">เพิ่ม</button>
+            <button type="button" class="icon-btn" id="whTypeNewCancel">ยกเลิก</button>
+          </div>
+        </div>
+        <div class="field"><label>ชื่ออุปกรณ์ *</label><input type="text" id="whName" required></div>
         <div class="field"><label>จำนวนอุปกรณ์</label><input type="number" id="whQty" min="0" step="1" value="1"></div>
         <div class="field full"><label>Serial Number <span id="whSerialCount" style="color:var(--ink-soft);"></span></label>
           <div id="whSerialList"></div>
@@ -812,6 +818,25 @@
     <div class="modal-actions">
       <button class="btn outline" type="button" id="serialEditBtn">แก้ไข</button>
       <button class="btn" type="button" id="serialCloseBtn">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- Customer's projects (opened by clicking a customer row) -->
+<div class="modal-overlay" id="customerProjectsModal" style="display:none;">
+  <div class="modal" style="max-width:860px;">
+    <h3 class="serif" id="cpTitle" style="font-size:19px; margin-bottom:4px;"></h3>
+    <p id="cpSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:4px;"></p>
+    <p id="cpSummary" style="font-size:13px; margin-bottom:14px;"></p>
+    <div style="max-height:420px; overflow:auto;">
+      <table>
+        <thead><tr><th>โครงการ</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>ความคืบหน้าแผน</th><th>สถานะ</th><th></th></tr></thead>
+        <tbody id="cpBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" type="button" id="cpEditBtn">แก้ไขลูกค้า</button>
+      <button class="btn" type="button" id="cpCloseBtn">ปิด</button>
     </div>
   </div>
 </div>
@@ -898,7 +923,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.7.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1323,11 +1348,18 @@ $('targetUserFilter').addEventListener('change', renderActiveTab);
 
 /* ====== Project status / warranty ====== */
 const STATUS_LABEL = { pending:'รอดำเนินการ', active:'กำลังดำเนินการ', ended:'สิ้นสุดสัญญาโครงการ' };
-function projectStatus(p){
+// Pure date-based status (before start / within the contract / after the end)
+function projectDateStatus(p){
   const t = todayStr();
   if (p.startDate && t < p.startDate) return 'pending';
   if (p.endDate && t > p.endDate) return 'ended';
   return 'active';
+}
+// A project that is inside its contract period but has nothing entered in its Action Plan yet is still "รอดำเนินการ";
+// it only shows "กำลังดำเนินการ" once the plan has at least one step.
+function projectStatus(p){
+  const st = projectDateStatus(p);
+  return st === 'active' && !(p.plan || []).length ? 'pending' : st;
 }
 const WARRANTY_LABEL = { none:'ไม่มีประกัน', ok:'ในประกัน', soon:'ใกล้หมดประกัน', expired:'หมดประกัน' };
 function warrantyStatus(expiry, months){
@@ -1365,14 +1397,20 @@ function goProjects(status){
 }
 function getDashAlerts(){
   const t = todayStr();
-  const endingSoon = getVisibleProjects().filter(p => projectStatus(p) === 'active' && p.endDate && daysBetween(t, p.endDate) <= 30);
+  const endingSoon = getVisibleProjects().filter(p => projectDateStatus(p) === 'active' && p.endDate && daysBetween(t, p.endDate) <= 30);
   const warrantySoon = getWarrantyRows().filter(r => r.wstatus === 'soon');
-  return { endingSoon, warrantySoon };
+  // unticked Action Plan steps that are due soon / overdue (projects already past their end date are left out to avoid stale noise)
+  let planSoon = 0, planLate = 0;
+  getVisibleProjects().forEach(p => {
+    if (projectDateStatus(p) === 'ended') return;
+    planLeaves(p.plan).forEach(x => { const st = leafState(x); if (st === 'soon') planSoon++; else if (st === 'late') planLate++; });
+  });
+  return { endingSoon, warrantySoon, planSoon, planLate };
 }
 function updateNavBadge(){
   if (!currentUserUid) return;
   const a = getDashAlerts();
-  const n = a.endingSoon.length + a.warrantySoon.length;
+  const n = a.endingSoon.length + a.warrantySoon.length + a.planSoon + a.planLate;
   const b = $('dashNavBadge');
   b.style.display = n ? '' : 'none';
   b.textContent = n > 99 ? '99+' : n;
@@ -1386,6 +1424,8 @@ function renderDashboard(){
   const alerts = getDashAlerts();
   const lines = [];
   if (alerts.endingSoon.length) lines.push(`⏰ มี ${alerts.endingSoon.length} โครงการที่สัญญาจะสิ้นสุดภายใน 30 วัน: ` + alerts.endingSoon.map(p => escapeHtml(p.name)).join(', '));
+  if (alerts.planLate) lines.push(`⚠️ แผนดำเนินการ: มี ${alerts.planLate} ขั้นตอนเลยกำหนดแล้วแต่ยังไม่ได้ติ๊กดำเนินการ`);
+  if (alerts.planSoon) lines.push(`📋 แผนดำเนินการ: มี ${alerts.planSoon} ขั้นตอนใกล้ครบกำหนด (ภายใน ${PLAN_DUE_SOON_DAYS} วัน) แต่ยังไม่ได้ดำเนินการ`);
   if (alerts.warrantySoon.length) lines.push(`🛡️ มี ${alerts.warrantySoon.length} โครงการที่ใกล้หมดประกันภายใน 30 วัน`);
   const banner = $('dashAlert');
   banner.style.display = lines.length ? 'flex' : 'none';
@@ -1397,8 +1437,8 @@ function renderDashboard(){
     </div>`;
   $('dashStats').innerHTML =
     card('', 'โครงการทั้งหมด', total, 'ทุกสถานะ', "goProjects('all')") +
-    card('filled pending', 'รอดำเนินการ', groups.pending.length, 'ยังไม่ถึงวันเริ่มต้น', "goProjects('pending')") +
-    card('filled active', 'กำลังดำเนินการ', groups.active.length, 'อยู่ในช่วงสัญญา', "goProjects('active')") +
+    card('filled pending', 'รอดำเนินการ', groups.pending.length, 'ยังไม่ถึงวันเริ่ม หรือยังไม่มีแผน', "goProjects('pending')") +
+    card('filled active', 'กำลังดำเนินการ', groups.active.length, 'อยู่ในช่วงสัญญาและมีแผนแล้ว', "goProjects('active')") +
     card('filled ended', 'สิ้นสุดสัญญาโครงการ', groups.ended.length, 'เลยวันสิ้นสุดแล้ว', "goProjects('ended')");
 
   const pct = n => total ? (n / total * 100) : 0;
@@ -1655,12 +1695,13 @@ function printProject(id){
 }
 
 /* ====== Action plan (Gantt by week-of-month) ======
-   The plan lives inside its project document as `plan: [{title, owner, start, end, progress, subs:[{title, owner, start, end, progress}]}]`
+   The plan lives inside its project document as `plan: [{title, owner, start, end, done, subs:[{title, owner, start, end, done}]}]`
    (so it follows the project's own permissions, Trash and restore — no separate collection/rules). A topic with sub-items
-   takes its dates from the earliest/latest sub-item and its progress from the duration-weighted average of them.
+   takes its dates from the earliest/latest sub-item; a step is "done" when its tick box is checked and progress = ticked steps / all steps.
    "Week of month" = ceil(day / 7): days 1-7 are week 1 ... 29-31 are week 5. */
 const PLAN_COLORS = ['#3B82F6','#22B573','#FF9F43','#8B7CF6','#F0618B','#14B8A6','#EAB308','#64748B'];
-const PLAN_STATUS = { todo:['ยังไม่เริ่ม','none'], doing:['กำลังดำเนินการ','doing'], done:['เสร็จสิ้น','ok'], late:['ล่าช้า','expired'] };
+const PLAN_DUE_SOON_DAYS = 7;   // an unticked step is flagged "due soon" when its end date is this close (or today)
+const PLAN_STATUS = { todo:['ยังไม่ดำเนินการ','none'], doing:['กำลังดำเนินการ','doing'], done:['ดำเนินการแล้ว','ok'], soon:['ใกล้ครบกำหนด','soon'], late:['เลยกำหนด','expired'] };
 let selectedPlanProjectId = null;
 let planDrag = null;
 
@@ -1681,40 +1722,73 @@ function planTopicRange(t){
   const ends = subs.map(x => normRange(x.start, x.end).end).filter(Boolean).sort();
   return { start: starts[0] || '', end: ends[ends.length - 1] || '' };
 }
-function weightedProgress(items, rangeOf, progOf){
-  let sum = 0, weight = 0;
-  items.forEach(x => {
-    const r = rangeOf(x);
-    const w = Math.max(1, inclusiveDays(r.start, r.end));
-    sum += progOf(x) * w; weight += w;
-  });
-  return weight ? Math.round(sum / weight) : 0;
+// Progress comes from the tick boxes only. Plans saved earlier with a % progress still load: 100% counts as ticked.
+const isDone = x => x.done === true || (x.done === undefined && clampPct(x.progress) >= 100);
+const planLeaves = plan => (plan || []).flatMap(t => (t.subs || []).length ? t.subs : [t]);   // steps you tick: sub-items, or a topic without sub-items
+function planCounts(plan){
+  const leaves = planLeaves(plan);
+  return { done: leaves.filter(isDone).length, total: leaves.length };
 }
 function topicProgress(t){
   const subs = t.subs || [];
-  if (!subs.length) return clampPct(t.progress);
-  return weightedProgress(subs, x => normRange(x.start, x.end), x => clampPct(x.progress));
+  if (!subs.length) return isDone(t) ? 100 : 0;
+  return Math.round(100 * subs.filter(isDone).length / subs.length);
 }
 function projectProgress(plan){
-  return weightedProgress(plan || [], planTopicRange, topicProgress);
+  const c = planCounts(plan);
+  return c.total ? Math.round(100 * c.done / c.total) : 0;
 }
-function planItemStatus(end, progress){
-  if (progress >= 100) return 'done';
-  if (end && end < todayStr()) return 'late';
-  return progress > 0 ? 'doing' : 'todo';
+// done | late (past its end date, not ticked) | soon (not ticked, ends within PLAN_DUE_SOON_DAYS) | todo
+function leafState(x){
+  if (isDone(x)) return 'done';
+  const end = normRange(x.start, x.end).end;
+  if (end){
+    const d = daysBetween(todayStr(), end);
+    if (d < 0) return 'late';
+    if (d <= PLAN_DUE_SOON_DAYS) return 'soon';
+  }
+  return 'todo';
+}
+function leafStateText(x){
+  const st = leafState(x);
+  const end = normRange(x.start, x.end).end;
+  if (st === 'late') return `เลยกำหนด ${-daysBetween(todayStr(), end)} วัน`;
+  if (st === 'soon'){
+    const d = daysBetween(todayStr(), end);
+    return d === 0 ? 'ครบกำหนดวันนี้' : `ใกล้ครบกำหนด (อีก ${d} วัน)`;
+  }
+  return PLAN_STATUS[st][0];
+}
+// Topic with sub-items: done when all are ticked, otherwise the most urgent sub-item decides
+function topicState(t){
+  const subs = t.subs || [];
+  if (!subs.length) return leafState(t);
+  const states = subs.map(leafState);
+  if (states.every(v => v === 'done')) return 'done';
+  if (states.includes('late')) return 'late';
+  if (states.includes('soon')) return 'soon';
+  return states.includes('done') ? 'doing' : 'todo';
 }
 function buildPlanRows(p){
   const rows = [];
   const pr = normRange(p.startDate, p.endDate);
-  rows.push({ kind:'proj', no:'', title:'ระยะเวลาโครงการ', owner:'', start:pr.start, end:pr.end, color:'#8B909C', progress:projectProgress(p.plan), leaf:false, i:-1, j:-1 });
+  rows.push({ kind:'proj', no:'', title:'ระยะเวลาโครงการ', owner:'', start:pr.start, end:pr.end, color:'#8B909C', progress:projectProgress(p.plan), leaf:false, i:-1, j:-1, state:'', stateText:'', checked:false, partial:false });
   (p.plan || []).forEach((t, i) => {
     const color = PLAN_COLORS[i % PLAN_COLORS.length];
     const tr = planTopicRange(t);
-    const hasSubs = (t.subs || []).length > 0;
-    rows.push({ kind:'topic', no:String(i+1), title:t.title, owner:t.owner, start:tr.start, end:tr.end, color, progress:topicProgress(t), leaf:!hasSubs, i, j:-1 });
-    (t.subs || []).forEach((sub, j) => {
+    const subs = t.subs || [];
+    const hasSubs = subs.length > 0;
+    const state = topicState(t);
+    let stateText = PLAN_STATUS[state][0];
+    if (hasSubs && (state === 'late' || state === 'soon')) stateText += ` ${subs.filter(x => leafState(x) === state).length} รายการ`;
+    else if (!hasSubs) stateText = leafStateText(t);
+    const doneSubs = subs.filter(isDone).length;
+    rows.push({ kind:'topic', no:String(i+1), title:t.title, owner:t.owner, start:tr.start, end:tr.end, color, progress:topicProgress(t), leaf:!hasSubs, i, j:-1,
+      state, stateText, checked: hasSubs ? doneSubs === subs.length : isDone(t), partial: hasSubs && doneSubs > 0 && doneSubs < subs.length });
+    subs.forEach((sub, j) => {
       const sr = normRange(sub.start, sub.end);
-      rows.push({ kind:'sub', no:`${i+1}.${j+1}`, title:sub.title, owner:sub.owner, start:sr.start, end:sr.end, color, progress:clampPct(sub.progress), leaf:true, i, j });
+      rows.push({ kind:'sub', no:`${i+1}.${j+1}`, title:sub.title, owner:sub.owner, start:sr.start, end:sr.end, color, progress:isDone(sub) ? 100 : 0, leaf:true, i, j,
+        state:leafState(sub), stateText:leafStateText(sub), checked:isDone(sub), partial:false });
     });
   });
   return rows;
@@ -1746,8 +1820,8 @@ function renderPlanTable(p, opts){
   const rows = buildPlanRows(p);
   const { months, cols } = opts.cols || buildPlanColumns(rows);
   const colgroup = opts.print
-    ? `<colgroup><col style="width:24px"><col style="width:165px"><col style="width:62px"><col style="width:62px"><col style="width:62px"><col style="width:26px"><col style="width:56px"><col style="width:66px">${cols.map(() => '<col>').join('')}</colgroup>` : '';
-  const head1 = `<tr><th class="g-no" rowspan="2">#</th><th class="g-detail" rowspan="2">รายละเอียดการดำเนินการ</th><th rowspan="2">ผู้รับผิดชอบ</th><th rowspan="2">เริ่มต้น</th><th rowspan="2">สิ้นสุด</th><th rowspan="2">วัน</th><th rowspan="2">ความคืบหน้า</th><th rowspan="2">สถานะ</th>`
+    ? `<colgroup><col style="width:20px"><col style="width:24px"><col style="width:150px"><col style="width:60px"><col style="width:60px"><col style="width:60px"><col style="width:24px"><col style="width:50px"><col style="width:92px">${cols.map(() => '<col>').join('')}</colgroup>` : '';
+  const head1 = `<tr><th class="g-chk" rowspan="2" title="ติ๊กเมื่อดำเนินการในหัวข้อ/หัวข้อย่อยนี้แล้ว">✓</th><th class="g-no" rowspan="2">#</th><th class="g-detail" rowspan="2">รายละเอียดการดำเนินการ</th><th rowspan="2">ผู้รับผิดชอบ</th><th rowspan="2">เริ่มต้น</th><th rowspan="2">สิ้นสุด</th><th rowspan="2">วัน</th><th rowspan="2">ความคืบหน้า</th><th rowspan="2">สถานะ</th>`
     + months.map(mo => `<th class="g-month" colspan="${mo.weeks}">${mo.label}</th>`).join('') + `</tr>`;
   const head2 = `<tr>` + cols.map(c => `<th class="g-week ${c.today ? 'today' : ''}" title="${fmtDate(c.cs)} – ${fmtDate(c.ce)}">${c.w}</th>`).join('') + `</tr>`;
   const body = rows.map(r => {
@@ -1766,19 +1840,21 @@ function renderPlanTable(p, opts){
       return `<td class="${cls}" data-col="${i}">${bar}</td>`;
     }).join('');
     const days = inclusiveDays(r.start, r.end);
-    const canInput = r.leaf && !opts.print;
-    const progCell = (canInput
-      ? `<input class="g-prog-input" type="number" min="0" max="100" step="5" value="${r.progress}" onchange="setPlanProgress(${r.i},${r.j},this.value)">%`
-      : `${r.progress}%`) + `<span class="g-prog-bar"><i style="width:${r.progress}%"></i></span>`;
-    const st = r.kind === 'proj' ? '' : `<span class="badge ${PLAN_STATUS[planItemStatus(r.end, r.progress)][1]}">${PLAN_STATUS[planItemStatus(r.end, r.progress)][0]}</span>`;
-    return `<tr class="g-${r.kind} ${r.leaf && !r.start ? 'g-empty' : ''}" data-i="${r.i}" data-j="${r.j}" data-leaf="${draggable ? 1 : 0}">
+    const warn = r.state === 'soon' || r.state === 'late';
+    const chk = r.kind === 'proj' ? ''
+      : opts.print ? (r.checked ? '✓' : '')
+      : `<input type="checkbox" class="g-chk-input" ${r.checked ? 'checked' : ''} ${r.partial ? 'data-partial="1"' : ''} ${r.leaf ? '' : 'disabled'} title="${r.leaf ? 'ติ๊กเมื่อดำเนินการแล้ว' : 'สรุปจากหัวข้อย่อย'}" onchange="togglePlanDone(${r.i},${r.j},this.checked)">`;
+    const alertIcon = warn ? `<span class="g-alert" title="${escapeHtml(r.stateText)}">${r.state === 'late' ? '⚠️' : '⏰'}</span>` : '';
+    const st = r.kind === 'proj' ? '' : `<span class="badge ${PLAN_STATUS[r.state][1]}">${escapeHtml(r.stateText)}</span>`;
+    return `<tr class="g-${r.kind} ${r.leaf && !r.start ? 'g-empty' : ''} ${warn ? 'g-warn-' + r.state : ''}" data-i="${r.i}" data-j="${r.j}" data-leaf="${draggable ? 1 : 0}">
+      <td class="g-chk">${chk}</td>
       <td class="g-no">${r.no}</td>
-      <td class="g-detail" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</td>
+      <td class="g-detail" title="${escapeHtml(r.title)}">${alertIcon}${escapeHtml(r.title)}</td>
       <td class="g-meta">${escapeHtml(r.owner || '-')}</td>
       <td class="g-num">${r.start ? fmtDate(r.start) : '-'}</td>
       <td class="g-num">${r.end ? fmtDate(r.end) : '-'}</td>
       <td class="g-num">${days || '-'}</td>
-      <td class="g-num" style="white-space:nowrap;">${progCell}</td>
+      <td class="g-num" style="white-space:nowrap;">${r.progress}%<span class="g-prog-bar"><i style="width:${r.progress}%"></i></span></td>
       <td class="g-num">${st}</td>
       ${cells}</tr>`;
   }).join('');
@@ -1791,11 +1867,14 @@ function setPlanBodyHtml(html){
   $('planBody').innerHTML = html;
   const fresh = $('planBody').querySelector('.plan-scroll');
   if (fresh) fresh.scrollLeft = left;
+  $('planBody').querySelectorAll('input[data-partial="1"]').forEach(el => { el.indeterminate = true; });   // topic with only some sub-items ticked
 }
 function getPlanProject(){ return data.projects.find(x => x.id === selectedPlanProjectId); }
 function planSummary(p){
-  const late = buildPlanRows(p).filter(r => r.leaf && r.kind !== 'proj' && planItemStatus(r.end, r.progress) === 'late').length;
-  return { steps: (p.plan || []).length, progress: projectProgress(p.plan), late };
+  const c = planCounts(p.plan);
+  let late = 0, soon = 0;
+  planLeaves(p.plan).forEach(x => { const st = leafState(x); if (st === 'late') late++; else if (st === 'soon') soon++; });
+  return { steps: (p.plan || []).length, done: c.done, total: c.total, progress: projectProgress(p.plan), late, soon };
 }
 function renderActionPlan(){
   if (planDrag) return;   // don't rebuild the DOM under an in-progress drag
@@ -1823,8 +1902,8 @@ function renderPlanList(projects){
       <div class="cell-sub">${fmtDate(pr.startDate)} – ${fmtDate(pr.endDate)}</div>
       <div><span class="g-prog-bar wide"><i style="width:${sm.progress}%"></i></span></div>
       <div class="cell-sub" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>${sm.steps ? `${sm.steps} หัวข้อ · ความคืบหน้า <b style="color:var(--ink);">${sm.progress}%</b>` : 'ยังไม่มีแผนดำเนินการ'}</span>
-        ${sm.late ? `<span class="badge expired">ล่าช้า ${sm.late}</span>` : ''}
+        <span>${sm.steps ? `${sm.steps} หัวข้อ · ดำเนินการแล้ว ${sm.done}/${sm.total} (<b style="color:var(--ink);">${sm.progress}%</b>)` : 'ยังไม่มีแผนดำเนินการ'}</span>
+        <span style="display:flex; gap:6px;">${sm.late ? `<span class="badge expired">เลยกำหนด ${sm.late}</span>` : ''}${sm.soon ? `<span class="badge soon">ใกล้ครบกำหนด ${sm.soon}</span>` : ''}</span>
       </div>
     </div>`;
   }).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${projects.length ? 'ไม่พบโครงการตามเงื่อนไข' : 'ยังไม่มีโครงการ — สร้างโครงการที่หน้า "โครงการ" แล้วจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ'}</div>`;
@@ -1836,8 +1915,9 @@ function renderPlanDetail(p){
     `<span>ลูกค้า <b>${escapeHtml(p.customerName || '-')}</b></span>` +
     `<span>เลขที่สัญญา <b>${escapeHtml(p.contractNo || '-')}</b></span>` +
     `<span>ระยะเวลา <b>${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}</b> (${inclusiveDays(p.startDate, p.endDate)} วัน)</span>` +
-    (sm.steps ? `<span>ความคืบหน้ารวม <b>${sm.progress}%</b></span>` : '') +
-    (sm.late ? `<span><span class="badge expired">ล่าช้า ${sm.late} ขั้นตอน</span></span>` : '') +
+    (sm.steps ? `<span>ดำเนินการแล้ว <b>${sm.done}/${sm.total}</b> ขั้นตอน (${sm.progress}%)</span>` : '') +
+    (sm.late ? `<span><span class="badge expired">เลยกำหนด ${sm.late} ขั้นตอน</span></span>` : '') +
+    (sm.soon ? `<span><span class="badge soon">ใกล้ครบกำหนด ${sm.soon} ขั้นตอน</span></span>` : '') +
     `<span>${statusBadge(projectStatus(p))}</span>`;
   setPlanBodyHtml(sm.steps
     ? renderPlanTable(p)
@@ -1848,10 +1928,14 @@ $('planBackBtn').addEventListener('click', () => { selectedPlanProjectId = null;
 $('planEditProjectBtn').addEventListener('click', () => { if (selectedPlanProjectId) openProjectForm(selectedPlanProjectId); });
 function openActionPlan(id){ selectedPlanProjectId = id; showTab('actionplan'); }
 
-// Write a whole plan back to its project; parents with sub-items get their computed dates/progress stored too
+// Write a whole plan back to its project; parents with sub-items get their computed dates/done stored too.
+// Also normalises steps saved with the old % progress into a done flag.
 async function persistPlan(p, plan){
   plan.forEach(t => {
-    if ((t.subs || []).length){ const r = planTopicRange(t); t.start = r.start; t.end = r.end; t.progress = topicProgress(t); }
+    (t.subs || []).forEach(x => { x.done = isDone(x); delete x.progress; });
+    if ((t.subs || []).length){ const r = planTopicRange(t); t.start = r.start; t.end = r.end; t.done = t.subs.every(x => x.done); }
+    else t.done = isDone(t);
+    delete t.progress;
   });
   setSync('saving');
   try{
@@ -1863,13 +1947,13 @@ async function persistPlan(p, plan){
     return false;
   }
 }
-async function setPlanProgress(i, j, val){
+async function togglePlanDone(i, j, checked){
   const p = getPlanProject();
   if (!p) return;
   const plan = clonePlan(p.plan);
   const item = j < 0 ? plan[i] : plan[i].subs[j];
   if (!item) return;
-  item.progress = clampPct(val);
+  item.done = !!checked;
   if (!(await persistPlan(p, plan))) renderActionPlan();
 }
 
@@ -1994,7 +2078,7 @@ function printActionPlan(){
   ].filter(r => r[1]).map(r => `<tr><td>${r[0]}</td><td>${escapeHtml(r[1])}</td></tr>`).join('');
   $('printArea').innerHTML = letterheadHtml(co) + `<div class="pr-title">แผนดำเนินการ (Action Plan)</div><table class="pr-info">${info}</table>`
     + renderPlanTable(p, { print:true })
-    + `<div class="pr-foot">ส่วนสีเข้มของแถบคือความคืบหน้า · สัปดาห์นับตามวันที่ในเดือน (1–7 = สัปดาห์ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5) · พิมพ์เมื่อ ${fmtDate(todayStr())}</div>`;
+    + `<div class="pr-foot">✓ = ดำเนินการแล้ว · ส่วนสีเข้มของแถบคือความคืบหน้า · สัปดาห์นับตามวันที่ในเดือน (1–7 = สัปดาห์ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5) · พิมพ์เมื่อ ${fmtDate(todayStr())}</div>`;
   const pageStyle = document.createElement('style');
   pageStyle.textContent = '@page{ size:A4 landscape; margin:10mm; }';   // overrides the portrait @page used by the project printout
   document.head.appendChild(pageStyle);
@@ -2008,14 +2092,14 @@ $('planPrintBtn').addEventListener('click', printActionPlan);
 
 /* ---- Plan editor ---- */
 let editingPlan = [];
-const blankPlanRow = () => ({ title:'', owner:'', start:'', end:'', progress:0 });
+const blankPlanRow = () => ({ title:'', owner:'', start:'', end:'', done:false });
 function renderPlanEditor(){
   const owners = new Set(data.users.map(u => u.name || u.email).filter(Boolean));
   editingPlan.forEach(t => { if (t.owner) owners.add(t.owner); (t.subs || []).forEach(x => { if (x.owner) owners.add(x.owner); }); });
   $('planOwnerList').innerHTML = [...owners].map(o => `<option value="${escapeHtml(o)}">`).join('');
   const inp = (val, handler, extra) => `<input type="text" value="${escapeHtml(val)}" ${extra || ''} oninput="${handler}=this.value">`;
   const date = (val, handler, disabled) => `<input type="date" value="${escapeHtml(val)}" ${disabled ? 'disabled' : ''} onchange="${handler}=this.value; renderPlanEditor()">`;
-  const pct = (val, handler) => `<input type="number" min="0" max="100" step="5" value="${escapeHtml(val)}" oninput="${handler}=this.value">`;
+  const tick = (val, handler) => `<input type="checkbox" ${val ? 'checked' : ''} onchange="${handler}=this.checked; renderPlanEditor()">`;
   let html = '';
   editingPlan.forEach((t, i) => {
     const hasSubs = (t.subs || []).length > 0;
@@ -2028,7 +2112,7 @@ function renderPlanEditor(){
       <td>${date(st, `editingPlan[${i}].start`, hasSubs)}</td>
       <td>${date(en, `editingPlan[${i}].end`, hasSubs)}</td>
       <td class="cell-sub">${inclusiveDays(st, en) || '-'}</td>
-      <td>${hasSubs ? `<span class="cell-sub">${topicProgress(t)}% (คำนวณ)</span>` : pct(t.progress, `editingPlan[${i}].progress`)}</td>
+      <td>${hasSubs ? `<span class="cell-sub">${t.subs.filter(isDone).length}/${t.subs.length} (คำนวณ)</span>` : tick(t.done, `editingPlan[${i}].done`)}</td>
       <td><div class="row-actions">
         <button type="button" class="icon-btn" onclick="addPlanSub(${i})">+ ย่อย</button>
         <button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removePlanTopic(${i})" title="ลบหัวข้อ">✕</button>
@@ -2042,7 +2126,7 @@ function renderPlanEditor(){
         <td>${date(sub.start, `editingPlan[${i}].subs[${j}].start`)}</td>
         <td>${date(sub.end, `editingPlan[${i}].subs[${j}].end`)}</td>
         <td class="cell-sub">${inclusiveDays(sr.start, sr.end) || '-'}</td>
-        <td>${pct(sub.progress, `editingPlan[${i}].subs[${j}].progress`)}</td>
+        <td>${tick(sub.done, `editingPlan[${i}].subs[${j}].done`)}</td>
         <td><div class="row-actions"><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removePlanSub(${i},${j})" title="ลบรายการย่อย">✕</button></div></td></tr>`;
     });
   });
@@ -2051,8 +2135,8 @@ function renderPlanEditor(){
 function addPlanSub(i){
   const t = editingPlan[i];
   t.subs = t.subs || [];
-  // the first sub-item inherits the topic's own dates/owner/progress so nothing typed so far is lost (the topic's values then become computed)
-  const sub = t.subs.length ? blankPlanRow() : { title:'', owner:t.owner || '', start:t.start || '', end:t.end || '', progress:t.progress || 0 };
+  // the first sub-item inherits the topic's own dates/owner/tick so nothing typed so far is lost (the topic's values then become computed)
+  const sub = t.subs.length ? blankPlanRow() : { title:'', owner:t.owner || '', start:t.start || '', end:t.end || '', done:!!t.done };
   t.subs.push(sub);
   renderPlanEditor();
 }
@@ -2062,7 +2146,7 @@ $('planAddTopicBtn').addEventListener('click', () => { editingPlan.push({ ...bla
 $('planEditBtn').addEventListener('click', () => {
   const p = getPlanProject();
   if (!p) return;
-  editingPlan = (p.plan || []).map(t => ({ ...blankPlanRow(), ...t, subs:(t.subs || []).map(x => ({ ...blankPlanRow(), ...x })) }));
+  editingPlan = (p.plan || []).map(t => ({ ...blankPlanRow(), ...t, done:isDone(t), subs:(t.subs || []).map(x => ({ ...blankPlanRow(), ...x, done:isDone(x) })) }));
   if (!editingPlan.length) editingPlan.push({ ...blankPlanRow(), start:p.startDate || '', end:p.endDate || '', subs:[] });
   $('planModalSub').textContent = `${p.name} · ${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}`;
   renderPlanEditor();
@@ -2072,7 +2156,7 @@ $('planCancelBtn').addEventListener('click', () => closeModal('planModal'));
 $('planSaveBtn').addEventListener('click', async () => {
   const p = getPlanProject();
   if (!p) return;
-  const isBlank = x => !(x.title || '').trim() && !x.owner && !x.start && !x.end && !Number(x.progress);
+  const isBlank = x => !(x.title || '').trim() && !x.owner && !x.start && !x.end && !x.done;
   const plan = [];
   for (const t of editingPlan){
     const subs = (t.subs || []).filter(x => !isBlank(x));
@@ -2080,7 +2164,7 @@ $('planSaveBtn').addEventListener('click', async () => {
     if (!(t.title || '').trim() || subs.some(x => !(x.title || '').trim())){ toast('กรุณากรอกรายละเอียดให้ครบทุกแถวที่มีข้อมูล'); return; }
     const bad = [t, ...subs].find(x => x.start && x.end && x.end < x.start);
     if (bad){ toast(`วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น: ${bad.title}`); return; }
-    const clean = x => ({ title:x.title.trim(), owner:(x.owner || '').trim(), start:x.start || '', end:x.end || '', progress:clampPct(x.progress) });
+    const clean = x => ({ title:x.title.trim(), owner:(x.owner || '').trim(), start:x.start || '', end:x.end || '', done:!!x.done });
     plan.push({ ...clean(t), subs:subs.map(clean) });
   }
   $('planSaveBtn').disabled = true;
@@ -2194,9 +2278,9 @@ function renderWarehouse(){
   $('warehouseBody').innerHTML = rows.length ? rows.map(w => `
     <tr onclick="openSerialModal('${w.id}')" title="กดเพื่อดู Serial Number">
       <td>${escapeHtml(w.part || '-')}</td>
-      <td><b>${escapeHtml(w.name)}</b></td>
-      <td>${escapeHtml(w.type || '-')}</td>
       <td>${escapeHtml(w.brand || '-')}</td>
+      <td>${escapeHtml(w.type || '-')}</td>
+      <td><b>${escapeHtml(w.name)}</b></td>
       <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length}/${fmtNum(w.quantity)}</div></td>
       <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(w.note || '-')}</td>
       <td><div class="row-actions">
@@ -2294,7 +2378,7 @@ function openSerialModal(id){
   serialModalItemId = id;
   const serials = w.serials || [];
   $('serialModalTitle').textContent = w.name;
-  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.type ? w.type + ' · ' : ''}${w.brand ? 'ยี่ห้อ ' + w.brand + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
+  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.brand ? 'ยี่ห้อ ' + w.brand + ' · ' : ''}${w.type ? w.type + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
   $('serialModalNote').textContent = w.note ? 'หมายเหตุ: ' + w.note : '';
   $('serialModalNote').style.whiteSpace = 'pre-line';
   $('serialModalBody').innerHTML = serials.length
@@ -2320,7 +2404,7 @@ function renderCustomers(){
     .sort((a,b) => (a.name||'').localeCompare(b.name||''));
   $('customersCount').textContent = rows.length;
   $('customersBody').innerHTML = rows.length ? rows.map(c => `
-    <tr>
+    <tr onclick="openCustomerProjects('${c.id}')" title="กดเพื่อดูโครงการของลูกค้า">
       <td><b>${escapeHtml(c.name)}</b></td>
       <td>${c.type && CUSTOMER_TYPES[c.type] ? `<span class="badge ${c.type === 'gov' ? 'doing' : 'none'}">${CUSTOMER_TYPES[c.type]}</span>` : '-'}</td>
       <td style="max-width:260px;">${escapeHtml(c.address || '-')}</td>
@@ -2329,12 +2413,40 @@ function renderCustomers(){
       <td>${escapeHtml(c.taxId || '-')}</td>
       <td>${projectCountForCustomer(c)}</td>
       <td><div class="row-actions">
-        <button class="icon-btn" onclick="openCustomerForm('${c.id}')">แก้ไข</button>
-        <button class="icon-btn delete-btn" onclick="deleteEntity('customers','${c.id}')">ลบ</button>
+        <button class="icon-btn" onclick="event.stopPropagation(); openCustomerForm('${c.id}')">แก้ไข</button>
+        <button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('customers','${c.id}')">ลบ</button>
       </div></td>
     </tr>`).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีลูกค้า</td></tr>`;
 }
 $('customersSearch').addEventListener('input', renderCustomers);
+let cpCustomerId = null;
+function openCustomerProjects(id){
+  const c = data.customers.find(x => x.id === id);
+  if (!c) return;
+  cpCustomerId = id;
+  const projects = data.projects.filter(p => p.customerId === id).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
+  $('cpTitle').textContent = c.name;
+  $('cpSub').textContent = [CUSTOMER_TYPES[c.type], c.contactName && `ผู้ติดต่อ ${c.contactName}`, c.contactPhone, c.type !== 'gov' && c.taxId && `เลขผู้เสียภาษี ${c.taxId}`].filter(Boolean).join(' · ');
+  const count = { pending:0, active:0, ended:0 };
+  projects.forEach(p => count[projectStatus(p)]++);
+  $('cpSummary').innerHTML = projects.length
+    ? `ทั้งหมด <b>${projects.length}</b> โครงการ · ${['pending', 'active', 'ended'].map(k => `${statusBadge(k)} ${count[k]}`).join(' &nbsp; ')}`
+    : '';
+  $('cpBody').innerHTML = projects.length ? projects.map(p => {
+    const sm = planSummary(p);
+    return `<tr>
+      <td><b>${escapeHtml(p.name)}</b></td>
+      <td>${escapeHtml(p.contractNo || '-')}</td>
+      <td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>
+      <td>${sm.steps ? `${sm.progress}% <span class="cell-sub">(${sm.done}/${sm.total})</span>` : '<span class="cell-sub">ยังไม่มีแผน</span>'}</td>
+      <td>${statusBadge(projectStatus(p))}</td>
+      <td><div class="row-actions"><button class="icon-btn" onclick="closeModal('customerProjectsModal'); openActionPlan('${p.id}')">แผนงาน</button></div></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty-row">ลูกค้านี้ยังไม่มีโครงการ</td></tr>`;
+  openModal('customerProjectsModal');
+}
+$('cpCloseBtn').addEventListener('click', () => closeModal('customerProjectsModal'));
+$('cpEditBtn').addEventListener('click', () => { closeModal('customerProjectsModal'); openCustomerForm(cpCustomerId); });
 let editingCustomerId = null;
 function openCustomerForm(id){
   const c = id ? data.customers.find(x => x.id === id) : null;
