@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+~$*
+# the Word originals the PDF layout was measured from live in docs/; loose copies at the repo root are not part of the site
+/*.doc
+/*.docx
