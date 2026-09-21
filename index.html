@@ -382,7 +382,7 @@
     .sidebar.open{ transform:translateX(0); }
     .mobile-backdrop.show{ display:block; position:fixed; inset:0; background:rgba(20,24,34,.4); z-index:650; }
     .table-scroll table{ min-width:640px; }
-    #targetUserFilter, #targetUserClear{ display:none !important; }
+    #targetUserFilter{ display:none !important; }
   }
 </style>
 </head>
@@ -483,7 +483,6 @@
       <select id="targetUserFilter" class="filter-control" title="ดูข้อมูลของ" style="display:none;">
         <option value="all">ทั้งหมด</option>
       </select>
-              <button class="btn outline" type="button" id="targetUserClear" style="display:none;">เคลียร์</button>
     </div>
 
     <div class="content">
@@ -1113,7 +1112,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.0';
+const APP_VERSION = '1.10.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1344,7 +1343,6 @@ function filterGroups(){
 function refreshClearButtons(){
   if (!currentUserUid) return;
   filterGroups().forEach(g => { $(g.btn).disabled = Object.entries(g.fields).every(([id, def]) => $(id).value === def); });
-  $('targetUserClear').disabled = ($('targetUserFilter').value || 'all') === 'all';
 }
 document.addEventListener('input', refreshClearButtons);
 document.addEventListener('change', refreshClearButtons);
@@ -1461,7 +1459,6 @@ function showSignedOutUI(){
   $('sidebar').style.display = 'none';
   $('topbar').style.display = 'none';
   $('targetUserFilter').style.display = 'none';
-  $('targetUserClear').style.display = 'none';
   $('loadingOverlay').style.display = 'none';
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   $('railMenuPopover').style.display = 'none';
@@ -1613,16 +1610,14 @@ function getUserDisplayName(uid){
 }
 function refreshTargetUserFilter(){
   const sel = $('targetUserFilter');
-  if (currentUserRole !== 'admin'){ sel.style.display = 'none'; $('targetUserClear').style.display = 'none'; return; }
+  if (currentUserRole !== 'admin'){ sel.style.display = 'none'; return; }
   sel.style.display = '';
-  $('targetUserClear').style.display = '';
   const prev = sel.value || 'all';
   const users = [...data.users].sort((a,b) => (a.name||a.email||'').localeCompare(b.name||b.email||''));
   sel.innerHTML = `<option value="all">ทั้งหมด</option>` + users.map(u => `<option value="${u.id}">${escapeHtml(u.name || u.email)}</option>`).join('');
   sel.value = users.some(u => u.id === prev) ? prev : 'all';
 }
 $('targetUserFilter').addEventListener('change', renderActiveTab);
-$('targetUserClear').addEventListener('click', () => { $('targetUserFilter').value = 'all'; renderActiveTab(); });
 
 /* ====== Project status / warranty ====== */
 const STATUS_LABEL = { pending:'รอดำเนินการ', active:'กำลังดำเนินการ', ended:'สิ้นสุดสัญญาโครงการ' };
