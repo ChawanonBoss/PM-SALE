@@ -362,7 +362,7 @@
     #printArea .gantt th.g-week{ min-width:0; width:auto; font-size:8.5pt; font-weight:400; padding:0; }
     #printArea .gantt th.g-month{ box-shadow:none; }
     #printArea .gantt tr{ page-break-inside:avoid; }
-    #printArea .g-bar{ height:14px; }
+    #printArea .g-bar{ height:14px; background:var(--c) !important; }   /* solid colour, not the progress gradient (which some PDF viewers draw as a pink band) */
     #printArea tr.g-topic .g-bar{ height:16px; }
     #printArea tr.g-sub .g-bar{ height:12px; }
     #printArea tr.g-topic td.g-detail{ font-weight:700; }
@@ -1137,7 +1137,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.12';
+const APP_VERSION = '1.10.13';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
