@@ -1129,7 +1129,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.6';
+const APP_VERSION = '1.10.7';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2153,6 +2153,13 @@ $('projectForm').addEventListener('submit', async e => {
 });
 
 /* ====== PDF (browser print → "Save as PDF") ====== */
+// Every print sets its own page size (portrait for sale/project documents, landscape for the plan). One <style id="printPageStyle"> is
+// replaced each time and removed after printing, so a landscape style left behind by an earlier plan print can never leak into the next document.
+function setPrintPage(css){
+  clearPrintPage();
+  const st = document.createElement('style'); st.id = 'printPageStyle'; st.textContent = css; document.head.appendChild(st);
+}
+function clearPrintPage(){ const old = $('printPageStyle'); if (old) old.remove(); }
 async function printWhenReady(){
   try{
     await Promise.race([
@@ -2229,9 +2236,10 @@ function printProject(id){
   if (!p) return;
   if (!data.companies.find(c => c.id === p.companyId)) toast('โครงการนี้ยังไม่ได้เลือกบริษัท — เอกสารจะไม่มีหัวกระดาษ');
   $('printArea').innerHTML = buildProjectPrintHtml(p);
+  setPrintPage('@page{ size:A4 portrait; margin:12mm 14mm; }');
   const oldTitle = document.title;
   document.title = (p.docNo || p.contractNo || p.name || 'project').replace(/[\\/:*?"<>|]/g, '_');   // becomes the default PDF file name
-  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; window.removeEventListener('afterprint', restore); };
+  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; clearPrintPage(); window.removeEventListener('afterprint', restore); };
   window.addEventListener('afterprint', restore);
   printWhenReady();
 }
@@ -2624,12 +2632,10 @@ function printActionPlan(){
   $('printArea').innerHTML = letterheadHtml(co) + `<div class="pr-title">แผนดำเนินการ (Action Plan)</div><table class="pr-info">${info}</table>`
     + renderPlanTable(p, { print:true })
     + `<div class="pr-foot">✓ = ดำเนินการแล้ว · ส่วนสีเข้มของแถบคือความคืบหน้า · สัปดาห์นับตามวันที่ในเดือน (1–7 = สัปดาห์ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5) · พิมพ์เมื่อ ${fmtDate(todayStr())}</div>`;
-  const pageStyle = document.createElement('style');
-  pageStyle.textContent = '@page{ size:A4 landscape; margin:10mm; }';   // overrides the portrait @page used by the project printout
-  document.head.appendChild(pageStyle);
+  setPrintPage('@page{ size:A4 landscape; margin:10mm; }');
   const oldTitle = document.title;
   document.title = 'ActionPlan_' + (p.docNo || p.contractNo || p.name || 'project').replace(/[\\/:*?"<>|]/g, '_');
-  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; pageStyle.remove(); window.removeEventListener('afterprint', restore); };
+  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; clearPrintPage(); window.removeEventListener('afterprint', restore); };
   window.addEventListener('afterprint', restore);
   printWhenReady();
 }
