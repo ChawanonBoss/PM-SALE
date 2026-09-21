@@ -217,11 +217,24 @@
   .gantt .g-cell.on{ box-shadow:none; }
   .gantt .today{ background:var(--accent-soft); }
   .gantt thead th.today{ color:var(--accent); font-weight:700; }
-  .g-bar{ height:16px; background:var(--c); }
+  .g-bar{ height:16px; }
   .g-bar.first{ border-radius:8px 0 0 8px; } .g-bar.last{ border-radius:0 8px 8px 0; } .g-bar.first.last{ border-radius:8px; }
   tr.g-topic .g-bar{ height:18px; }
-  tr.g-sub .g-bar{ opacity:.6; }
   tr.g-proj .g-bar{ height:8px; opacity:.55; }
+  .g-bar{ background:linear-gradient(90deg, var(--c) var(--f,100%), var(--cs,var(--c)) var(--f,100%)); position:relative; }
+  tr.g-sub .g-bar{ height:12px; opacity:1; }
+  .g-bar.drag{ cursor:grab; touch-action:none; }
+  .g-bar.drag.first::before, .g-bar.drag.last::after{ content:''; position:absolute; top:0; bottom:0; width:8px; cursor:ew-resize; background:rgba(255,255,255,.4); }
+  .g-bar.drag.first::before{ left:0; border-radius:8px 0 0 8px; }
+  .g-bar.drag.last::after{ right:0; border-radius:0 8px 8px 0; }
+  tr.g-empty .g-cell:not(.on){ cursor:crosshair; }
+  body.plan-dragging{ user-select:none; cursor:grabbing; }
+  .g-prog-input{ width:50px; height:24px; padding:0 4px; border:1px solid var(--line); border-radius:6px; background:var(--paper); color:var(--ink); font-size:12px; text-align:right; }
+  .g-prog-input:focus{ outline:none; border-color:var(--accent); }
+  .g-prog-bar{ display:inline-block; width:34px; height:5px; border-radius:3px; background:var(--paper-dim); vertical-align:middle; margin-left:6px; overflow:hidden; }
+  .g-prog-bar i{ display:block; height:100%; background:var(--ok); }
+  .badge.doing{ background:var(--accent-soft); color:var(--accent); }
+  #planDragTip{ position:fixed; z-index:950; background:var(--ink); color:var(--paper); font-size:12px; padding:5px 10px; border-radius:8px; pointer-events:none; white-space:nowrap; display:none; }
   .plan-head{ display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; }
   .plan-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--ink-soft); }
   .plan-meta b{ color:var(--ink); font-weight:500; }
@@ -261,6 +274,26 @@
     .pr-items th, .pr-items td{ border:1px solid #000; padding:5px 7px; font-size:12px; color:#000; background:none; }
     .pr-items th{ background:#eee !important; text-align:center; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .pr-items tr{ page-break-inside:avoid; }
+    #printArea{ --card:#fff; --paper:#fff; --paper-dim:#eee; --ink:#000; --ink-soft:#444; --line:#bbb; --accent:#1d4ed8; --accent-soft:#dbeafe; --ok:#16a34a; --ok-ink:#166534; --ok-soft:#dcfce7; --danger:#dc2626; --danger-soft:#fee2e2; --gray:#6b7280; --gray-soft:#e5e7eb; }
+    #printArea *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #printArea .plan-scroll{ overflow:visible; border:none; border-radius:0; }
+    #printArea .gantt{ width:100%; table-layout:fixed; border-collapse:collapse; font-size:8.5px; }
+    #printArea .gantt th, #printArea .gantt td{ height:auto; padding:2px 3px; white-space:normal; border:1px solid #ccc; }
+    #printArea .gantt .g-no, #printArea .gantt .g-detail{ position:static; width:auto; min-width:0; max-width:none; box-shadow:none; overflow:visible; }
+    #printArea .gantt .g-cell{ box-shadow:none; min-width:0; width:auto; border-left:1px solid #e2e2e2; border-right:none; }
+    #printArea .gantt th.g-week{ min-width:0; width:auto; font-size:7.5px; }
+    #printArea .gantt th.g-month{ box-shadow:none; }
+    #printArea .gantt tr{ page-break-inside:avoid; }
+    #printArea .g-bar{ height:11px; }
+    #printArea tr.g-topic .g-bar{ height:12px; }
+    #printArea tr.g-sub .g-bar{ height:9px; }
+    #printArea .g-prog-bar{ width:20px; }
+    #printArea .gantt .g-cell{ padding:0; }
+    #printArea .gantt tr.g-proj td{ font-size:8.5px; }
+    #printArea .gantt .g-cell.on{ border-left:none; border-right:none; }
+    #printArea .gantt .g-num{ white-space:nowrap; }
+    #printArea .badge{ font-size:8px; padding:1px 6px; }
+    .pr-foot{ margin-top:8px; font-size:10px; color:#444; }
     .pr-sign{ display:flex; justify-content:space-around; margin-top:60px; text-align:center; page-break-inside:avoid; }
     .pr-sign div{ width:200px; border-top:1px solid #000; padding-top:6px; }
   }
@@ -443,13 +476,14 @@
               <div class="plan-meta" id="planMeta"></div>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <button class="btn outline" id="planPrintBtn" type="button">พิมพ์ PDF</button>
               <button class="btn outline" id="planEditProjectBtn" type="button">ข้อมูลโครงการ</button>
               <button class="btn" id="planEditBtn" type="button">แก้ไขแผนดำเนินการ</button>
             </div>
           </div>
         </div>
         <div class="panel">
-          <p class="panel-note" id="planNote" style="margin-top:0;">สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด</p>
+          <p class="panel-note" id="planNote" style="margin-top:0;">สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด (ส่วนสีเข้มคือความคืบหน้า) · ลากแถบเพื่อย้าย, ลากขอบซ้าย/ขวาเพื่อปรับความยาว (เป็นรายสัปดาห์), ลากบนแถวที่ยังไม่มีวันที่เพื่อสร้างแถบ · แก้ % ได้ที่ช่องความคืบหน้าโดยตรง</p>
           <div id="planBody"></div>
         </div>
       </div>
@@ -652,7 +686,7 @@
     <h3 class="serif" style="font-size:19px; margin-bottom:4px;">แก้ไขแผนดำเนินการ</h3>
     <p id="planModalSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;"></p>
     <div class="table-scroll"><table class="items-table">
-      <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:140px;"></th></tr></thead>
+      <thead><tr><th style="width:52px;">#</th><th>รายละเอียดการดำเนินการ *</th><th style="width:160px;">ผู้รับผิดชอบ</th><th style="width:140px;">วันที่เริ่มต้น</th><th style="width:140px;">วันที่สิ้นสุด</th><th style="width:70px;">จำนวนวัน</th><th style="width:90px;">ความคืบหน้า %</th><th style="width:140px;"></th></tr></thead>
       <tbody id="planEditBody"></tbody>
     </table></div>
     <datalist id="planOwnerList"></datalist>
@@ -766,6 +800,7 @@
 
 <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
 <div class="toast" id="toast"></div>
+<div id="planDragTip"></div>
 <div id="printArea"></div>
 
 <script>
@@ -782,7 +817,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.3.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1416,10 +1451,8 @@ $('projectForm').addEventListener('submit', async e => {
 });
 
 /* ====== PDF (browser print → "Save as PDF") ====== */
-function buildProjectPrintHtml(p){
-  const co = data.companies.find(c => c.id === p.companyId);
-  const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
-  const head = co ? `
+function letterheadHtml(co){
+  return co ? `
     <div class="pr-head">
       ${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}
       <div>
@@ -1428,6 +1461,11 @@ function buildProjectPrintHtml(p){
         <div>${co.phone ? 'โทร. ' + escapeHtml(co.phone) : ''}${co.phone && co.taxId ? ' &nbsp;|&nbsp; ' : ''}${co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + escapeHtml(co.taxId) : ''}</div>
       </div>
     </div>` : '';
+}
+function buildProjectPrintHtml(p){
+  const co = data.companies.find(c => c.id === p.companyId);
+  const cu = data.customers.find(c => c.id === p.customerId) || { name: p.customerName };
+  const head = letterheadHtml(co);
   const info = [
     ['ชื่อโครงการ', p.name],
     ['หน่วยงาน / ลูกค้า', cu.name],
@@ -1467,14 +1505,23 @@ function printProject(id){
 }
 
 /* ====== Action plan (Gantt by week-of-month) ======
-   The plan lives inside its project document as `plan: [{title, owner, start, end, subs:[{title, owner, start, end}]}]`
+   The plan lives inside its project document as `plan: [{title, owner, start, end, progress, subs:[{title, owner, start, end, progress}]}]`
    (so it follows the project's own permissions, Trash and restore — no separate collection/rules). A topic with sub-items
-   takes its start/end from the earliest/latest sub-item. "Week of month" = ceil(day / 7): days 1-7 are week 1 ... 29-31 are week 5. */
+   takes its dates from the earliest/latest sub-item and its progress from the duration-weighted average of them.
+   "Week of month" = ceil(day / 7): days 1-7 are week 1 ... 29-31 are week 5. */
 const PLAN_COLORS = ['#3B82F6','#22B573','#FF9F43','#8B7CF6','#F0618B','#14B8A6','#EAB308','#64748B'];
+const PLAN_STATUS = { todo:['ยังไม่เริ่ม','none'], doing:['กำลังดำเนินการ','doing'], done:['เสร็จสิ้น','ok'], late:['ล่าช้า','expired'] };
 let selectedPlanProjectId = null;
+let planDrag = null;
 
 function ymd(y, m, d){ return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function inclusiveDays(st, en){ return (st && en && en >= st) ? daysBetween(st, en) + 1 : 0; }
+function hexToRgba(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`;
+}
+const clampPct = v => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+const clonePlan = plan => JSON.parse(JSON.stringify(plan || []));
 // A row with only one date set is treated as a one-day task on that date
 function normRange(st, en){ return { start: st || en || '', end: en || st || '' }; }
 function planTopicRange(t){
@@ -1484,17 +1531,40 @@ function planTopicRange(t){
   const ends = subs.map(x => normRange(x.start, x.end).end).filter(Boolean).sort();
   return { start: starts[0] || '', end: ends[ends.length - 1] || '' };
 }
+function weightedProgress(items, rangeOf, progOf){
+  let sum = 0, weight = 0;
+  items.forEach(x => {
+    const r = rangeOf(x);
+    const w = Math.max(1, inclusiveDays(r.start, r.end));
+    sum += progOf(x) * w; weight += w;
+  });
+  return weight ? Math.round(sum / weight) : 0;
+}
+function topicProgress(t){
+  const subs = t.subs || [];
+  if (!subs.length) return clampPct(t.progress);
+  return weightedProgress(subs, x => normRange(x.start, x.end), x => clampPct(x.progress));
+}
+function projectProgress(plan){
+  return weightedProgress(plan || [], planTopicRange, topicProgress);
+}
+function planItemStatus(end, progress){
+  if (progress >= 100) return 'done';
+  if (end && end < todayStr()) return 'late';
+  return progress > 0 ? 'doing' : 'todo';
+}
 function buildPlanRows(p){
   const rows = [];
   const pr = normRange(p.startDate, p.endDate);
-  rows.push({ kind:'proj', no:'', title:'ระยะเวลาโครงการ', owner:'', start:pr.start, end:pr.end, color:'#8B909C' });
+  rows.push({ kind:'proj', no:'', title:'ระยะเวลาโครงการ', owner:'', start:pr.start, end:pr.end, color:'#8B909C', progress:projectProgress(p.plan), leaf:false, i:-1, j:-1 });
   (p.plan || []).forEach((t, i) => {
     const color = PLAN_COLORS[i % PLAN_COLORS.length];
     const tr = planTopicRange(t);
-    rows.push({ kind:'topic', no:String(i+1), title:t.title, owner:t.owner, start:tr.start, end:tr.end, color });
+    const hasSubs = (t.subs || []).length > 0;
+    rows.push({ kind:'topic', no:String(i+1), title:t.title, owner:t.owner, start:tr.start, end:tr.end, color, progress:topicProgress(t), leaf:!hasSubs, i, j:-1 });
     (t.subs || []).forEach((sub, j) => {
       const sr = normRange(sub.start, sub.end);
-      rows.push({ kind:'sub', no:`${i+1}.${j+1}`, title:sub.title, owner:sub.owner, start:sr.start, end:sr.end, color });
+      rows.push({ kind:'sub', no:`${i+1}.${j+1}`, title:sub.title, owner:sub.owner, start:sr.start, end:sr.end, color, progress:clampPct(sub.progress), leaf:true, i, j });
     });
   });
   return rows;
@@ -1520,33 +1590,61 @@ function buildPlanColumns(rows){
   }
   return { months, cols };
 }
-function renderPlanTable(p){
+// opts.print: static text instead of inputs/drag handles, fixed column widths; opts.cols: frozen grid (used while dragging)
+function renderPlanTable(p, opts){
+  opts = opts || {};
   const rows = buildPlanRows(p);
-  const { months, cols } = buildPlanColumns(rows);
-  const head1 = `<tr><th class="g-no" rowspan="2">#</th><th class="g-detail" rowspan="2">รายละเอียดการดำเนินการ</th><th rowspan="2">ผู้รับผิดชอบ</th><th rowspan="2">เริ่มต้น</th><th rowspan="2">สิ้นสุด</th><th rowspan="2">วัน</th>`
+  const { months, cols } = opts.cols || buildPlanColumns(rows);
+  const colgroup = opts.print
+    ? `<colgroup><col style="width:24px"><col style="width:165px"><col style="width:62px"><col style="width:62px"><col style="width:62px"><col style="width:26px"><col style="width:56px"><col style="width:66px">${cols.map(() => '<col>').join('')}</colgroup>` : '';
+  const head1 = `<tr><th class="g-no" rowspan="2">#</th><th class="g-detail" rowspan="2">รายละเอียดการดำเนินการ</th><th rowspan="2">ผู้รับผิดชอบ</th><th rowspan="2">เริ่มต้น</th><th rowspan="2">สิ้นสุด</th><th rowspan="2">วัน</th><th rowspan="2">ความคืบหน้า</th><th rowspan="2">สถานะ</th>`
     + months.map(mo => `<th class="g-month" colspan="${mo.weeks}">${mo.label}</th>`).join('') + `</tr>`;
   const head2 = `<tr>` + cols.map(c => `<th class="g-week ${c.today ? 'today' : ''}" title="${fmtDate(c.cs)} – ${fmtDate(c.ce)}">${c.w}</th>`).join('') + `</tr>`;
   const body = rows.map(r => {
     const covered = cols.map(c => !!(r.start && r.end && r.start <= c.ce && r.end >= c.cs));
     const firstIdx = covered.indexOf(true), lastIdx = covered.lastIndexOf(true);
+    const n = lastIdx - firstIdx + 1;
+    const draggable = r.leaf && !opts.print;
     const cells = cols.map((c, i) => {
       const on = covered[i];
       const cls = ['g-cell', c.monthStart ? 'm-start' : '', on ? 'on' : '', c.today ? 'today' : ''].join(' ');
-      return `<td class="${cls}">${on ? `<div class="g-bar ${i === firstIdx ? 'first' : ''} ${i === lastIdx ? 'last' : ''}" style="--c:${r.color}"></div>` : ''}</td>`;
+      let bar = '';
+      if (on){
+        const fill = r.kind === 'proj' ? 100 : Math.max(0, Math.min(1, r.progress / 100 * n - (i - firstIdx))) * 100;
+        bar = `<div class="g-bar ${draggable ? 'drag' : ''} ${i === firstIdx ? 'first' : ''} ${i === lastIdx ? 'last' : ''}" style="--c:${r.color}; --cs:${hexToRgba(r.color, .28)}; --f:${fill.toFixed(1)}%"></div>`;
+      }
+      return `<td class="${cls}" data-col="${i}">${bar}</td>`;
     }).join('');
     const days = inclusiveDays(r.start, r.end);
-    return `<tr class="g-${r.kind}">
+    const canInput = r.leaf && !opts.print;
+    const progCell = (canInput
+      ? `<input class="g-prog-input" type="number" min="0" max="100" step="5" value="${r.progress}" onchange="setPlanProgress(${r.i},${r.j},this.value)">%`
+      : `${r.progress}%`) + `<span class="g-prog-bar"><i style="width:${r.progress}%"></i></span>`;
+    const st = r.kind === 'proj' ? '' : `<span class="badge ${PLAN_STATUS[planItemStatus(r.end, r.progress)][1]}">${PLAN_STATUS[planItemStatus(r.end, r.progress)][0]}</span>`;
+    return `<tr class="g-${r.kind} ${r.leaf && !r.start ? 'g-empty' : ''}" data-i="${r.i}" data-j="${r.j}" data-leaf="${draggable ? 1 : 0}">
       <td class="g-no">${r.no}</td>
       <td class="g-detail" title="${escapeHtml(r.title)}">${escapeHtml(r.title)}</td>
       <td class="g-meta">${escapeHtml(r.owner || '-')}</td>
       <td class="g-num">${r.start ? fmtDate(r.start) : '-'}</td>
       <td class="g-num">${r.end ? fmtDate(r.end) : '-'}</td>
       <td class="g-num">${days || '-'}</td>
+      <td class="g-num" style="white-space:nowrap;">${progCell}</td>
+      <td class="g-num">${st}</td>
       ${cells}</tr>`;
   }).join('');
-  return `<div class="plan-scroll"><table class="gantt"><thead>${head1}${head2}</thead><tbody>${body}</tbody></table></div>`;
+  return `<div class="plan-scroll"><table class="gantt">${colgroup}<thead>${head1}${head2}</thead><tbody>${body}</tbody></table></div>`;
 }
+// Re-render without losing the chart's horizontal scroll position (Firestore snapshots and drags both re-render it)
+function setPlanBodyHtml(html){
+  const old = $('planBody').querySelector('.plan-scroll');
+  const left = old ? old.scrollLeft : 0;
+  $('planBody').innerHTML = html;
+  const fresh = $('planBody').querySelector('.plan-scroll');
+  if (fresh) fresh.scrollLeft = left;
+}
+function getPlanProject(){ return data.projects.find(x => x.id === selectedPlanProjectId); }
 function renderActionPlan(){
+  if (planDrag) return;   // don't rebuild the DOM under an in-progress drag
   const sel = $('planProjectSelect');
   const order = { active:0, pending:1, ended:2 };
   const projects = getVisibleProjects().slice().sort((a,b) => order[projectStatus(a)] - order[projectStatus(b)] || (a.name||'').localeCompare(b.name||''));
@@ -1556,34 +1654,196 @@ function renderActionPlan(){
     : `<option value="">ยังไม่มีโครงการ</option>`;
   sel.value = selectedPlanProjectId || '';
   const p = projects.find(pr => pr.id === selectedPlanProjectId);
-  $('planEditBtn').disabled = $('planEditProjectBtn').disabled = !p;
+  $('planEditBtn').disabled = $('planEditProjectBtn').disabled = $('planPrintBtn').disabled = !p;
   if (!p){
     $('planMeta').innerHTML = '';
     $('planBody').innerHTML = `<div class="dash-empty" style="text-align:center; padding:30px 0;">สร้างโครงการที่หน้า "โครงการ" ก่อน แล้วโครงการจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ</div>`;
     return;
   }
+  const late = buildPlanRows(p).filter(r => r.leaf && r.kind !== 'proj' && planItemStatus(r.end, r.progress) === 'late').length;
   $('planMeta').innerHTML =
     `<span>ลูกค้า <b>${escapeHtml(p.customerName || '-')}</b></span>` +
     `<span>เลขที่สัญญา <b>${escapeHtml(p.contractNo || '-')}</b></span>` +
     `<span>ระยะเวลา <b>${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}</b> (${inclusiveDays(p.startDate, p.endDate)} วัน)</span>` +
+    ((p.plan || []).length ? `<span>ความคืบหน้ารวม <b>${projectProgress(p.plan)}%</b></span>` : '') +
+    (late ? `<span><span class="badge expired">ล่าช้า ${late} ขั้นตอน</span></span>` : '') +
     `<span>${statusBadge(projectStatus(p))}</span>`;
-  $('planBody').innerHTML = (p.plan || []).length
+  setPlanBodyHtml((p.plan || []).length
     ? renderPlanTable(p)
-    : `<div class="dash-empty" style="text-align:center; padding:30px 0;">โครงการนี้ยังไม่มีแผนดำเนินการ — กด "แก้ไขแผนดำเนินการ" เพื่อเพิ่มหัวข้อและกำหนดวันที่</div>${renderPlanTable(p)}`;
+    : `<div class="dash-empty" style="text-align:center; padding:30px 0;">โครงการนี้ยังไม่มีแผนดำเนินการ — กด "แก้ไขแผนดำเนินการ" เพื่อเพิ่มหัวข้อและกำหนดวันที่</div>${renderPlanTable(p)}`);
 }
 $('planProjectSelect').addEventListener('change', e => { selectedPlanProjectId = e.target.value || null; renderActionPlan(); });
 $('planEditProjectBtn').addEventListener('click', () => { if (selectedPlanProjectId) openProjectForm(selectedPlanProjectId); });
 function openActionPlan(id){ selectedPlanProjectId = id; showTab('actionplan'); }
 
+// Write a whole plan back to its project; parents with sub-items get their computed dates/progress stored too
+async function persistPlan(p, plan){
+  plan.forEach(t => {
+    if ((t.subs || []).length){ const r = planTopicRange(t); t.start = r.start; t.end = r.end; t.progress = topicProgress(t); }
+  });
+  setSync('saving');
+  try{
+    await db.collection(COL.projects).doc(p.id).update({ plan });
+    setSync('ok');
+    return true;
+  }catch(err){
+    setSync('error'); toast('บันทึกไม่สำเร็จ');
+    return false;
+  }
+}
+async function setPlanProgress(i, j, val){
+  const p = getPlanProject();
+  if (!p) return;
+  const plan = clonePlan(p.plan);
+  const item = j < 0 ? plan[i] : plan[i].subs[j];
+  if (!item) return;
+  item.progress = clampPct(val);
+  if (!(await persistPlan(p, plan))) renderActionPlan();
+}
+
+/* ---- Drag bars: move / resize an edge / draw on an empty row. Snaps to the week columns that are drawn ---- */
+const dragTip = () => $('planDragTip');
+$('planBody').addEventListener('pointerdown', e => {
+  if (e.button !== 0) return;
+  const td = e.target.closest('td.g-cell');
+  if (!td) return;
+  const tr = td.parentElement;
+  if (tr.dataset.leaf !== '1') return;
+  const p = getPlanProject();
+  if (!p) return;
+  const i = Number(tr.dataset.i), j = Number(tr.dataset.j);
+  const item = j < 0 ? p.plan[i] : p.plan[i].subs[j];
+  if (!item) return;
+  const scrollEl = $('planBody').querySelector('.plan-scroll');
+  const sr = scrollEl.getBoundingClientRect();
+  const bounds = [...scrollEl.querySelectorAll('thead th.g-week')].map(th => {
+    const r = th.getBoundingClientRect();
+    return { l: r.left - sr.left + scrollEl.scrollLeft, r: r.right - sr.left + scrollEl.scrollLeft };
+  });
+  const colsObj = buildPlanColumns(buildPlanRows(p));
+  const range = normRange(item.start, item.end);
+  const hasDates = !!(range.start && range.end);
+  const sIdx = hasDates ? colsObj.cols.findIndex(c => c.ce >= range.start) : -1;
+  let eIdx = -1;
+  if (hasDates) colsObj.cols.forEach((c, k) => { if (c.cs <= range.end) eIdx = k; });
+  let mode = 'create';
+  if (hasDates){
+    const bar = e.target.closest('.g-bar');
+    if (!bar) return;                                   // clicked an empty cell of a row that already has a bar
+    const r = bar.getBoundingClientRect();
+    if (bar.classList.contains('first') && e.clientX - r.left <= 8) mode = 'start';
+    else if (bar.classList.contains('last') && r.right - e.clientX <= 8) mode = 'end';
+    else mode = 'move';
+  }
+  const colAt = x => {
+    const px = x - sr.left + scrollEl.scrollLeft;
+    const k = bounds.findIndex(b => px >= b.l && px < b.r);
+    return k >= 0 ? k : (px < bounds[0].l ? 0 : bounds.length - 1);
+  };
+  e.preventDefault();
+  planDrag = { p, i, j, mode, colsObj, colAt, sIdx, eIdx, range, startCol: colAt(e.clientX), origPlan: clonePlan(p.plan), draft: null, last: '', raf: 0, changed: false };
+  document.body.classList.add('plan-dragging');
+  document.addEventListener('pointermove', onPlanDragMove);
+  document.addEventListener('pointerup', onPlanDragEnd);
+  document.addEventListener('pointercancel', onPlanDragEnd);
+});
+function planDragRange(d, idx){
+  const cols = d.colsObj.cols, n = cols.length;
+  if (d.mode === 'create'){
+    const a = Math.min(d.startCol, idx), b = Math.max(d.startCol, idx);
+    return { start: cols[a].cs, end: cols[b].ce };
+  }
+  if (d.mode === 'move'){
+    const k = Math.max(-d.sIdx, Math.min(n - 1 - d.eIdx, idx - d.startCol));
+    return k === 0 ? d.range : { start: cols[d.sIdx + k].cs, end: cols[d.eIdx + k].ce };
+  }
+  if (d.mode === 'start'){
+    const k = Math.min(idx, d.eIdx);
+    return { start: k === d.sIdx ? d.range.start : cols[k].cs, end: d.range.end };
+  }
+  const k = Math.max(idx, d.sIdx);
+  return { start: d.range.start, end: k === d.eIdx ? d.range.end : cols[k].ce };
+}
+function onPlanDragMove(e){
+  const d = planDrag;
+  if (!d) return;
+  const idx = d.colAt(e.clientX);
+  if (d.mode === 'create' && idx === d.startCol && !d.changed) return;   // a plain click must not create a bar
+  const r = planDragRange(d, idx);
+  const tip = dragTip();
+  tip.style.display = 'block';
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top = (e.clientY + 16) + 'px';
+  tip.textContent = `${fmtDate(r.start)} – ${fmtDate(r.end)} · ${inclusiveDays(r.start, r.end)} วัน`;
+  const key = r.start + '|' + r.end;
+  if (key === d.last) return;
+  d.last = key;
+  d.changed = true;
+  const draft = clonePlan(d.origPlan);
+  const item = d.j < 0 ? draft[d.i] : draft[d.i].subs[d.j];
+  item.start = r.start; item.end = r.end;
+  d.draft = draft;
+  if (!d.raf) d.raf = requestAnimationFrame(() => {
+    d.raf = 0;
+    setPlanBodyHtml(renderPlanTable({ ...d.p, plan: d.draft }, { cols: d.colsObj }));
+  });
+}
+async function onPlanDragEnd(){
+  const d = planDrag;
+  document.removeEventListener('pointermove', onPlanDragMove);
+  document.removeEventListener('pointerup', onPlanDragEnd);
+  document.removeEventListener('pointercancel', onPlanDragEnd);
+  document.body.classList.remove('plan-dragging');
+  dragTip().style.display = 'none';
+  if (!d) return;
+  if (d.raf){ cancelAnimationFrame(d.raf); d.raf = 0; }
+  if (d.changed && d.draft){
+    setPlanBodyHtml(renderPlanTable({ ...d.p, plan: d.draft }, { cols: d.colsObj }));
+    await persistPlan(d.p, d.draft);
+    planDrag = null;
+    renderActionPlan();   // snapshots that arrived mid-drag were skipped; redraw from the stored plan (also reverts on a failed save)
+  } else {
+    planDrag = null;
+    renderActionPlan();
+  }
+}
+
+/* ---- Print the plan (A4 landscape, with the project's company letterhead) ---- */
+function printActionPlan(){
+  const p = getPlanProject();
+  if (!p) return;
+  if (!(p.plan || []).length){ toast('ยังไม่มีแผนดำเนินการให้พิมพ์'); return; }
+  const co = data.companies.find(c => c.id === p.companyId);
+  if (!co) toast('โครงการนี้ยังไม่ได้เลือกบริษัท — เอกสารจะไม่มีหัวกระดาษ');
+  const info = [
+    ['ชื่อโครงการ', p.name], ['หน่วยงาน / ลูกค้า', p.customerName], ['เลขที่สัญญา', p.contractNo],
+    ['ระยะเวลาโครงการ', `${fmtDate(p.startDate)} – ${fmtDate(p.endDate)} (${inclusiveDays(p.startDate, p.endDate)} วัน)`],
+    ['ความคืบหน้ารวม', projectProgress(p.plan) + '%']
+  ].filter(r => r[1]).map(r => `<tr><td>${r[0]}</td><td>${escapeHtml(r[1])}</td></tr>`).join('');
+  $('printArea').innerHTML = letterheadHtml(co) + `<div class="pr-title">แผนดำเนินการ (Action Plan)</div><table class="pr-info">${info}</table>`
+    + renderPlanTable(p, { print:true })
+    + `<div class="pr-foot">ส่วนสีเข้มของแถบคือความคืบหน้า · สัปดาห์นับตามวันที่ในเดือน (1–7 = สัปดาห์ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5) · พิมพ์เมื่อ ${fmtDate(todayStr())}</div>`;
+  const pageStyle = document.createElement('style');
+  pageStyle.textContent = '@page{ size:A4 landscape; margin:10mm; }';   // overrides the portrait @page used by the project printout
+  document.head.appendChild(pageStyle);
+  const oldTitle = document.title;
+  document.title = 'ActionPlan_' + (p.contractNo || p.name || 'project').replace(/[\\/:*?"<>|]/g, '_');
+  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; pageStyle.remove(); window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+  setTimeout(() => window.print(), 50);
+}
+$('planPrintBtn').addEventListener('click', printActionPlan);
+
 /* ---- Plan editor ---- */
 let editingPlan = [];
-const blankPlanRow = () => ({ title:'', owner:'', start:'', end:'' });
+const blankPlanRow = () => ({ title:'', owner:'', start:'', end:'', progress:0 });
 function renderPlanEditor(){
   const owners = new Set(data.users.map(u => u.name || u.email).filter(Boolean));
   editingPlan.forEach(t => { if (t.owner) owners.add(t.owner); (t.subs || []).forEach(x => { if (x.owner) owners.add(x.owner); }); });
   $('planOwnerList').innerHTML = [...owners].map(o => `<option value="${escapeHtml(o)}">`).join('');
   const inp = (val, handler, extra) => `<input type="text" value="${escapeHtml(val)}" ${extra || ''} oninput="${handler}=this.value">`;
   const date = (val, handler, disabled) => `<input type="date" value="${escapeHtml(val)}" ${disabled ? 'disabled' : ''} onchange="${handler}=this.value; renderPlanEditor()">`;
+  const pct = (val, handler) => `<input type="number" min="0" max="100" step="5" value="${escapeHtml(val)}" oninput="${handler}=this.value">`;
   let html = '';
   editingPlan.forEach((t, i) => {
     const hasSubs = (t.subs || []).length > 0;
@@ -1596,28 +1856,31 @@ function renderPlanEditor(){
       <td>${date(st, `editingPlan[${i}].start`, hasSubs)}</td>
       <td>${date(en, `editingPlan[${i}].end`, hasSubs)}</td>
       <td class="cell-sub">${inclusiveDays(st, en) || '-'}</td>
+      <td>${hasSubs ? `<span class="cell-sub">${topicProgress(t)}% (คำนวณ)</span>` : pct(t.progress, `editingPlan[${i}].progress`)}</td>
       <td><div class="row-actions">
         <button type="button" class="icon-btn" onclick="addPlanSub(${i})">+ ย่อย</button>
         <button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removePlanTopic(${i})" title="ลบหัวข้อ">✕</button>
       </div></td></tr>`;
     (t.subs || []).forEach((sub, j) => {
+      const sr = normRange(sub.start, sub.end);
       html += `<tr>
         <td class="cell-sub" style="padding-left:14px;">${i+1}.${j+1}</td>
         <td style="padding-left:24px;">${inp(sub.title, `editingPlan[${i}].subs[${j}].title`, 'placeholder="รายละเอียดย่อย"')}</td>
         <td>${inp(sub.owner, `editingPlan[${i}].subs[${j}].owner`, 'list="planOwnerList" placeholder="ผู้รับผิดชอบ"')}</td>
         <td>${date(sub.start, `editingPlan[${i}].subs[${j}].start`)}</td>
         <td>${date(sub.end, `editingPlan[${i}].subs[${j}].end`)}</td>
-        <td class="cell-sub">${inclusiveDays(normRange(sub.start, sub.end).start, normRange(sub.start, sub.end).end) || '-'}</td>
+        <td class="cell-sub">${inclusiveDays(sr.start, sr.end) || '-'}</td>
+        <td>${pct(sub.progress, `editingPlan[${i}].subs[${j}].progress`)}</td>
         <td><div class="row-actions"><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removePlanSub(${i},${j})" title="ลบรายการย่อย">✕</button></div></td></tr>`;
     });
   });
-  $('planEditBody').innerHTML = html || `<tr><td colspan="7" class="empty-row">ยังไม่มีหัวข้อ — กด "+ เพิ่มหัวข้อ"</td></tr>`;
+  $('planEditBody').innerHTML = html || `<tr><td colspan="8" class="empty-row">ยังไม่มีหัวข้อ — กด "+ เพิ่มหัวข้อ"</td></tr>`;
 }
 function addPlanSub(i){
   const t = editingPlan[i];
   t.subs = t.subs || [];
-  // the first sub-item inherits the topic's own dates/owner so nothing typed so far is lost (the topic's dates then become computed)
-  const sub = t.subs.length ? blankPlanRow() : { title:'', owner:t.owner || '', start:t.start || '', end:t.end || '' };
+  // the first sub-item inherits the topic's own dates/owner/progress so nothing typed so far is lost (the topic's values then become computed)
+  const sub = t.subs.length ? blankPlanRow() : { title:'', owner:t.owner || '', start:t.start || '', end:t.end || '', progress:t.progress || 0 };
   t.subs.push(sub);
   renderPlanEditor();
 }
@@ -1625,7 +1888,7 @@ function removePlanSub(i, j){ editingPlan[i].subs.splice(j, 1); renderPlanEditor
 function removePlanTopic(i){ editingPlan.splice(i, 1); renderPlanEditor(); }
 $('planAddTopicBtn').addEventListener('click', () => { editingPlan.push({ ...blankPlanRow(), subs:[] }); renderPlanEditor(); });
 $('planEditBtn').addEventListener('click', () => {
-  const p = data.projects.find(x => x.id === selectedPlanProjectId);
+  const p = getPlanProject();
   if (!p) return;
   editingPlan = (p.plan || []).map(t => ({ ...blankPlanRow(), ...t, subs:(t.subs || []).map(x => ({ ...blankPlanRow(), ...x })) }));
   if (!editingPlan.length) editingPlan.push({ ...blankPlanRow(), start:p.startDate || '', end:p.endDate || '', subs:[] });
@@ -1635,9 +1898,9 @@ $('planEditBtn').addEventListener('click', () => {
 });
 $('planCancelBtn').addEventListener('click', () => closeModal('planModal'));
 $('planSaveBtn').addEventListener('click', async () => {
-  const p = data.projects.find(x => x.id === selectedPlanProjectId);
+  const p = getPlanProject();
   if (!p) return;
-  const isBlank = x => !(x.title || '').trim() && !x.owner && !x.start && !x.end;
+  const isBlank = x => !(x.title || '').trim() && !x.owner && !x.start && !x.end && !Number(x.progress);
   const plan = [];
   for (const t of editingPlan){
     const subs = (t.subs || []).filter(x => !isBlank(x));
@@ -1645,20 +1908,15 @@ $('planSaveBtn').addEventListener('click', async () => {
     if (!(t.title || '').trim() || subs.some(x => !(x.title || '').trim())){ toast('กรุณากรอกรายละเอียดให้ครบทุกแถวที่มีข้อมูล'); return; }
     const bad = [t, ...subs].find(x => x.start && x.end && x.end < x.start);
     if (bad){ toast(`วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น: ${bad.title}`); return; }
-    const clean = x => ({ title:x.title.trim(), owner:(x.owner || '').trim(), start:x.start || '', end:x.end || '' });
-    const topic = { ...clean(t), subs:subs.map(clean) };
-    if (topic.subs.length){ const r = planTopicRange(topic); topic.start = r.start; topic.end = r.end; }
-    plan.push(topic);
+    const clean = x => ({ title:x.title.trim(), owner:(x.owner || '').trim(), start:x.start || '', end:x.end || '', progress:clampPct(x.progress) });
+    plan.push({ ...clean(t), subs:subs.map(clean) });
   }
   $('planSaveBtn').disabled = true;
-  setSync('saving');
-  try{
-    await db.collection(COL.projects).doc(p.id).update({ plan });
+  if (await persistPlan(p, plan)){
     logAudit('แก้ไขแผนดำเนินการ', p.name, `${plan.length} หัวข้อ`);
-    setSync('ok');
     closeModal('planModal');
     toast('บันทึกแผนดำเนินการแล้ว');
-  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+  }
   $('planSaveBtn').disabled = false;
 });
 
