@@ -273,6 +273,14 @@
   .plan-edit-topic td{ background:var(--paper-dim); }
   @media (max-width:760px){ .gantt .g-chk, .gantt .g-no, .gantt .g-detail{ position:static; } }
 
+  .pager{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-top:16px; font-size:12.5px; color:var(--ink-soft); }
+  .pager-size{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .pager-size select{ height:32px; padding:0 10px; border:1px solid var(--line); border-radius:100px; background:var(--card); color:var(--ink); font-size:12.5px; cursor:pointer; }
+  .pager-pages{ display:flex; gap:6px; align-items:center; }
+  .page-btn{ min-width:32px; height:32px; padding:0 10px; border-radius:100px; border:1px solid var(--line); background:transparent; color:var(--ink); font-size:12.5px; font-weight:500; }
+  .page-btn:hover:not(:disabled){ border-color:var(--accent); color:var(--accent); }
+  .page-btn.active{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+  .page-btn:disabled{ opacity:.4; cursor:default; }
   .docno{ font-family:ui-monospace,Consolas,monospace; font-size:12px; background:var(--paper-dim); padding:2px 7px; border-radius:6px; white-space:nowrap; color:var(--ink); }
   .company-name-link{ font-weight:600; color:var(--ink); text-decoration:none; }
   .company-name-link:hover{ color:var(--accent); text-decoration:underline; }
@@ -520,6 +528,7 @@
             <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน / โครงการ</th><th>ประเภทงาน</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>วันที่</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
             <tbody id="projectsBody"></tbody>
           </table></div>
+          <div class="pager" id="projectsPager"></div>
         </div>
       </div>
 
@@ -542,6 +551,7 @@
             </div>
             <p class="panel-note">แต่ละโครงการมีแผนดำเนินการของตัวเอง — กดที่โครงการเพื่อเปิดแผนของโครงการนั้น</p>
             <div class="plan-cards" id="planCards"></div>
+            <div class="pager" id="planPager"></div>
           </div>
         </div>
 
@@ -594,6 +604,7 @@
             <thead><tr><th>เลขที่เอกสาร</th><th>ซื้อขาย/โครงการ · ลูกค้า</th><th>ประเภท</th><th>สถานที่ติดตั้ง / ส่งสินค้า</th><th>เริ่มรับประกัน</th><th>ประกัน (เดือน)</th><th>หมดประกัน</th><th>สถานะ</th></tr></thead>
             <tbody id="equipmentBody"></tbody>
           </table></div>
+          <div class="pager" id="equipmentPager"></div>
         </div>
       </div>
 
@@ -620,6 +631,7 @@
             <thead><tr><th>Part</th><th>ยี่ห้อ</th><th>ประเภท</th><th>ชื่ออุปกรณ์</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warehouseBody"></tbody>
           </table></div>
+          <div class="pager" id="warehousePager"></div>
         </div>
       </div>
 
@@ -648,6 +660,7 @@
             <thead><tr><th>ชื่อบริษัท</th><th>ประเภท</th><th>ที่อยู่</th><th>ผู้ติดต่อ</th><th>เบอร์ติดต่อ</th><th>เลขที่ผู้เสียภาษี</th><th>ซื้อขาย/โครงการ</th><th></th></tr></thead>
             <tbody id="customersBody"></tbody>
           </table></div>
+          <div class="pager" id="customersPager"></div>
         </div>
       </div>
 
@@ -660,6 +673,7 @@
           </div>
           <p class="panel-note">โลโก้และที่อยู่ของบริษัทจะถูกใช้เป็นหัวกระดาษเวลาพิมพ์โครงการเป็น PDF (เลือกบริษัทได้ในฟอร์มโครงการ) — เฉพาะผู้ดูแลระบบที่เพิ่ม/แก้ไขได้</p>
           <div class="company-grid" id="companiesGrid"></div>
+            <div class="pager" id="companiesPager"></div>
         </div>
       </div>
 
@@ -692,6 +706,7 @@
             <thead><tr><th>รูป</th><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table></div>
+          <div class="pager" id="usersPager"></div>
         </div>
       </div>
 
@@ -716,6 +731,7 @@
               <thead><tr><th>เวลา</th><th>ผู้ทำรายการ</th><th>การกระทำ</th><th>รายการ</th><th>รายละเอียด</th></tr></thead>
               <tbody id="auditBody"></tbody>
             </table></div>
+          <div class="pager" id="auditPager"></div>
           </div>
         </div>
         <div id="auditSub-errors" style="display:none;">
@@ -726,6 +742,7 @@
               <thead><tr><th>เวลา</th><th>ผู้ใช้งาน</th><th>ข้อความ</th><th>หน้า</th></tr></thead>
               <tbody id="errorBody"></tbody>
             </table></div>
+          <div class="pager" id="errorsPager"></div>
           </div>
         </div>
       </div>
@@ -752,6 +769,7 @@
             <thead><tr><th>ประเภท</th><th>รายการ</th><th>ลบโดย</th><th>วันที่ลบ</th><th></th></tr></thead>
             <tbody id="trashBody"><tr><td colspan="5" class="empty-row">กด "รีเฟรช" เพื่อโหลดรายการ</td></tr></tbody>
           </table></div>
+          <div class="pager" id="trashPager"></div>
         </div>
       </div>
     </div>
@@ -999,7 +1017,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.9.1';
+const APP_VERSION = '1.9.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1162,6 +1180,54 @@ function renderActiveTab(){
   updateNavBadge();
   refreshClearButtons();
 }
+/* ====== Paging: every list shows 10 rows by default, 10/20/50/100 selectable, with page buttons ======
+   State is per list (in memory). The page snaps back to 1 whenever one of the list's filters / the admin's person filter changes,
+   and is clamped when the list shrinks (rows deleted, filter narrowed) so you never land on an empty page. */
+const PAGE_SIZES = [10, 20, 50, 100];
+const pagerState = {};
+const PAGER_UI = {
+  projects:  { el:'projectsPager',  render: () => renderProjects(),     filters:['projectsSearch','projectsTypeFilter','projectsStatusFilter'] },
+  plan:      { el:'planPager',      render: () => renderActionPlan(),   filters:['planListSearch','planListStatus'] },
+  equipment: { el:'equipmentPager', render: () => renderEquipment(),    filters:['equipmentSearch','equipmentTypeFilter','equipmentWarrantyFilter'] },
+  warehouse: { el:'warehousePager', render: () => renderWarehouse(),    filters:['warehouseSearch','warehouseBrandFilter','warehouseTypeFilter','warehouseSortFilter'] },
+  customers: { el:'customersPager', render: () => renderCustomers(),    filters:['customersSearch','customersTypeFilter','customersSortFilter'] },
+  companies: { el:'companiesPager', render: () => renderCompanies(),    filters:[] },
+  users:     { el:'usersPager',     render: () => renderUsers(),        filters:['usersSearch'] },
+  audit:     { el:'auditPager',     render: () => renderAudit(),        filters:['auditSearch','auditActionFilter'] },
+  errors:    { el:'errorsPager',    render: () => renderAudit(),        filters:[] },
+  trash:     { el:'trashPager',     render: () => renderTrash(),        filters:['trashTypeFilter'] }
+};
+function pageSlice(key, rows){
+  const cfg = PAGER_UI[key];
+  const st = pagerState[key] || (pagerState[key] = { page:1, size:10, sig:'' });
+  const sig = cfg.filters.map(id => $(id).value).join('|') + '|' + $('targetUserFilter').value;
+  if (sig !== st.sig){ st.sig = sig; st.page = 1; }
+  const pages = Math.max(1, Math.ceil(rows.length / st.size));
+  if (st.page > pages) st.page = pages;
+  renderPager(key, rows.length, pages);
+  return rows.slice((st.page - 1) * st.size, st.page * st.size);
+}
+function renderPager(key, total, pages){
+  const el = $(PAGER_UI[key].el), st = pagerState[key];
+  if (!total){ el.innerHTML = ''; return; }
+  const from = (st.page - 1) * st.size + 1, to = Math.min(total, st.page * st.size);
+  const first = Math.max(1, Math.min(st.page - 2, pages - 4)), last = Math.min(pages, first + 4);   // a window of up to 5 page numbers around the current page
+  const nums = [];
+  for (let n = first; n <= last; n++) nums.push(`<button type="button" class="page-btn ${n === st.page ? 'active' : ''}" onclick="setPage('${key}', ${n})">${n}</button>`);
+  el.innerHTML = `
+    <div class="pager-size">แสดง
+      <select onchange="setPageSize('${key}', this.value)">${PAGE_SIZES.map(n => `<option value="${n}" ${n === st.size ? 'selected' : ''}>${n}</option>`).join('')}</select>
+      รายการต่อหน้า · ${fmtNum(from)}–${fmtNum(to)} จากทั้งหมด ${fmtNum(total)} รายการ
+    </div>
+    <div class="pager-pages">
+      <button type="button" class="page-btn" title="หน้าก่อนหน้า" ${st.page <= 1 ? 'disabled' : ''} onclick="setPage('${key}', ${st.page - 1})">‹</button>
+      ${nums.join('')}
+      <button type="button" class="page-btn" title="หน้าถัดไป" ${st.page >= pages ? 'disabled' : ''} onclick="setPage('${key}', ${st.page + 1})">›</button>
+    </div>`;
+}
+function setPage(key, n){ pagerState[key].page = Math.max(1, n); PAGER_UI[key].render(); }
+function setPageSize(key, v){ pagerState[key].size = Number(v) || 10; pagerState[key].page = 1; PAGER_UI[key].render(); }
+
 // One "เคลียร์" button per page that has filters: puts every listed field back to its default and redraws the page.
 // (A function, not a const, so it can be called from renderActiveTab() at any point without a temporal-dead-zone risk.)
 function filterGroups(){
@@ -1627,7 +1693,8 @@ function renderProjects(){
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
   $('projectsCount').textContent = rows.length;
   const cols = isAdmin ? 10 : 9;
-  $('projectsBody').innerHTML = rows.length ? rows.map(p => {
+  const view = pageSlice('projects', rows);
+  $('projectsBody').innerHTML = rows.length ? view.map(p => {
     const its = p.items || [], done = its.filter(i => i.status === 'done').length;
     return `
     <tr>
@@ -2231,7 +2298,8 @@ function renderPlanList(projects){
     .filter(pr => !q || [pr.name, pr.customerName, pr.contractNo, pr.docNo].some(v => (v || '').toLowerCase().includes(q)))
     .sort((a, b) => order[projectStatus(a)] - order[projectStatus(b)] || (a.name || '').localeCompare(b.name || ''));
   $('planListCount').textContent = list.length;
-  $('planCards').innerHTML = list.length ? list.map(pr => {
+  const view = pageSlice('plan', list);
+  $('planCards').innerHTML = list.length ? view.map(pr => {
     const sm = planSummary(pr);
     return `<div class="plan-card" onclick="openActionPlan('${pr.id}')">
       <div class="plan-card-top"><b>${escapeHtml(pr.name)}</b>${statusBadge(projectStatus(pr))}</div>
@@ -2523,7 +2591,8 @@ function renderEquipment(){
     .filter(r => !q || [r.project.name, r.project.customerName, r.project.docNo, r.location].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (a.expiry || '9999').localeCompare(b.expiry || '9999'));
   $('equipmentCount').textContent = rows.length;
-  $('equipmentBody').innerHTML = rows.length ? rows.map(r => `
+  const view = pageSlice('equipment', rows);
+  $('equipmentBody').innerHTML = rows.length ? view.map(r => `
     <tr>
       <td>${r.project.docNo ? `<span class="docno">${escapeHtml(r.project.docNo)}</span>` : '<span class="cell-sub">-</span>'}</td>
       <td><a href="#" onclick="openProjectForm('${r.project.id}'); return false;" style="color:var(--accent);"><b>${escapeHtml(r.project.name)}</b></a><div class="cell-sub">${escapeHtml(r.project.customerName || '')}</div></td>
@@ -2621,7 +2690,8 @@ function renderWarehouse(){
     .filter(w => !q || [w.part, w.name, w.type, w.brand, w.note].some(v => (v||'').toLowerCase().includes(q)) || (w.serials || []).some(sn => sn.toLowerCase().includes(q)))
     .sort((a, b) => (sort === 'asc' ? qty(a) - qty(b) : sort === 'desc' ? qty(b) - qty(a) : 0) || (a.name||'').localeCompare(b.name||''));
   $('warehouseCount').textContent = rows.length;
-  $('warehouseBody').innerHTML = rows.length ? rows.map(w => `
+  const view = pageSlice('warehouse', rows);
+  $('warehouseBody').innerHTML = rows.length ? view.map(w => `
     <tr onclick="openSerialModal('${w.id}')" title="กดเพื่อดู Serial Number และประวัติการเบิก">
       <td>${escapeHtml(w.part || '-')}</td>
       <td>${escapeHtml(w.brand || '-')}</td>
@@ -2766,7 +2836,8 @@ function renderCustomers(){
     .filter(c => !q || [c.name, c.contactName, c.taxId, c.address, CUSTOMER_TYPES[c.type]].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a, b) => (sort === 'asc' ? counts.get(a.id) - counts.get(b.id) : sort === 'desc' ? counts.get(b.id) - counts.get(a.id) : 0) || (a.name||'').localeCompare(b.name||''));
   $('customersCount').textContent = rows.length;
-  $('customersBody').innerHTML = rows.length ? rows.map(c => `
+  const view = pageSlice('customers', rows);
+  $('customersBody').innerHTML = rows.length ? view.map(c => `
     <tr onclick="openCustomerProjects('${c.id}')" title="กดเพื่อดูโครงการของลูกค้า">
       <td><b>${escapeHtml(c.name)}</b></td>
       <td>${c.type && CUSTOMER_TYPES[c.type] ? `<span class="badge ${c.type === 'gov' ? 'doing' : 'none'}">${CUSTOMER_TYPES[c.type]}</span>` : '-'}</td>
@@ -2863,7 +2934,8 @@ function renderCompanies(){
   const isAdmin = currentUserRole === 'admin';
   const rows = [...data.companies].sort((a,b) => (a.name||'').localeCompare(b.name||''));
   $('companiesCount').textContent = rows.length;
-  $('companiesGrid').innerHTML = rows.length ? rows.map(c => `
+  const view = pageSlice('companies', rows);
+  $('companiesGrid').innerHTML = rows.length ? view.map(c => `
     <div class="company-card">
       <div style="display:flex; gap:14px; align-items:center;">
         <div class="company-logo">${c.logoBase64 ? `<img src="${c.logoBase64}" alt="">` : escapeHtml((c.name||'?').charAt(0).toUpperCase())}</div>
@@ -2980,7 +3052,7 @@ function renderUsers(){
     .filter(u => !q || (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
     .sort((a,b) => (a.name||a.email||'').localeCompare(b.name||b.email||''));
   $('usersCount').textContent = rows.length;
-  $('usersBody').innerHTML = rows.map(u => {
+  $('usersBody').innerHTML = pageSlice('users', rows).map(u => {
     const initial = (u.name || u.email || '?').trim().charAt(0).toUpperCase();
     const avatar = u.isPending ? `<div class="user-avatar" style="cursor:default; background:var(--paper-dim); color:var(--ink-soft);">${escapeHtml(initial)}</div>`
       : `<div class="user-avatar" title="คลิกเพื่อเปลี่ยนรูป" onclick="pickAvatar('${u.id}')">${u.avatarBase64 ? `<img src="${u.avatarBase64}" alt="">` : escapeHtml(initial)}</div>`;
@@ -3065,7 +3137,8 @@ function renderAudit(){
     .filter(a => actionSel.value === 'all' || a.action === actionSel.value)
     .filter(a => !q || [a.changedByName, a.action, a.entityLabel, a.details].some(v => (v||'').toLowerCase().includes(q)));
   $('auditCount').textContent = rows.length;
-  $('auditBody').innerHTML = rows.length ? rows.map(a => `
+  const view = pageSlice('audit', rows);
+  $('auditBody').innerHTML = rows.length ? view.map(a => `
     <tr>
       <td style="white-space:nowrap;">${fmtDateTime(a.timestamp)}</td>
       <td>${escapeHtml(a.changedByName || '-')}</td>
@@ -3074,7 +3147,8 @@ function renderAudit(){
       <td class="cell-sub">${escapeHtml(a.details)}</td>
     </tr>`).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีประวัติ</td></tr>`;
   $('errorCount').textContent = data.errors.length;
-  $('errorBody').innerHTML = data.errors.length ? data.errors.map(er => `
+  const errView = pageSlice('errors', data.errors);
+  $('errorBody').innerHTML = data.errors.length ? errView.map(er => `
     <tr>
       <td style="white-space:nowrap;">${fmtDateTime(er.timestamp)}</td>
       <td>${escapeHtml(er.userName || '-')}</td>
@@ -3105,7 +3179,8 @@ function renderTrash(){
   const tf = $('trashTypeFilter').value;
   const rows = trashItems.filter(x => tf === 'all' || x.kind === tf);
   $('trashCount').textContent = rows.length;
-  $('trashBody').innerHTML = rows.length ? rows.map(x => `
+  const view = pageSlice('trash', rows);
+  $('trashBody').innerHTML = rows.length ? view.map(x => `
     <tr>
       <td><span class="badge none">${ENTITY_LABEL[x.kind]}</span></td>
       <td>${x.docNo ? `<span class="docno">${escapeHtml(x.docNo)}</span> ` : ''}${escapeHtml(x.name || '-')}</td>
