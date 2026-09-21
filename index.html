@@ -1128,7 +1128,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.10.8';
+const APP_VERSION = '1.10.9';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2205,11 +2205,10 @@ function buildProjectPrintHtml(p){
   return `<div class="hd-doc">${head}
     ${tbl([1592, 4763, 1131, 2084], td('ชื่อบริษัท :', 'b') + td(e(cu.name)) + td('วันที่ :', 'b') + td(escapeHtml(fmtDate(p.startDate)), 'b'), true)}
     ${tbl([1592, 7978], td('ที่อยู่ :', 'b') + td(e(cu.address)))}
-    ${tbl([1592, 2938, 1545, 3495], td('ชื่อลูกค้า :', 'b') + td(e(cu.contactName), 'v') + td('เบอร์ติดต่อ', 'b') + td(e(cu.contactPhone)))}
-    ${tbl([1592, 3499, 1547, 2932], td('ชื่อลูกค้า :', 'b') + td(e(cu.contactName), 'v') + td('เลขที่เอกสาร :', 'b') + td(e(p.docNo), 'v'))}
-    ${tbl([1592, 7978], td(sale ? 'สถานที่ส่งของ :' : 'สถานที่ติดตั้ง :', 'b') + td(e(wr.location), 'v l'))}
+    ${tbl([1592, 2938, 1545, 3495], td('ชื่อลูกค้า :', 'b') + td(e(cu.contactName), 'v') + td('เบอร์ติดต่อ :', 'b') + td(e(cu.contactPhone)))}
+    ${tbl([1592, 3499, 1547, 2932], td(sale ? 'สถานที่ส่งของ :' : 'สถานที่ติดตั้ง :', 'b') + td(e(wr.location), 'v') + td('เลขที่เอกสาร :', 'b') + td(e(p.docNo), 'v'))}
     ${tbl([1592, 7978], td(sale ? 'ชื่องาน :' : 'โครงการ :', 'b') + td(e(p.name), 'v'))}
-    ${sale && !p.contractNo ? '' : tbl([1592, 7978], td('เลขที่สัญญา :', 'v') + td(e(p.contractNo), 'v l'))}
+    ${sale && !p.contractNo ? '' : tbl([1592, 7978], td('เลขที่สัญญา :', 'b') + td(e(p.contractNo), 'v'))}
     ${tbl([9570], td('รายละเอียดอุปกรณ์ของ' + (sale ? 'งาน' : 'โครงการ'), 'v'))}
     <table class="hd-tbl"><colgroup>${W.map(w => `<col style="width:${mm(w)}">`).join('')}</colgroup>
       <thead><tr><th>ลำดับ</th><th>รายละเอียด</th><th>รหัสอุปกรณ์</th><th>จำนวน</th></tr></thead>
@@ -2217,7 +2216,7 @@ function buildProjectPrintHtml(p){
     </table>
     ${tbl([1592, 7978], td('หมายเหตุ :', 'v') + td(escapeHtml(p.notes || '') + '&nbsp;', 'v l'))}
     <div class="hd-sign">
-      <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ขอส่งมอบงาน</div></div>
+      <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ส่งมอบงาน</div></div>
       <div class="hd-sg"><div class="ln"><span>ชื่อ</span><i></i></div><div class="ln"><span>(</span><i></i><span>)</span></div><div>ผู้ตรวจรับงาน</div></div>
     </div></div>`;
 }
