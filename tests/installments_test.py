@@ -84,5 +84,6 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     assert 'งวดที่ 2' in page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.id === 'p2'))")
     # Excel column
     assert page.evaluate("(showTab('projects'), renderProjects(), EXPORTS.projects().find(r => r['เลขที่เอกสาร'] === 'PJ1')['งวดงาน'])") == '4/4'
+    assert page.evaluate("(showTab('sales'), renderSales(), Object.keys(EXPORTS.sales()[0]))").count('งวดงาน') == 0, "the sales export has no installment column"
     print("errors:", errors); assert not errors
 print("OK")

@@ -1233,7 +1233,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.14.0';
+const APP_VERSION = '1.14.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3289,7 +3289,7 @@ async function exportExcel(fileBase, sheetName, rows){
 const excelDate = v => v ? fmtDMY(v) : '';
 const jobRow = pr => {
     const its = pr.items || [], w = projectWarranty(pr);
-    return { 'เลขที่เอกสาร': pr.docNo || '', 'ชื่องาน/โครงการ': pr.name || '', 'ลูกค้า': pr.customerName || '', 'เลขที่สัญญา': pr.contractNo || '', 'เลขที่ PO': pr.poNo || '', 'งวดงาน': installmentLabel(pr),
+    return { 'เลขที่เอกสาร': pr.docNo || '', 'ชื่องาน/โครงการ': pr.name || '', 'ลูกค้า': pr.customerName || '', 'เลขที่สัญญา': pr.contractNo || '', 'เลขที่ PO': pr.poNo || '', ...(isSale(pr) ? {} : { 'งวดงาน': installmentLabel(pr) }),
       'วันที่เริ่ม/สั่งซื้อ': excelDate(pr.startDate), 'วันที่สิ้นสุด': isSale(pr) ? '' : excelDate(pr.endDate), 'สถานะ': statusLabelFor(pr, projectStatus(pr)),
       'จำนวนรายการอุปกรณ์': its.length, 'ดำเนินการแล้ว': its.filter(i => i.status === 'done').length, 'สถานที่': w.location || '', 'ประกัน (เดือน)': w.months || '', 'หมดประกัน': excelDate(w.expiry),
       'หมายเหตุ': pr.notes || '', 'สร้างโดย': getUserDisplayName(pr.createdBy) };
