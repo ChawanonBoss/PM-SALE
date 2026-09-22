@@ -124,4 +124,9 @@ The handover document follows `docs/handover-template.docx` (measured with Word:
 `thead` repeat of an outer wrapper table did NOT work in Chromium, and `position:fixed` headers do not repeat either - hence the margin boxes.
 
 ## Sample data
-Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`); delete by that tag. Audit-log rows written while seeding cannot be deleted (rules).
+Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`). `#deleteSampleDataBtn` on the (admin-only) Trash page
+hard-deletes every `sample: true` doc across `SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_projects`, `pm_pendingRoles`) in one go,
+whether that row is currently live or already sitting in the Trash - it queries each collection directly (`where('sample','==',true)`), not through the
+Trash's own `deletedAt` listing, so a soft-deleted sample row is caught too. No rules change was needed: admin already has unconditional delete on all five of
+those collections. Real, non-sample rows are matched by the same tag and are never touched. Audit-log rows written while seeding still cannot be deleted
+(rules) - this button doesn't try to.

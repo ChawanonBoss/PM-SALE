@@ -1004,9 +1004,10 @@
               </select>
               <button class="btn outline" id="trashRefreshBtn" type="button">รีเฟรช</button>
               <button class="btn outline" type="button" id="trashClearBtn">เคลียร์</button>
+              <button class="btn danger" type="button" id="deleteSampleDataBtn">ลบข้อมูลตัวอย่างทั้งหมด</button>
             </div>
           </div>
-          <p class="panel-note">รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด)</p>
+          <p class="panel-note">รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด) · "ลบข้อมูลตัวอย่างทั้งหมด" ลบถาวรทันที (ไม่ผ่านถังขยะ) ทุกรายการที่มีแท็ก "sample" (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ ที่ขึ้นต้น "[ตัวอย่าง]") ไม่ว่าจะอยู่ในถังขยะหรือไม่</p>
           <div class="bulk-bar" id="trashBulkBar" style="display:none;">
             <span>เลือกแล้ว <b id="trashSelCount">0</b> รายการ</span><span class="grow"></span>
             <button class="btn outline" type="button" id="trashBulkRestoreBtn">กู้คืนที่เลือก</button>
@@ -1410,7 +1411,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.0';
+const APP_VERSION = '1.20.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -4804,6 +4805,29 @@ $('trashBulkPurgeBtn').addEventListener('click', () => {
 });
 $('trashRefreshBtn').addEventListener('click', loadTrash);
 $('trashTypeFilter').addEventListener('change', renderTrash);
+
+// Sample data (see "Sample data" in CLAUDE.md): every doc the fixture generators write carries `sample: true`, across five collections,
+// whether it's currently live or already sitting in the Trash (deletedAt doesn't matter here - this hard-deletes either way, unlike a
+// normal Trash purge which only ever acts on already-soft-deleted rows). Audit-log rows written while seeding are immutable by rule and
+// are deliberately left alone.
+const SAMPLE_DATA_COLS = ['pm_companies', 'pm_customers', 'pm_warehouse', 'pm_projects', 'pm_pendingRoles'];
+$('deleteSampleDataBtn').addEventListener('click', () => {
+  confirmAction('ลบข้อมูลตัวอย่างทั้งหมดถาวร (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ ที่มีแท็ก "ตัวอย่าง" ทั้งในและนอกถังขยะ) กู้คืนไม่ได้ ใช่หรือไม่?', async () => {
+    setSync('saving');
+    try{
+      let total = 0;
+      for (const col of SAMPLE_DATA_COLS){
+        const snap = await db.collection(col).where('sample', '==', true).get();
+        total += snap.docs.length;
+        await commitInChunks(snap.docs.map(d => b => b.delete(db.collection(col).doc(d.id))));
+      }
+      logAudit('ลบข้อมูลตัวอย่างทั้งหมด', 'ข้อมูลตัวอย่าง', `${total} รายการ`);
+      toast(`ลบข้อมูลตัวอย่างแล้ว ${total} รายการ`);
+      setSync('ok');
+      if (currentTab === 'trash') loadTrash();
+    }catch(err){ setSync('error'); toast('ลบไม่สำเร็จ'); }
+  }, 'ลบข้อมูลตัวอย่างทั้งหมด');
+});
 // Trash isn't a live listener, so load it each time its tab is opened - see the `if (tab === 'trash') loadTrash();` line inside showTab()
 
 updateAuthFormMode();

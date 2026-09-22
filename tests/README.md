@@ -28,6 +28,7 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `photos_test.py` | handover photo upload/delete for both sets, sale-only photo-set picker on the create form, tagging a photo with equipment from the job's own items[] (and the PDF caption/grid falling back to the filename when untagged), equipment selection now mandatory (blocked both via the button and via the file input directly, and the add button/select disabled outright when the job has no items), post-save routing (new project -> Action Plan -> "รูปภาพ →"; new sale -> photo page directly) |
 | `nav_groups_test.py` | sidebar group flyouts (which pages list under which group, open/close/outside-click, active state, badge aggregation), ตั้งค่า hidden for non-admin, mobile drawer closes on a flyout pick |
 | `service_warehouse_test.py` | โกดังบริการ page CRUD (no quantity/Serial columns at all) and its own addable-selects, Trash round-trip, the ซื้อขาย/โครงการ form's separate "+ เพิ่มสินค้า"/"+ เพิ่มบริการ" tables sharing one flat items[] on save, a service line never triggering the warehouse stock-effects confirm dialog (even mixed with a goods line that does) |
+| `delete_sample_data_test.py` | Trash page's "ลบข้อมูลตัวอย่างทั้งหมด" button hard-deletes every `sample: true` row across all 5 affected collections, including ones already sitting in the Trash, while real (non-sample) rows in the same collections are left alone |
 
 `fixtures/` holds the sample generators. The same files were used to seed the live site with `[ตัวอย่าง]` rows (`sample: true`).
 
