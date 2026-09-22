@@ -411,6 +411,7 @@
     .ho-title{ text-align:center; font-size:30pt; font-weight:700; color:#1F3A5F; line-height:1.15; border-bottom:0.8mm solid #1F3A5F; margin:0 4mm 5mm; padding-bottom:1mm; }
     .ho-sec{ display:flex; align-items:baseline; gap:2mm; background:#EEF2F7; border-left:1.8mm solid #B08D57; padding:0.4mm 3mm; margin:5mm 0 2mm; font-size:17pt; font-weight:700; color:#1F3A5F; break-after:avoid; }
     .ho-sec .n{ color:#B08D57; }
+    .ho-sub{ font-size:14pt; font-weight:700; color:#1F3A5F; border-left:1mm solid #B08D57; padding-left:2mm; margin:4mm 0 1.5mm; break-after:avoid; }
     .ho-t{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; border-top:0.25mm solid #BFC8D6; border-left:0.25mm solid #BFC8D6; }
     .ho-t td, .ho-t th{ border-right:0.25mm solid #BFC8D6; border-bottom:0.25mm solid #BFC8D6; padding:1.2mm 2.2mm; font-size:14pt; line-height:1.2; vertical-align:middle; text-align:left; font-weight:400; overflow-wrap:anywhere; }
     .ho-t td.l{ background:#EEF2F7; font-weight:700; color:#1F3A5F; }
@@ -1422,7 +1423,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.3';
+const APP_VERSION = '1.20.4';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2754,18 +2755,34 @@ function buildProjectPrintHtml(p){
   const wr = projectWarranty(p);
   const sale = isSale(p);
   const e = v => escapeHtml(v || '-');
+  // เอกสารส่งมอบงานแบบใหม่.docx (the reference template) splits ที่อยู่บริษัท / เลขประจำตัวผู้เสียภาษี into two lines instead of joining
+  // them with " / " on one - matched here as two separate .addr divs, each only rendered when that field is actually set.
   const head = co ? `
     <div class="ho-head"><div class="row"><div>${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}</div>
-      <div><div class="co">${escapeHtml(co.name)}</div><div class="addr">${[co.address, co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + co.taxId : ''].filter(Boolean).map(escapeHtml).join(' / ')}</div></div></div>
+      <div><div class="co">${escapeHtml(co.name)}</div>
+        ${co.address ? `<div class="addr">${escapeHtml(co.address)}</div>` : ''}
+        ${co.taxId ? `<div class="addr">เลขประจำตัวผู้เสียภาษี ${escapeHtml(co.taxId)}</div>` : ''}
+      </div></div>
       <div class="rule"></div></div>` : '';
   const contract = [p.contractNo, p.poNo ? 'PO ' + p.poNo : ''].filter(Boolean).join(' · ');
   const row = (l1, v1, l2, v2) => `<tr><td class="l">${l1}</td>${v2 === undefined ? `<td colspan="3">${v1}</td>` : `<td>${v1}</td><td class="l">${l2}</td><td>${v2}</td>`}</tr>`;
-  const items = (p.items || []).map(toItemRow).map((r, i) => `<tr>
+  // Delivered items split the same way the create-form does: goods ("รายการอุปกรณ์") keep Part/ยี่ห้อ + Serial; a service line
+  // ("รายการเพิ่มเติม" - only shown at all when the job actually has one) never had a real serial to print, and showing its
+  // ซัพพลายเออร์ next to the Part code read as clutter on the handover document, so that column is Part alone.
+  const rows = (p.items || []).map(toItemRow);
+  const goodsRows = rows.filter(r => r.kind !== 'service');
+  const serviceRows = rows.filter(r => r.kind === 'service');
+  const goodsItems = goodsRows.map((r, i) => `<tr>
       <td>${i + 1}</td>
       <td>${escapeHtml([r.part, r.brand].filter(Boolean).join(' / ') || '-')}</td>
       <td>${escapeHtml(r.name || '-')}${r.type ? `<div class="sub">(${escapeHtml(r.type)})</div>` : ''}</td>
       <td>${r.serials.length ? r.serials.map(escapeHtml).join('<br>') : '-'}</td>
       <td>${r.qty}</td></tr>`).join('') || `<tr><td colspan="5" style="text-align:center;">ไม่มีรายการ</td></tr>`;
+  const serviceItems = serviceRows.map((r, i) => `<tr>
+      <td>${i + 1}</td>
+      <td>${escapeHtml(r.part || '-')}</td>
+      <td>${escapeHtml(r.name || '-')}${r.type ? `<div class="sub">(${escapeHtml(r.type)})</div>` : ''}</td>
+      <td>${r.qty}</td></tr>`).join('');
   const cb = t => `<div class="ho-cb"><span class="bx">☐</span><span>${t}</span></div>`;
   const dots = '.................................';
   return `<div class="ho">${head}
@@ -2780,9 +2797,14 @@ function buildProjectPrintHtml(p){
       ${row('สถานที่ส่งมอบ', e(wr.location), 'ช่องทางติดต่อ', e(cu.contactPhone))}
     </table></div>
     <div class="ho-sec"><span class="n">2.</span>รายการงานที่ส่งมอบ</div>
+    <div class="ho-sub">รายการอุปกรณ์</div>
     <table class="ho-t ho-items"><colgroup><col style="width:14mm"><col style="width:43mm"><col style="width:50mm"><col style="width:40mm"><col style="width:18mm"></colgroup>
       <thead><tr><th>#</th><th>รหัสสินค้า / ยี่ห้อ</th><th>รายละเอียด</th><th>รหัสอุปกรณ์</th><th>จำนวน</th></tr></thead>
-      <tbody>${items}</tbody></table>
+      <tbody>${goodsItems}</tbody></table>
+    ${serviceRows.length ? `<div class="ho-sub">รายการเพิ่มเติม</div>
+    <table class="ho-t ho-items"><colgroup><col style="width:14mm"><col style="width:50mm"><col style="width:83mm"><col style="width:18mm"></colgroup>
+      <thead><tr><th>#</th><th>รหัสสินค้า</th><th>รายละเอียด</th><th>จำนวน</th></tr></thead>
+      <tbody>${serviceItems}</tbody></table>` : ''}
     <div class="ho-block"><div class="ho-sec"><span class="n">3.</span>ผลการตรวจรับงาน</div>
       ${cb('ครบถ้วนถูกต้อง รับมอบงานทั้งหมดตามรายการข้างต้น')}${cb('รับมอบงานแบบมีเงื่อนไข โดยต้องแก้ไขตามหมายเหตุด้านล่าง')}${cb('ไม่รับมอบงาน เนื่องจากไม่เป็นไปตามข้อกำหนด')}
       <div class="ho-remark">หมายเหตุ / ข้อเสนอแนะ</div><div class="ho-lines">${p.notes ? escapeHtml(p.notes) : ''}</div></div>

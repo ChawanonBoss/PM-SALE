@@ -186,6 +186,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # ---------------- print ----------------
     hs = page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.name === 'ขายสวิตช์'))")
     assert 'รายการงานที่ส่งมอบ' in hs and 'สถานที่ส่งมอบ' in hs and 'ชื่องาน' in hs and 'Cisco' in hs and 'S2<br>S4' in hs and 'รหัสอุปกรณ์' in hs and 'ผู้รับมอบงาน' in hs and 'ลงนามรับรอง' in hs
+    assert 'รายการอุปกรณ์' in hs and 'รายการเพิ่มเติม' not in hs, "a goods-only job never shows the บริการ section on the handover document"
     hp = page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.name === 'โครงการ CCTV'))")
     assert 'รายการงานที่ส่งมอบ' in hp and 'เลขที่สัญญา' in hp and 'ชื่อโครงการ' in hp
 

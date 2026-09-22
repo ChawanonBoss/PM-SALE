@@ -111,6 +111,8 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # ---------------- document number shown on every project view ----------------
     hp = page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.name === 'ขายใหม่ 1'))")
     assert 'เลขที่เอกสาร' in hp and f"SO{YMD}-001" in hp
+    # letterhead: ที่อยู่บริษัท and เลขประจำตัวผู้เสียภาษี print as two separate lines (matches เอกสารส่งมอบงานแบบใหม่.docx), not joined by " / "
+    assert hp.count('class="addr"') == 2 and '<div class="addr">x</div>' in hp and 'เลขประจำตัวผู้เสียภาษี 1' in hp and 'x / เลขประจำตัวผู้เสียภาษี' not in hp
     page.click('.nav-item[data-tab="dashboard"]')
     assert f"PJ{YMD}-001" in page.inner_text('#dashCols')
     page.click('.nav-item[data-tab="actionplan"]')

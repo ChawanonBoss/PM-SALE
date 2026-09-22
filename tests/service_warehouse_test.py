@@ -94,6 +94,14 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert saved and len(saved['items']) == 1 and saved['items'][0]['kind'] == 'service' and saved['items'][0]['qty'] == 2
     assert saved['items'][0]['brand'] == 'บริษัท ติดตั้ง จำกัด' and saved['items'][0]['name'] == 'ติดตั้งกล้องวงจรปิด'
 
+    # handover PDF: goods and services print as two separately-headed tables ("รายการอุปกรณ์"/"รายการเพิ่มเติม"); a service row shows
+    # only its Part code, never the ซัพพลายเออร์ next to it (this job has no goods line at all, so its own table is the empty-state one)
+    printed = page.evaluate(f"buildProjectPrintHtml(data.projects.find(p => p.id === '{saved['id']}'))")
+    assert 'รายการอุปกรณ์' in printed and 'รายการเพิ่มเติม' in printed
+    assert 'ไม่มีรายการ' in printed, "no goods line on this job, so its own table shows the empty state"
+    assert 'บริษัท ติดตั้ง จำกัด' not in printed, "supplier is never printed on the handover document"
+    assert 'SVC-1' in printed and 'ติดตั้งกล้องวงจรปิด' in printed
+
     # reopen it: the only saved line was the service - it round-trips back into #prjServicesBody, #prjItemsBody shows its empty state
     page.evaluate(f"openProjectForm('{saved['id']}')"); page.wait_for_timeout(300)
     assert 'ยังไม่มีรายการสินค้า' in page.inner_text('#prjItemsBody'), "the unlinked blank goods row was never saved, so none comes back"
