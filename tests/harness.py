@@ -87,7 +87,7 @@ def new_page(viewport=None, collect_errors=True):
 # they're still plain top-level `.nav-item[data-tab]` buttons. Keep this in sync with NAV_GROUPS if a tab ever moves between groups.
 NAV_GROUP_OF = {
     "sales": "group1", "projects": "group1",
-    "warehouse": "group2", "catalog": "group2", "equipment": "group2",
+    "warehouse": "group2", "serviceWarehouse": "group2", "catalog": "group2", "equipment": "group2",
     "customers": "group3", "companies": "group3",
     "users": "settings", "audit": "settings", "trash": "settings",
 }

@@ -73,6 +73,18 @@
       allow delete: if pmIsAdmin();
     }
 
+    // Service warehouse: same sharing model as pm_warehouse above (any approved user reads/adds/edits, admin-only delete, deletedAt blocked
+    // for non-admins so a soft-delete stays admin-only) but for services rather than stocked goods - no quantity/serials/history to guard.
+    match /pm_serviceWarehouse/{id} {
+      allow read: if pmIsApproved();
+      allow create: if pmIsAdmin()
+        || (pmIsApproved() && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.keys().hasOnly(['part','name','type','brand','note','createdBy','createdAt']));
+      allow update: if pmIsAdmin()
+        || (pmIsApproved() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['part','name','type','brand','note']));
+      allow delete: if pmIsAdmin();
+    }
+
     // Project attachments (one document per file; the bytes are base64 inside `data`, under Firestore's 1 MB limit). `ownerId` is the project's
     // creator: that person and the admins may read, add and delete; nobody edits a file in place.
     match /pm_files/{id} {

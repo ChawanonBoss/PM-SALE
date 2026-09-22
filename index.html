@@ -831,6 +831,30 @@
         </div>
       </div>
 
+      <!-- Service warehouse: same idea as โกดังสินค้า above but for services (no stock/serial to track) - selectable separately as its own
+           kind of line item on the ซื้อขาย/โครงการ form (see "+ เพิ่มบริการ" there). -->
+      <div id="tab-serviceWarehouse" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <div class="panel-head">
+            <h3>โกดังบริการ <span class="count-pill" id="serviceWarehouseCount"></span></h3>
+            <div class="filter-bar">
+              <input type="text" id="serviceWarehouseSearch" class="filter-control" placeholder="ค้นหา Part, ซัพพลายเออร์, ชื่อบริการ" style="width:260px;">
+              <select id="serviceWarehouseBrandFilter" class="filter-control"><option value="all">ทุกซัพพลายเออร์</option></select>
+              <select id="serviceWarehouseTypeFilter" class="filter-control"><option value="all">ทุกประเภทงาน</option></select>
+              <button class="btn" id="serviceWarehouseCreateBtn" type="button">+ เพิ่มบริการ</button>
+              <button class="btn outline" type="button" id="serviceWarehouseExportBtn">ส่งออก Excel</button>
+              <button class="btn outline" type="button" id="serviceWarehouseClearBtn">เคลียร์</button>
+            </div>
+          </div>
+          <p class="panel-note">รายการบริการ (ไม่มีจำนวน/Serial เพราะไม่ใช่สินค้าที่นับสต็อก) — เลือกใช้แยกจากโกดังสินค้าได้ในฟอร์มซื้อขาย/โครงการ ผ่านปุ่ม "+ เพิ่มบริการ"</p>
+          <div class="table-scroll"><table class="m-cards">
+            <thead><tr><th>Part</th><th>ซัพพลายเออร์</th><th>ประเภทงาน</th><th>ชื่อบริการ</th><th>หมายเหตุ</th><th></th></tr></thead>
+            <tbody id="serviceWarehouseBody"></tbody>
+          </table></div>
+          <div class="pager" id="serviceWarehousePager"></div>
+        </div>
+      </div>
+
       <!-- Catalog -->
       <div id="tab-catalog" class="tab-panel" style="display:none;">
         <div class="panel">
@@ -975,6 +999,7 @@
                 <option value="customers">ลูกค้า</option>
                 <option value="companies">บริษัท</option>
                 <option value="warehouse">อุปกรณ์ในโกดัง</option>
+                <option value="serviceWarehouse">บริการในโกดังบริการ</option>
                 <option value="catalogs">Catalog สินค้า</option>
               </select>
               <button class="btn outline" id="trashRefreshBtn" type="button">รีเฟรช</button>
@@ -1032,11 +1057,19 @@
         <div class="field"><label>หมายเหตุ</label><input type="text" id="prjNotes"></div>
       </div>
       <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดของงาน</h4>
+      <h5 style="font-size:13px; margin:0 0 6px; color:var(--ink-soft);">สินค้า</h5>
       <div class="table-scroll"><table class="items-table m-cards">
         <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดัง)</th><th>ยี่ห้อ</th><th>ชื่อ</th><th>ประเภท</th><th style="width:160px;">รหัสอุปกรณ์</th><th style="width:80px;">จำนวน</th><th style="width:150px;">สถานะ</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjItemsBody"></tbody>
       </table></div>
-      <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มแถว</button>
+      <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มสินค้า</button>
+
+      <h5 style="font-size:13px; margin:18px 0 6px; color:var(--ink-soft);">บริการ</h5>
+      <div class="table-scroll"><table class="items-table m-cards">
+        <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดังบริการ)</th><th>ซัพพลายเออร์</th><th>ชื่อบริการ</th><th>ประเภทงาน</th><th style="width:80px;">จำนวน</th><th style="width:150px;">สถานะ</th><th style="width:40px;"></th></tr></thead>
+        <tbody id="prjServicesBody"></tbody>
+      </table></div>
+      <button class="btn outline" type="button" id="prjAddServiceBtn" style="margin-top:10px;">+ เพิ่มบริการ</button>
       <div id="prjFilesSection" style="margin-top:18px;">
         <h4 style="font-size:14px; margin-bottom:8px;">ไฟล์แนบ <span class="cell-sub" id="prjFilesCount"></span></h4>
         <div id="prjFilesList" class="cell-sub">-</div>
@@ -1198,6 +1231,46 @@
   </div>
 </div>
 
+<!-- Service warehouse item form modal (same pattern as warehouseModal above, minus quantity/serial) -->
+<div class="modal-overlay" id="serviceWarehouseModal" style="display:none;">
+  <div class="modal">
+    <h3 class="serif" id="serviceWarehouseModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มบริการ</h3>
+    <form id="serviceWarehouseForm">
+      <div class="form-grid">
+        <div class="field"><label>Part *</label><input type="text" id="svcPart" required></div>
+        <div class="field"><label>ซัพพลายเออร์</label>
+          <div class="type-row">
+            <select id="svcBrand"></select>
+            <button type="button" class="serial-add-btn" id="svcBrandAddBtn" title="เพิ่มซัพพลายเออร์ใหม่">+</button>
+          </div>
+          <div class="type-new" id="svcBrandNewRow" style="display:none;">
+            <input type="text" id="svcBrandNew" placeholder="ชื่อซัพพลายเออร์ใหม่" autocomplete="off">
+            <button type="button" class="icon-btn" id="svcBrandNewOk">เพิ่ม</button>
+            <button type="button" class="icon-btn" id="svcBrandNewCancel">ยกเลิก</button>
+          </div>
+        </div>
+        <div class="field"><label>ประเภทงาน</label>
+          <div class="type-row">
+            <select id="svcType"></select>
+            <button type="button" class="serial-add-btn" id="svcTypeAddBtn" title="เพิ่มประเภทงานใหม่">+</button>
+          </div>
+          <div class="type-new" id="svcTypeNewRow" style="display:none;">
+            <input type="text" id="svcTypeNew" placeholder="ชื่อประเภทงานใหม่" autocomplete="off">
+            <button type="button" class="icon-btn" id="svcTypeNewOk">เพิ่ม</button>
+            <button type="button" class="icon-btn" id="svcTypeNewCancel">ยกเลิก</button>
+          </div>
+        </div>
+        <div class="field full"><label>ชื่อบริการ *</label><input type="text" id="svcName" required></div>
+        <div class="field full"><label>หมายเหตุ</label><textarea id="svcNote"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn outline" type="button" id="serviceWarehouseCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit" id="serviceWarehouseSaveBtn">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Serial numbers viewer -->
 <div class="modal-overlay" id="serialModal" style="display:none;">
   <div class="modal" style="max-width:780px;">
@@ -1337,12 +1410,12 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.19.1';
+const APP_VERSION = '1.20.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
-  warehouse:'pm_warehouse', files:'pm_files', photos:'pm_photos', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+  warehouse:'pm_warehouse', serviceWarehouse:'pm_serviceWarehouse', files:'pm_files', photos:'pm_photos', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -1420,7 +1493,7 @@ let currentTab = 'dashboard';
 let authMode = 'signin';
 let pendingSignupName = '';
 let justLoggedInViaForm = false;
-const data = { projects:[], customers:[], companies:[], warehouse:[], catalogs:[], users:[], pending:[], audit:[], errors:[] };
+const data = { projects:[], customers:[], companies:[], warehouse:[], serviceWarehouse:[], catalogs:[], users:[], pending:[], audit:[], errors:[] };
 let unsubscribers = [];
 let loaded = {};
 
@@ -1470,6 +1543,7 @@ const NAV_ICONS = {
   sales: '<circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6"/>',
   projects: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
   warehouse: '<path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/><path d="M8 17h8"/>',
+  serviceWarehouse: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>',
   catalog: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h7"/>',
   equipment: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
   customers: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -1478,10 +1552,10 @@ const NAV_ICONS = {
   audit: '<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>',
   trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
 };
-const NAV_LABELS = { sales:'ซื้อขาย', projects:'โครงการ', warehouse:'โกดังสินค้า', catalog:'Catalog สินค้า', equipment:'อุปกรณ์และการรับประกัน', customers:'รายชื่อลูกค้า', companies:'ข้อมูลบริษัท', users:'ผู้ใช้งาน', audit:'ประวัติของระบบ', trash:'ถังขยะ' };
+const NAV_LABELS = { sales:'ซื้อขาย', projects:'โครงการ', warehouse:'โกดังสินค้า', serviceWarehouse:'โกดังบริการ', catalog:'Catalog สินค้า', equipment:'อุปกรณ์และการรับประกัน', customers:'รายชื่อลูกค้า', companies:'ข้อมูลบริษัท', users:'ผู้ใช้งาน', audit:'ประวัติของระบบ', trash:'ถังขยะ' };
 const NAV_GROUPS = {
   group1: { label:'ซื้อขาย/โครงการ', tabs:['sales','projects'] },
-  group2: { label:'คลังและอุปกรณ์', tabs:['warehouse','catalog','equipment'] },
+  group2: { label:'คลังและอุปกรณ์', tabs:['warehouse','serviceWarehouse','catalog','equipment'] },
   group3: { label:'ลูกค้าและบริษัท', tabs:['customers','companies'] },
   settings: { label:'ตั้งค่า', tabs:['users','audit','trash'] },
 };
@@ -1529,6 +1603,7 @@ const TITLES = {
   actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
   equipment:['อุปกรณ์และการรับประกัน','สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ'],
   warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
+  serviceWarehouse:['โกดังบริการ','รายการบริการที่เลือกใช้ในการซื้อขาย/โครงการได้'],
   catalog:['Catalog สินค้า','ไฟล์ PDF Catalog ของสินค้า ดูออนไลน์และดาวน์โหลดได้'],
   customers:['รายชื่อลูกค้า','ข้อมูลหน่วยงานและผู้ติดต่อ'],
   companies:['ข้อมูลบริษัท','โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร'],
@@ -1558,7 +1633,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 
 function renderActiveTab(){
   const fn = {
-    dashboard:renderDashboard, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, catalog:renderCatalogs,
+    dashboard:renderDashboard, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, serviceWarehouse:renderServiceWarehouse, catalog:renderCatalogs,
     customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit, photos:renderPhotos
   }[currentTab];
   if (fn) fn();
@@ -1576,6 +1651,7 @@ const PAGER_UI = {
   plan:      { el:'planPager',      render: () => renderActionPlan(),   filters:['planListSearch','planListStatus'] },
   equipment: { el:'equipmentPager', render: () => renderEquipment(),    filters:['equipmentSearch','equipmentTypeFilter','equipmentWarrantyFilter'] },
   warehouse: { el:'warehousePager', render: () => renderWarehouse(),    filters:['warehouseSearch','warehouseBrandFilter','warehouseTypeFilter','warehouseSortFilter'] },
+  serviceWarehouse: { el:'serviceWarehousePager', render: () => renderServiceWarehouse(), filters:['serviceWarehouseSearch','serviceWarehouseBrandFilter','serviceWarehouseTypeFilter'] },
   customers: { el:'customersPager', render: () => renderCustomers(),    filters:['customersSearch','customersTypeFilter','customersSortFilter'] },
   catalogs:  { el:'catalogPager',   render: () => renderCatalogs(),     filters:['catalogSearch','catalogBrandFilter'] },
   companies: { el:'companiesPager', render: () => renderCompanies(),    filters:[] },
@@ -1957,6 +2033,7 @@ function attachRealtimeListeners(){
   watch('customers', scoped(db.collection(COL.customers)), mapDocs);
   watch('companies', db.collection(COL.companies), mapDocs);
   watch('warehouse', db.collection(COL.warehouse), mapDocs);   // shared stock: not scoped per user
+  watch('serviceWarehouse', db.collection(COL.serviceWarehouse), mapDocs);   // shared, same as warehouse but for services
   // Catalogs are a bonus subscription (not part of the first-load gate, no error toast): if the pm_catalogs rules aren't published yet only the Catalog page says so
   unsubscribers.push(db.collection(COL.catalogs).onSnapshot(
     snap => { catalogsUnavailable = false; data.catalogs = mapDocs(snap); onAnyUpdate(); },
@@ -1971,7 +2048,7 @@ function attachRealtimeListeners(){
   }
 }
 function checkAllLoaded(){
-  if (['projects','customers','companies','warehouse','users'].every(k => loaded[k])){
+  if (['projects','customers','companies','warehouse','serviceWarehouse','users'].every(k => loaded[k])){
     $('loadingOverlay').style.display = 'none';
     $('sidebar').classList.remove('loading-lock');
     setSync('ok');
@@ -2257,13 +2334,18 @@ let editingItems = [];
 let editingOrigItems = [];   // the lines as last saved, to work out what to take out of / put back into the warehouse
 const MAX_ITEM_SERIAL_BOXES = 20;
 const newRid = () => 'r' + Math.random().toString(36).slice(2, 10);
-const blankItem = () => ({ rid:newRid(), whId:'', part:'', brand:'', name:'', type:'', serials:[], qty:1, status:'pending' });
+const blankItem = () => ({ rid:newRid(), kind:'good', whId:'', part:'', brand:'', name:'', type:'', serials:[], qty:1, status:'pending' });
+// A service line reuses the same brand/name/type fields as a goods line (holding ซัพพลายเออร์/ชื่อบริการ/ประเภทงาน instead) so every
+// generic place that already renders an item row (PDF, Excel, this form's own toItemRow) needs no separate handling for it - only
+// stockEffects()/commitProject() care about the difference, and they already key off whId, which a service line never has.
+const blankServiceItem = () => ({ rid:newRid(), kind:'service', svcId:'', part:'', brand:'', name:'', type:'', qty:1, status:'pending' });
 // Lines saved before warehouse links existed (name/qty/unit..., or the heading/detail work rows) are mapped on read and stay as plain text lines
 function toItemRow(it){
+  const service = it.kind === 'service';
   return {
-    rid: it.rid || newRid(), whId: it.whId || '', part: it.part || '', brand: it.brand || '',
+    rid: it.rid || newRid(), kind: service ? 'service' : 'good', whId: it.whId || '', svcId: it.svcId || '', part: it.part || '', brand: it.brand || '',
     name: it.name != null ? it.name : [it.title, it.detail].filter(Boolean).join(' — '),
-    type: it.whId ? (it.type || '') : '', serials: Array.isArray(it.serials) ? [...it.serials] : [],
+    type: (it.whId || service) ? (it.type || '') : '', serials: Array.isArray(it.serials) ? [...it.serials] : [],
     qty: Number(it.qty) > 0 ? Math.floor(Number(it.qty)) : 1, status: it.status === 'done' ? 'done' : 'pending'
   };
 }
@@ -2350,15 +2432,22 @@ $('prjWarranty').addEventListener('input', updateWarrantyHint);
 
 /* ---- equipment lines ---- */
 const whLabel = w => `${w.part || '-'} — ${w.brand ? w.brand + ' ' : ''}${w.name} (คงเหลือ ${w.quantity == null ? 0 : w.quantity})`;
+const svcLabel = s => `${s.part || '-'} — ${s.brand ? s.brand + ' ' : ''}${s.name}`;
 // serials already picked by OTHER pending lines for the same warehouse item are not offered again
 function pickedElsewhere(i, whId){
   const taken = new Set();
   editingItems.forEach((r, k) => { if (k !== i && r.whId === whId && r.status !== 'done') r.serials.forEach(sn => sn && taken.add(sn)); });
   return taken;
 }
+// สินค้า and บริการ are two separate tables (see the "+ เพิ่มสินค้า" / "+ เพิ่มบริการ" buttons) over the one flat editingItems array -
+// each row keeps its real index into that array (not its position within its own table) so the onchange handlers below still address
+// the right item after the split.
 function renderItemRows(){
   const whs = [...data.warehouse].sort((a, b) => (a.part || '').localeCompare(b.part || '') || (a.name || '').localeCompare(b.name || ''));
-  $('prjItemsBody').innerHTML = editingItems.map((it, i) => {
+  const svcs = [...data.serviceWarehouse].sort((a, b) => (a.part || '').localeCompare(b.part || '') || (a.name || '').localeCompare(b.name || ''));
+  const goods = editingItems.map((it, i) => ({ it, i })).filter(x => x.it.kind !== 'service');
+  const services = editingItems.map((it, i) => ({ it, i })).filter(x => x.it.kind === 'service');
+  $('prjItemsBody').innerHTML = goods.length ? goods.map(({ it, i }) => {
     const wh = it.whId ? data.warehouse.find(w => w.id === it.whId) : null;
     const locked = it.status === 'done';
     const opts = `<option value="">— เลือกอุปกรณ์จากโกดัง —</option>` + whs.map(w => `<option value="${w.id}" ${w.id === it.whId ? 'selected' : ''}>${escapeHtml(whLabel(w))}</option>`).join('')
@@ -2389,7 +2478,28 @@ function renderItemRows(){
       </select></td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
     </tr>`;
-  }).join('');
+  }).join('') : `<tr><td colspan="9" class="empty-row">ยังไม่มีรายการสินค้า</td></tr>`;
+
+  $('prjServicesBody').innerHTML = services.length ? services.map(({ it, i }) => {
+    const svc = it.svcId ? data.serviceWarehouse.find(s => s.id === it.svcId) : null;
+    const locked = it.status === 'done';
+    const opts = `<option value="">— เลือกบริการจากโกดังบริการ —</option>` + svcs.map(s => `<option value="${s.id}" ${s.id === it.svcId ? 'selected' : ''}>${escapeHtml(svcLabel(s))}</option>`).join('')
+      + (it.svcId && !svc ? `<option value="${escapeHtml(it.svcId)}" selected>${escapeHtml(it.part || '-')} (ไม่พบในโกดังบริการแล้ว)</option>` : '');
+    return `
+    <tr>
+      <td class="cell-sub">${i+1}</td>
+      <td>${!it.svcId && (it.part || it.name) ? `<div><b>${escapeHtml(it.part || '-')}</b></div><div class="cell-sub">ไม่ได้ผูกกับบริการในโกดังบริการ${locked ? '' : ' — เลือกด้านล่างเพื่อผูก'}</div>` : ''}<select ${locked ? 'disabled' : ''} onchange="pickItemService(${i}, this.value)">${opts}</select></td>
+      <td>${escapeHtml(it.brand || '-')}</td>
+      <td>${escapeHtml(it.name || '-')}</td>
+      <td>${escapeHtml(it.type || '-')}</td>
+      <td><input type="number" min="1" step="1" value="${it.qty}" ${locked ? 'disabled' : ''} onchange="setItemQty(${i}, this.value)"></td>
+      <td><select onchange="setItemStatus(${i}, this.value)">
+        <option value="pending" ${it.status !== 'done' ? 'selected' : ''}>รอดำเนินการ</option>
+        <option value="done" ${it.status === 'done' ? 'selected' : ''}>ดำเนินการแล้ว</option>
+      </select></td>
+      <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีรายการบริการ</td></tr>`;
 }
 function pickItemWh(i, whId){
   const it = editingItems[i];
@@ -2397,6 +2507,14 @@ function pickItemWh(i, whId){
   it.whId = w ? w.id : '';
   it.part = w ? w.part || '' : ''; it.brand = w ? w.brand || '' : ''; it.name = w ? w.name || '' : ''; it.type = w ? w.type || '' : '';
   it.serials = []; it.qty = 1;
+  renderItemRows();
+}
+function pickItemService(i, svcId){
+  const it = editingItems[i];
+  const s = svcId ? data.serviceWarehouse.find(x => x.id === svcId) : null;
+  it.svcId = s ? s.id : '';
+  it.part = s ? s.part || '' : ''; it.brand = s ? s.brand || '' : ''; it.name = s ? s.name || '' : ''; it.type = s ? s.type || '' : '';
+  it.qty = 1;
   renderItemRows();
 }
 function setItemQty(i, v){ editingItems[i].qty = Math.max(1, Math.floor(Number(v) || 1)); renderItemRows(); }
@@ -2408,11 +2526,11 @@ function setItemSerial(i, k, v){
 }
 function setItemStatus(i, st){ editingItems[i].status = st; renderItemRows(); }
 function removeItemRow(i){
-  editingItems.splice(i, 1);
-  if (!editingItems.length) editingItems.push(blankItem());
+  editingItems.splice(i, 1);   // both tables show their own "ยังไม่มีรายการ..." placeholder when empty, so no auto-refill is needed
   renderItemRows();
 }
 $('prjAddItemBtn').addEventListener('click', () => { editingItems.push(blankItem()); renderItemRows(); });
+$('prjAddServiceBtn').addEventListener('click', () => { editingItems.push(blankServiceItem()); renderItemRows(); });
 $('projectsCreateBtn').addEventListener('click', () => openProjectForm(null, 'project'));
 $('salesCreateBtn').addEventListener('click', () => openProjectForm(null, 'sale'));
 $('projectCancelBtn').addEventListener('click', () => closeModal('projectModal'));
@@ -2534,15 +2652,16 @@ $('projectForm').addEventListener('submit', async e => {
   const customer = data.customers.find(c => c.id === customerId);
   if (!customer){ toast('กรุณาเลือกลูกค้า'); return; }
   // lines: untouched empty ones are dropped silently
-  const filled = editingItems.filter(r => r.whId || (r.name || '').trim());
+  const filled = editingItems.filter(r => r.whId || r.svcId || (r.name || '').trim());
   const items = filled.map(r => {
     const qty = Math.max(1, Math.floor(Number(r.qty) || 1));
-    return { rid: r.rid, whId: r.whId, part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type,
-      serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean), qty, status: r.status === 'done' ? 'done' : 'pending' };
+    const service = r.kind === 'service';
+    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: r.status === 'done' ? 'done' : 'pending' };
+    return service ? { ...base, svcId: r.svcId || '' } : { ...base, whId: r.whId, serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean) };
   });
   const seen = new Set();
   for (const r of items){
-    for (const sn of r.serials){
+    for (const sn of (r.serials || [])){
       const key = r.whId + '|' + sn.toLowerCase();
       if (r.whId && seen.has(key)){ toast(`Serial ${sn} ถูกเลือกซ้ำ`); return; }
       seen.add(key);
@@ -3303,7 +3422,7 @@ function renderEquipment(){
 ['equipmentSearch','equipmentWarrantyFilter','equipmentTypeFilter'].forEach(id => $(id).addEventListener('input', renderEquipment));
 
 /* ====== Soft delete (shared by projects / customers / companies) ====== */
-const ENTITY_LABEL = { catalogs:'Catalog สินค้า', projects:'ซื้อขาย/โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง' };
+const ENTITY_LABEL = { catalogs:'Catalog สินค้า', projects:'ซื้อขาย/โครงการ', customers:'ลูกค้า', companies:'บริษัท', warehouse:'อุปกรณ์ในโกดัง', serviceWarehouse:'บริการในโกดังบริการ' };
 function entityName(type, x){ return x.name || '-'; }
 function deleteEntity(type, id){
   const x = data[type].find(r => r.id === id);
@@ -3484,6 +3603,83 @@ $('warehouseForm').addEventListener('submit', async e => {
   $('warehouseSaveBtn').disabled = false;
 });
 
+/* ====== Service warehouse: same page/CRUD pattern as โกดังสินค้า above, but for services - no quantity/serials/history at all. ====== */
+const svcTypeSel = makeAddableSelect({ sel:'svcType', addBtn:'svcTypeAddBtn', newRow:'svcTypeNewRow', newInput:'svcTypeNew', ok:'svcTypeNewOk', cancel:'svcTypeNewCancel',
+  placeholder:'— เลือกประเภทงาน —', noun:'ประเภทงาน', builtin: [], used: () => data.serviceWarehouse.map(s => s.type) });
+const svcBrandSel = makeAddableSelect({ sel:'svcBrand', addBtn:'svcBrandAddBtn', newRow:'svcBrandNewRow', newInput:'svcBrandNew', ok:'svcBrandNewOk', cancel:'svcBrandNewCancel',
+  placeholder:'— เลือกซัพพลายเออร์ —', noun:'ซัพพลายเออร์', builtin: [], used: () => data.serviceWarehouse.map(s => s.brand) });
+function renderServiceWarehouse(){
+  const fillSel = (sel, label, values) => {
+    const prev = sel.value || 'all';
+    sel.innerHTML = `<option value="all">${label}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+    sel.value = values.includes(prev) ? prev : 'all';
+  };
+  const uniq = key => [...new Set(data.serviceWarehouse.map(s => (s[key] || '').trim()).filter(Boolean))].sort();
+  fillSel($('serviceWarehouseTypeFilter'), 'ทุกประเภทงาน', uniq('type'));
+  fillSel($('serviceWarehouseBrandFilter'), 'ทุกซัพพลายเออร์', uniq('brand'));
+  const tv = $('serviceWarehouseTypeFilter').value, bv = $('serviceWarehouseBrandFilter').value;
+  const q = $('serviceWarehouseSearch').value.trim().toLowerCase();
+  const rows = data.serviceWarehouse
+    .filter(s => tv === 'all' || (s.type || '').trim() === tv)
+    .filter(s => bv === 'all' || (s.brand || '').trim() === bv)
+    .filter(s => !q || [s.part, s.name, s.type, s.brand, s.note].some(v => (v||'').toLowerCase().includes(q)))
+    .sort((a, b) => (a.name||'').localeCompare(b.name||''));
+  $('serviceWarehouseCount').textContent = rows.length;
+  lastList.serviceWarehouse = rows;
+  const view = pageSlice('serviceWarehouse', rows);
+  $('serviceWarehouseBody').innerHTML = rows.length ? view.map(s => `
+    <tr>
+      <td>${escapeHtml(s.part || '-')}</td>
+      <td>${escapeHtml(s.brand || '-')}</td>
+      <td>${escapeHtml(s.type || '-')}</td>
+      <td><b>${escapeHtml(s.name)}</b></td>
+      <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(s.note || '-')}</td>
+      <td><div class="row-actions">
+        <button class="icon-btn" onclick="openServiceWarehouseForm('${s.id}')">แก้ไข</button>
+        ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="deleteEntity('serviceWarehouse','${s.id}')">ลบ</button>` : ''}
+      </div></td>
+    </tr>`).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีบริการในโกดังบริการ</td></tr>`;
+}
+['serviceWarehouseSearch','serviceWarehouseTypeFilter','serviceWarehouseBrandFilter'].forEach(id => $(id).addEventListener('input', renderServiceWarehouse));
+
+let editingServiceWarehouseId = null;
+function openServiceWarehouseForm(id){
+  const s = id ? data.serviceWarehouse.find(x => x.id === id) : null;
+  if (id && !s) return;
+  editingServiceWarehouseId = s ? s.id : null;
+  $('serviceWarehouseModalTitle').textContent = s ? 'แก้ไขบริการ' : 'เพิ่มบริการ';
+  $('svcPart').value = s ? s.part || '' : '';
+  $('svcName').value = s ? s.name || '' : '';
+  $('svcNote').value = s ? s.note || '' : '';
+  svcTypeSel.reset(); svcBrandSel.reset();
+  svcTypeSel.fill(s ? s.type : '');
+  svcBrandSel.fill(s ? s.brand : '');
+  openModal('serviceWarehouseModal');
+}
+$('serviceWarehouseCreateBtn').addEventListener('click', () => openServiceWarehouseForm(null));
+$('serviceWarehouseCancelBtn').addEventListener('click', () => closeModal('serviceWarehouseModal'));
+$('serviceWarehouseForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const doc = { part: $('svcPart').value.trim(), name: $('svcName').value.trim(), type: $('svcType').value, brand: $('svcBrand').value, note: $('svcNote').value.trim() };
+  if (!doc.part){ toast('กรุณากรอก Part'); $('svcPart').focus(); return; }
+  if (!doc.name){ toast('กรุณากรอกชื่อบริการ'); $('svcName').focus(); return; }
+  $('serviceWarehouseSaveBtn').disabled = true;
+  setSync('saving');
+  try{
+    if (editingServiceWarehouseId){
+      await db.collection(COL.serviceWarehouse).doc(editingServiceWarehouseId).update(doc);
+      logAudit('แก้ไขบริการในโกดังบริการ', doc.name, `Part ${doc.part}`);
+    } else {
+      await db.collection(COL.serviceWarehouse).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('เพิ่มบริการในโกดังบริการ', doc.name, `Part ${doc.part}`);
+    }
+    setSync('ok');
+    closeModal('serviceWarehouseModal');
+    toast('บันทึกบริการแล้ว');
+  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+  $('serviceWarehouseSaveBtn').disabled = false;
+});
+
 let serialModalItemId = null;
 function openSerialModal(id){
   const w = data.warehouse.find(x => x.id === id);
@@ -3597,10 +3793,11 @@ const EXPORTS = {
     'สถานที่': r.location || '', 'เริ่มรับประกัน': r.months ? excelDate(r.start) : '', 'ประกัน (เดือน)': r.months || '', 'หมดประกัน': excelDate(r.expiry), 'สถานะประกัน': WARRANTY_LABEL[r.wstatus] || r.wstatus })),
   warehouse: () => (lastList.warehouse || []).map(w => ({ 'Part': w.part || '', 'ยี่ห้อ': w.brand || '', 'ประเภท': w.type || '', 'ชื่ออุปกรณ์': w.name || '', 'จำนวนคงเหลือ': Number(w.quantity) || 0,
     'Serial Number': (w.serials || []).join('\n'), 'จำนวนครั้งที่เบิก/คืน': (w.history || []).length, 'หมายเหตุ': w.note || '' })),
+  serviceWarehouse: () => (lastList.serviceWarehouse || []).map(s => ({ 'Part': s.part || '', 'ซัพพลายเออร์': s.brand || '', 'ประเภทงาน': s.type || '', 'ชื่อบริการ': s.name || '', 'หมายเหตุ': s.note || '' })),
   customers: () => (lastList.customers || []).map(c => ({ 'ชื่อลูกค้า': c.name || '', 'ประเภท': CUSTOMER_TYPES[c.type] || CUSTOMER_TYPES.private, 'เลขที่ผู้เสียภาษี': c.type === 'gov' ? '' : (c.taxId || ''), 'ที่อยู่': c.address || '',
     'ผู้ติดต่อ': c.contactName || '', 'เบอร์ติดต่อ': c.contactPhone || '', 'จำนวนรายการ': projectCountForCustomer(c) }))
 };
-const EXPORT_NAMES = { sales: ['ซื้อขาย', 'ซื้อขาย'], projects: ['โครงการ', 'โครงการ'], equipment: ['อุปกรณ์และการรับประกัน', 'การรับประกัน'], warehouse: ['โกดังสินค้า', 'โกดัง'], customers: ['รายชื่อลูกค้า', 'ลูกค้า'] };
+const EXPORT_NAMES = { sales: ['ซื้อขาย', 'ซื้อขาย'], projects: ['โครงการ', 'โครงการ'], equipment: ['อุปกรณ์และการรับประกัน', 'การรับประกัน'], warehouse: ['โกดังสินค้า', 'โกดัง'], serviceWarehouse: ['โกดังบริการ', 'โกดังบริการ'], customers: ['รายชื่อลูกค้า', 'ลูกค้า'] };
 Object.keys(EXPORTS).forEach(k => $(k + 'ExportBtn').addEventListener('click', () => exportExcel(EXPORT_NAMES[k][0], EXPORT_NAMES[k][1], EXPORTS[k]())));
 
 /* ---- project attachments: one document per file in pm_files (bytes stored as base64, like logos/avatars/catalogs; no Firebase Storage) ---- */
@@ -3698,7 +3895,7 @@ function photoSetsFor(rec){
 // (see addProjectPhotos) - there is no edit-after-the-fact UI, so a wrong pick means re-attaching the photo.
 function equipmentOptionsFor(rec){
   const opts = [];
-  (rec && rec.items || []).forEach(it => {
+  (rec && rec.items || []).filter(it => (it.kind || 'good') !== 'service').forEach(it => {   // a service line isn't something you photograph
     const label = [it.brand, it.name || it.part].filter(Boolean).join(' ').trim();
     if (!label) return;
     if ((it.serials || []).length) it.serials.forEach(sn => { if (sn) opts.push({ value: `${it.rid}::${sn}`, label: `${label} — SN ${sn}` }); });
@@ -3706,8 +3903,12 @@ function equipmentOptionsFor(rec){
   });
   return opts;
 }
+// Selecting a real equipment line is mandatory (see the guarded click handlers below) to stop photos being attached with the wrong
+// equipment info baked in, or none at all - the placeholder option can never itself be submitted.
 function fillPhotoItemSelect(selId, rec){
-  $(selId).innerHTML = `<option value="">ไม่ระบุอุปกรณ์</option>` + equipmentOptionsFor(rec).map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+  const opts = equipmentOptionsFor(rec);
+  $(selId).innerHTML = `<option value="">— เลือกอุปกรณ์ —</option>` + opts.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+  $(selId).disabled = !opts.length;
 }
 function equipFromSelection(rec, raw){
   if (!raw) return { equipBrand: '', equipName: '', equipSerial: '' };
@@ -3728,8 +3929,14 @@ async function renderPhotos(){
   const sets = photoSetsFor(rec);
   $('photosEquipPanel').style.display = sets.includes('equipment') ? '' : 'none';
   $('photosInstallPanel').style.display = sets.includes('install') ? '' : 'none';
-  ['photosEquipHint', 'photosInstallHint'].forEach(id => $(id).textContent = `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)} · เลือกอุปกรณ์ก่อนแนบรูป (ใช้กับรูปที่เลือกในครั้งนี้ทั้งหมด แก้ทีหลังไม่ได้)`);
   fillPhotoItemSelect('photosEquipItemSel', rec); fillPhotoItemSelect('photosInstallItemSel', rec);
+  const hasEquip = equipmentOptionsFor(rec).length > 0;
+  [['photosEquipHint', 'photosEquipBtn'], ['photosInstallHint', 'photosInstallBtn']].forEach(([hintId, btnId]) => {
+    $(btnId).disabled = !hasEquip;
+    $(hintId).textContent = hasEquip
+      ? `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)} · ต้องเลือกอุปกรณ์ก่อนแนบรูปทุกครั้ง (ใช้กับรูปที่เลือกในครั้งนี้ทั้งหมด แก้ทีหลังไม่ได้)`
+      : `ยังไม่มีรายการสินค้าในงานนี้ — เพิ่มรายการสินค้าในฟอร์ม${sale ? 'ซื้อขาย' : 'โครงการ'}ก่อนจึงจะแนบรูปได้`;
+  });
   $('photosEquipGrid').innerHTML = ''; $('photosInstallGrid').innerHTML = ''; projectPhotos = [];
   try{
     let q = db.collection(COL.photos).where('projectId', '==', rec.id);
@@ -3759,7 +3966,9 @@ async function addProjectPhotos(set, files){
   const rec = getPhotosRecord();
   if (!rec || !files.length) return;
   const btnId = set === 'equipment' ? 'photosEquipBtn' : 'photosInstallBtn';
-  const equip = equipFromSelection(rec, $(set === 'equipment' ? 'photosEquipItemSel' : 'photosInstallItemSel').value);
+  const selVal = $(set === 'equipment' ? 'photosEquipItemSel' : 'photosInstallItemSel').value;
+  if (!selVal){ toast('กรุณาเลือกอุปกรณ์ก่อนแนบรูป'); return; }   // mandatory, to stop photos being tagged with the wrong equipment (or none)
+  const equip = equipFromSelection(rec, selVal);
   $(btnId).disabled = true;
   let added = 0;
   try{
@@ -3780,8 +3989,13 @@ async function addProjectPhotos(set, files){
   }catch(err){ toast(err && /permission|insufficient/i.test(err.message || '') ? 'แนบไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของรูปภาพ' : (err.message || 'แนบรูปภาพไม่สำเร็จ')); }
   $(btnId).disabled = false;
 }
-$('photosEquipBtn').addEventListener('click', () => $('photosEquipInput').click());
-$('photosInstallBtn').addEventListener('click', () => $('photosInstallInput').click());
+function clickPhotoAddBtn(set){
+  const selId = set === 'equipment' ? 'photosEquipItemSel' : 'photosInstallItemSel';
+  if (!$(selId).value){ toast('กรุณาเลือกอุปกรณ์ก่อนแนบรูป'); return; }
+  $(set === 'equipment' ? 'photosEquipInput' : 'photosInstallInput').click();
+}
+$('photosEquipBtn').addEventListener('click', () => clickPhotoAddBtn('equipment'));
+$('photosInstallBtn').addEventListener('click', () => clickPhotoAddBtn('install'));
 $('photosEquipInput').addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; addProjectPhotos('equipment', files); });
 $('photosInstallInput').addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; addProjectPhotos('install', files); });
 function deleteProjectPhoto(id){

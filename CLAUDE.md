@@ -10,7 +10,11 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 - Patch `index.html` with small Python scripts that assert exact match counts; avoid bash heredocs with mixed quotes (write files with the editor tools). After a big edit run `python tests/static_test.py` (a bad replace once left `class="tab-panel"...` visible on the dashboard).
 
 ## Data model (short)
-`pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse`; plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered, printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog; the โครงการ list's own "งวดงาน" column/filter reads `currentInstallmentStage()` - the next undelivered installment, or the last one once everything is in - not `installmentNo` directly), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped 500),
+`pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse` (goods, `kind:'good'`) or `pm_serviceWarehouse` (services, `kind:'service'`, `svcId` instead of
+`whId` - see "Service warehouse" below); plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered,
+printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog; the โครงการ list's own "งวดงาน" column/filter reads `currentInstallmentStage()` - the next undelivered
+installment, or the last one once everything is in - not `installmentNo` directly), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped
+500), `pm_serviceWarehouse` (same shape minus quantity/serials/history - services aren't stocked),
 `pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB each, 8 per project), `pm_photos` (handover photos, base64 <=900 KB each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved),
 `pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
 
@@ -24,7 +28,7 @@ Most of the rail's pages are folded into 4 group buttons (`.nav-item[data-group]
 the scrollable `#railNavScroll` and a plain-absolute popover would get clipped the same way `.nav-tooltip` did before - see the "Sidebar: icon rail" note
 in the sibling BU-ABB app's CLAUDE.md for the original bug this mirrors) listing that group's real pages, built fresh on each click by
 `renderGroupPopover()` from `NAV_GROUPS`/`NAV_ICONS`/`NAV_LABELS`. Groups (names picked freely, per explicit user permission - content was specified,
-labels were not): **ซื้อขาย/โครงการ** (sales, projects), **คลังและอุปกรณ์** (warehouse, catalog, equipment), **ลูกค้าและบริษัท** (customers, companies),
+labels were not): **ซื้อขาย/โครงการ** (sales, projects), **คลังและอุปกรณ์** (warehouse, serviceWarehouse, catalog, equipment), **ลูกค้าและบริษัท** (customers, companies),
 and **ตั้งค่า** (users, audit, trash - admin-only, name given explicitly by the user). `dashboard` and `actionplan` stay as their own permanent
 top-level buttons - the user's own grouping list never mentioned moving them. A group button's own badge (`group1NavBadge`/`group2NavBadge`/
 `settingsNavBadge`) is a live aggregate of whatever alert numbers its members would have shown individually (`navAlertCache`, filled by
@@ -34,7 +38,7 @@ persistent DOM elements - a badge span that only exists while its parent innerHT
 fetch, not a live listener) used to be wired to a click listener on trash's own permanent nav button; since that button no longer exists, `showTab()`
 itself now calls `loadTrash()` when `tab === 'trash'`, which also makes it more robust to any future `showTab('trash')` call from elsewhere in the
 code. Tests reach a grouped tab through the `goto_tab(page, tab)` helper in `harness.py` (opens the right group first via `NAV_GROUP_OF`, then clicks
-the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any new test that navigates to sales/projects/warehouse/catalog/
+the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any new test that navigates to sales/projects/warehouse/serviceWarehouse/catalog/
 equipment/customers/companies/users/audit/trash, and keep `NAV_GROUP_OF` in sync with `NAV_GROUPS` if a tab ever changes group.
 
 ## Handover photos: print to PDF
@@ -83,12 +87,36 @@ transaction and the mock doesn't implement one; the mock's `FieldValue` also had
 alongside its existing `delete()` for this feature - a real gap in the persisted mock, now fixed there permanently rather than worked around per-test.
 
 Each of the two panels (equipment/install) carries its own `<select>` (`#photosEquipItemSel` / `#photosInstallItemSel`, next to its "+ เพิ่มรูปภาพ" button,
-filled by `fillPhotoItemSelect()` from `equipmentOptionsFor(rec)`) listing every serial on the job's own `items[]` lines (one option per `rid`+serial, or
-one per item with no serials at all) - this is how a photo gets tagged with which real piece of equipment it shows, rather than typed free-text. Whatever
-is selected when "+ เพิ่มรูปภาพ" is used applies to every file picked in that one action (`equipFromSelection()` inside `addProjectPhotos()`); there is
-**no edit-after-the-fact UI** - a wrong pick means deleting the photo and re-attaching it, chosen deliberately so this needed no `pm_photos` rules change
-(the `allow update: if false` on `pm_photos` stays exactly as-is). `equipCaption(p)` turns those three fields into the one line used both under each
-thumbnail in the grid ("ไม่ระบุอุปกรณ์" if left blank) and as the photo's caption in the printed PDF (see above).
+filled by `fillPhotoItemSelect()` from `equipmentOptionsFor(rec)`) listing every serial on the job's own **goods** `items[]` lines (one option per `rid`+serial,
+or one per item with no serials at all - a `kind:'service'` line is filtered out here, since a service isn't something you photograph) - this is how a photo
+gets tagged with which real piece of equipment it shows, rather than typed free-text. **Picking one is mandatory**: `fillPhotoItemSelect()` disables the select
+(and `renderPhotos()` disables the "+ เพิ่มรูปภาพ" button, with the hint text explaining why) when the job has no goods items to pick from at all, and both the
+button's own click handler and `addProjectPhotos()` itself refuse (toast "กรุณาเลือกอุปกรณ์ก่อนแนบรูป") if nothing is picked - this was tightened after photos kept
+getting attached with the wrong equipment info (or none). Whatever is selected when "+ เพิ่มรูปภาพ" is used applies to every file picked in that one action
+(`equipFromSelection()` inside `addProjectPhotos()`); there is **no edit-after-the-fact UI** - a wrong pick means deleting the photo and re-attaching it, chosen
+deliberately so this needed no `pm_photos` rules change (the `allow update: if false` on `pm_photos` stays exactly as-is). `equipCaption(p)` turns those three
+fields into the one line used both under each thumbnail in the grid ("ไม่ระบุอุปกรณ์" if left blank - only reachable now on photos attached before this became
+mandatory) and as the photo's caption in the printed PDF (see above).
+
+## Service warehouse
+`pm_serviceWarehouse` (`part`, `brand` = ซัพพลายเออร์, `type` = ประเภทงาน, `name` = ชื่อบริการ, `note`, `createdBy`/`createdAt`) is a second, parallel "warehouse" for
+services rather than stocked goods - same field names as `pm_warehouse` on purpose (just relabelled in the UI) so every generic place that already reads
+`w.part`/`w.brand`/`w.name`/`w.type` needed no change, and the same rule shape, `deleteEntity()`/Trash handling (both are driven entirely by `ENTITY_LABEL`/`COL`,
+so adding `serviceWarehouse` to those two maps was enough - no Trash-specific code exists per collection), and `makeAddableSelect()` pattern (`svcBrandSel`/`svcTypeSel`)
+apply unchanged. It has no quantity/serials/history at all - a service isn't something you count into or out of stock. Its own page (`tab-serviceWarehouse`, in the
+คลังและอุปกรณ์ group, right after โกดังสินค้า) is a near-identical copy of the warehouse page minus the quantity/serial UI and the quantity sort dropdown.
+
+On the ซื้อขาย/โครงการ form, "รายละเอียดของงาน" is now two separate tables under their own "สินค้า"/"บริการ" headings, each with its own add button
+(`#prjAddItemBtn` "+ เพิ่มสินค้า" / `#prjAddServiceBtn` "+ เพิ่มบริการ") and its own tbody (`#prjItemsBody` / `#prjServicesBody`) - a deliberate choice over one
+merged table with a per-row toggle, so the two kinds of line are never confused while picking. Both tables read from and write into the **same flat
+`editingItems` array** (`renderItemRows()` filters it into `goods`/`services` by `it.kind`, keeping each row's real index into that flat array for its onchange
+handlers, since a row's position within its own table is not its index in `editingItems`); `removeItemRow()` doesn't care which table a row came from. A goods
+row keeps its existing shape (`kind:'good'`, `whId`, `serials[]`); a service row reuses `brand`/`name`/`type`/`part`/`qty`/`status` for the same generic
+display/PDF/Excel code paths but carries `svcId` instead of `whId` and never a `serials[]` - `stockEffects()`/`commitProject()` only ever key off `whId`, so a
+service line is automatically invisible to the warehouse stock-deduction transaction with no code change there at all. `pickItemService()` mirrors `pickItemWh()`
+one-for-one, reading from `data.serviceWarehouse` instead of `data.warehouse`. `toItemRow()` carries `kind`/`svcId` through and had one existing bug fixed while
+this was added: it used to blank out `type` for any line with no `whId` (meant for old freeform/unlinked goods lines), which would have wrongly blanked a
+service line's ประเภทงาน too since a service never has a `whId` either - the condition is now `(it.whId || service)`.
 
 ## Printing
 Browser print -> "Save as PDF". `setPrintPage(css)` sets one `<style id="printPageStyle">` per print (portrait for the handover document, landscape for the Action Plan) and it is removed afterwards.

@@ -30,7 +30,7 @@ with serve_repo() as base, new_page(viewport={"width": 1400, "height": 900}) as 
 
     # ---- group2/group3/settings list the right pages, in the user's own requested grouping/order ----
     page.click('.nav-item[data-group="group2"]')
-    assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['warehouse', 'catalog', 'equipment']
+    assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['warehouse', 'serviceWarehouse', 'catalog', 'equipment']
     page.click('.nav-item[data-group="group3"]')
     assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['customers', 'companies']
     page.click('.nav-item[data-group="settings"]')
