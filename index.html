@@ -15,7 +15,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- pdf.js is loaded lazily on first use (loadPdfJs() near the catalog code) - most sessions never open a PDF, so it no longer blocks every page load -->
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -139,15 +139,19 @@
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table{ width:100%; border-collapse:collapse; font-size:13.5px; }
   th{ text-align:left; font-weight:500; color:var(--ink-soft); font-size:12px; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
-  /* โครงการ list: the 2-row "สถานะงาน" group header, its 3 read-only checkboxes, and the per-browser column-visibility toggle */
-  #projectsTable thead tr:first-child th{ text-align:center; }
-  #projectsTable thead tr:last-child th{ text-align:center; border-top:none; padding-top:2px; font-weight:400; }
-  #projectsTable td input[type="checkbox"]:disabled{ width:16px; height:16px; cursor:default; vertical-align:middle; }
-  #projectsTable td[data-col="workstatus"]{ text-align:center; }
+  /* โครงการ/ซื้อขาย lists: the 2-row "สถานะงาน" group header, its read-only checkboxes, and the per-browser column-visibility toggle */
+  #projectsTable thead tr:first-child th, #salesTable thead tr:first-child th{ text-align:center; }
+  #projectsTable thead tr:last-child th, #salesTable thead tr:last-child th{ text-align:center; border-top:none; padding-top:2px; font-weight:400; }
+  #projectsTable td input[type="checkbox"]:disabled, #salesTable td input[type="checkbox"]:disabled{ width:16px; height:16px; cursor:default; vertical-align:middle; }
+  #projectsTable td[data-col="workstatus"], #salesTable td[data-col="workstatus"]{ text-align:center; }
   #projectsTable[data-hide~="inst"] [data-col="inst"], #projectsTable[data-hide~="customer"] [data-col="customer"],
   #projectsTable[data-hide~="contract"] [data-col="contract"], #projectsTable[data-hide~="period"] [data-col="period"],
   #projectsTable[data-hide~="items"] [data-col="items"], #projectsTable[data-hide~="status"] [data-col="status"],
   #projectsTable[data-hide~="workstatus"] [data-col="workstatus"], #projectsTable[data-hide~="creator"] [data-col="creator"]{ display:none !important; }
+  #salesTable[data-hide~="customer"] [data-col="customer"], #salesTable[data-hide~="po"] [data-col="po"],
+  #salesTable[data-hide~="orderDate"] [data-col="orderDate"], #salesTable[data-hide~="items"] [data-col="items"],
+  #salesTable[data-hide~="status"] [data-col="status"], #salesTable[data-hide~="workstatus"] [data-col="workstatus"],
+  #salesTable[data-hide~="creator"] [data-col="creator"]{ display:none !important; }
   td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
   tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:rgba(59,130,246,0.04); }
@@ -625,9 +629,20 @@
               <button class="btn outline" type="button" id="salesClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note"><b>ซื้อขาย</b> — สถานะดูจากรายการสินค้าแต่ละบรรทัด: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว · เลือกสินค้าจากโกดัง เมื่อบันทึกเป็น "ดำเนินการแล้ว" ระบบตัดจำนวนและ Serial ออกจากโกดังให้</p>
-          <div class="table-scroll"><table class="m-cards">
-            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน</th><th>ลูกค้า</th><th>เลขที่ PO</th><th>วันที่สั่งซื้อ</th><th>รายการ</th><th>สถานะ</th><th class="creator-col" data-col="creator">สร้างโดย</th><th></th></tr></thead>
+          <p class="panel-note"><b>ซื้อขาย</b> — สถานะดูจากรายการสินค้าแต่ละบรรทัด: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว · เลือกสินค้าจากโกดัง เมื่อบันทึกเป็น "ดำเนินการแล้ว" ระบบตัดจำนวนและ Serial ออกจากโกดังให้ · ช่อง "สถานะงาน" ติ๊กเองไม่ได้ ระบบติ๊กให้เมื่อแนบรูปภาพจริงเท่านั้น (เว้นว่างถ้ารายการนี้ไม่ได้เลือกชุดรูปนั้นตอนสร้าง) · กด ⚙ ที่หัวตารางเพื่อเลือกว่าจะแสดงคอลัมน์ไหนบ้าง (มีผลเฉพาะเบราว์เซอร์นี้)</p>
+          <div class="table-scroll"><table class="m-cards" id="salesTable">
+            <thead>
+              <tr>
+                <th rowspan="2">เลขที่เอกสาร</th><th rowspan="2">ชื่องาน</th><th rowspan="2" data-col="customer">ลูกค้า</th>
+                <th rowspan="2" data-col="po">เลขที่ PO</th><th rowspan="2" data-col="orderDate">วันที่สั่งซื้อ</th><th rowspan="2" data-col="items">รายการ</th><th rowspan="2" data-col="status">สถานะ</th>
+                <th colspan="2" data-col="workstatus">สถานะงาน</th>
+                <th rowspan="2" class="creator-col" data-col="creator">สร้างโดย</th>
+                <th rowspan="2" style="text-align:right;"><button class="icon-btn" type="button" id="salesColumnsBtn" title="เลือกคอลัมน์ที่แสดง" aria-label="เลือกคอลัมน์ที่แสดง">⚙</button></th>
+              </tr>
+              <tr>
+                <th data-col="workstatus">รูปภาพอุปกรณ์</th><th data-col="workstatus">รูปภาพงานติดตั้ง</th>
+              </tr>
+            </thead>
             <tbody id="salesBody"></tbody>
           </table></div>
           <div class="pager" id="salesPager"></div>
@@ -733,7 +748,10 @@
         <div class="panel" id="photosEquipPanel">
           <div class="panel-head">
             <h3>ชุดที่ 1: รูปภาพอุปกรณ์ <span class="count-pill" id="photosEquipCount"></span></h3>
-            <button class="btn" type="button" id="photosEquipBtn">+ เพิ่มรูปภาพ</button>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <select id="photosEquipItemSel" class="filter-control" style="min-width:220px;"><option value="">ไม่ระบุอุปกรณ์</option></select>
+              <button class="btn" type="button" id="photosEquipBtn">+ เพิ่มรูปภาพ</button>
+            </div>
           </div>
           <p class="panel-note" id="photosEquipHint" style="margin-top:0;"></p>
           <div class="photo-grid" id="photosEquipGrid"></div>
@@ -742,7 +760,10 @@
         <div class="panel" id="photosInstallPanel">
           <div class="panel-head">
             <h3>ชุดที่ 2: รูปภาพงานติดตั้ง <span class="count-pill" id="photosInstallCount"></span></h3>
-            <button class="btn" type="button" id="photosInstallBtn">+ เพิ่มรูปภาพ</button>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <select id="photosInstallItemSel" class="filter-control" style="min-width:220px;"><option value="">ไม่ระบุอุปกรณ์</option></select>
+              <button class="btn" type="button" id="photosInstallBtn">+ เพิ่มรูปภาพ</button>
+            </div>
           </div>
           <p class="panel-note" id="photosInstallHint" style="margin-top:0;"></p>
           <div class="photo-grid" id="photosInstallGrid"></div>
@@ -1044,6 +1065,16 @@
   </div>
 </div>
 
+<!-- ซื้อขาย list: which columns to show (per browser, see SALES_COLUMNS / salesColumnPrefs) -->
+<div class="modal-overlay" id="salesColumnsModal" style="display:none;">
+  <div class="modal" style="max-width:360px;">
+    <h3 class="serif" style="font-size:19px; margin-bottom:4px;">เลือกคอลัมน์ที่จะแสดง</h3>
+    <p class="cell-sub" style="margin-bottom:14px;">มีผลเฉพาะเบราว์เซอร์นี้ ไม่กระทบคนอื่น</p>
+    <div id="salesColumnsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <div class="modal-actions"><button class="btn" type="button" id="salesColumnsCloseBtn">เสร็จสิ้น</button></div>
+  </div>
+</div>
+
 <!-- Deliver a batch (installment) of a project -->
 <div class="modal-overlay" id="deliveryModal" style="display:none;">
   <div class="modal" style="max-width:460px;">
@@ -1306,7 +1337,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.18.1';
+const APP_VERSION = '1.19.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2170,8 +2201,11 @@ function renderJobs(kind){
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
   lastList[k] = rows;
   $(k + 'Count').textContent = rows.length;
-  const cols = sale ? 9 : 13;   // creator's <td> is always emitted now (hidden by CSS, not omitted), so the "no rows" colspan no longer depends on role
-  if (!sale){
+  const cols = sale ? 11 : 13;   // creator's <td> is always emitted now (hidden by CSS, not omitted), so the "no rows" colspan no longer depends on role
+  if (sale){
+    const hide = SALES_COLUMNS.filter(c => !salesColumnPrefs[c.key] || (c.key === 'creator' && !isAdmin)).map(c => c.key);
+    $('salesTable').dataset.hide = hide.join(' ');
+  } else {
     const hide = PROJECT_COLUMNS.filter(c => !projectColumnPrefs[c.key] || (c.key === 'creator' && !isAdmin)).map(c => c.key);
     $('projectsTable').dataset.hide = hide.join(' ');
   }
@@ -2182,11 +2216,15 @@ function renderJobs(kind){
     const total = Number(p.installmentTotal) || 0, delivered = lastDelivered(p);
     const instCell = sale ? '' : `<td data-col="inst">${total ? `<span class="docno">${delivered}/${total}</span><div class="cell-sub">${delivered >= total ? 'ครบทุกงวด' : 'รอส่งงวดที่ ' + (delivered + 1)}</div>` : '<span class="cell-sub">-</span>'}</td>`;
     const middle = sale
-      ? `<td>${escapeHtml(p.poNo || '-')}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}</td>`
+      ? `<td data-col="po">${escapeHtml(p.poNo || '-')}</td><td data-col="orderDate" style="white-space:nowrap;">${fmtDate(p.startDate)}</td>`
       : `<td data-col="contract">${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td><td data-col="period" style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>`;
     // "สถานะงาน": ticked only once the real data behind it is actually saved - never user-clickable (see the shared handling in printProject etc.).
     const wchk = (done, label) => `<td data-col="workstatus" style="text-align:center;"><input type="checkbox" disabled ${done ? 'checked' : ''} title="${label}${done ? ' — บันทึกแล้ว' : ' — ยังไม่ได้บันทึก'}"></td>`;
-    const workCells = sale ? '' : wchk((p.plan || []).length > 0, 'แผนการดำเนินงาน') + wchk(Number(p.photoCounts && p.photoCounts.equipment) > 0, 'รูปภาพอุปกรณ์') + wchk(Number(p.photoCounts && p.photoCounts.install) > 0, 'รูปภาพงานติดตั้ง');
+    // a sale only offers whichever photo set(s) it chose on its own create form (photoSetsFor) - the OTHER column stays blank for that
+    // row rather than showing an always-unchecked box, since that set was never applicable to this record to begin with.
+    const photoChk = (set, count, label) => photoSetsFor(p).includes(set) ? wchk(Number(count) > 0, label) : '<td data-col="workstatus"></td>';
+    const workCells = (sale ? '' : wchk((p.plan || []).length > 0, 'แผนการดำเนินงาน'))
+      + photoChk('equipment', p.photoCounts && p.photoCounts.equipment, 'รูปภาพอุปกรณ์') + photoChk('install', p.photoCounts && p.photoCounts.install, 'รูปภาพงานติดตั้ง');
     return `
     <tr>
       <td>${p.docNo ? `<span class="docno">${escapeHtml(p.docNo)}</span>` : '<span class="cell-sub">-</span>'}</td>
@@ -2649,6 +2687,26 @@ function renderProjectColumnsModal(){
 }
 $('projectsColumnsBtn').addEventListener('click', () => { renderProjectColumnsModal(); openModal('projectColumnsModal'); });
 $('projectColumnsCloseBtn').addEventListener('click', () => closeModal('projectColumnsModal'));
+
+// ซื้อขาย list: same per-browser column-picker pattern as โครงการ above (see PROJECT_COLUMNS). "สร้างโดย" starts OFF; everything else ON.
+const SALES_COLUMNS = [
+  { key:'customer', label:'ลูกค้า' }, { key:'po', label:'เลขที่ PO' }, { key:'orderDate', label:'วันที่สั่งซื้อ' },
+  { key:'items', label:'รายการ' }, { key:'status', label:'สถานะ' },
+  { key:'workstatus', label:'สถานะงาน (รูปภาพ)' }, { key:'creator', label:'สร้างโดย' },
+];
+function loadSalesColumnPrefs(){
+  let saved = {}; try{ saved = JSON.parse(localStorage.getItem('pm-sale-sales-columns') || '{}'); }catch(e){}
+  const prefs = {}; SALES_COLUMNS.forEach(c => { prefs[c.key] = c.key in saved ? !!saved[c.key] : c.key !== 'creator'; });
+  return prefs;
+}
+let salesColumnPrefs = loadSalesColumnPrefs();
+function saveSalesColumnPrefs(){ try{ localStorage.setItem('pm-sale-sales-columns', JSON.stringify(salesColumnPrefs)); }catch(e){} }
+function renderSalesColumnsModal(){
+  $('salesColumnsList').innerHTML = SALES_COLUMNS.map(c => `<label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+    <input type="checkbox" ${salesColumnPrefs[c.key] ? 'checked' : ''} onchange="salesColumnPrefs['${c.key}']=this.checked; saveSalesColumnPrefs(); renderSales();">${c.label}</label>`).join('');
+}
+$('salesColumnsBtn').addEventListener('click', () => { renderSalesColumnsModal(); openModal('salesColumnsModal'); });
+$('salesColumnsCloseBtn').addEventListener('click', () => closeModal('salesColumnsModal'));
 
 function installmentLabel(p){
   const total = Number(p.installmentTotal) || 0, no = p.installmentNo;
@@ -3464,13 +3522,28 @@ $('serialEditBtn').addEventListener('click', () => openWarehouseForm(serialModal
    fetched when someone opens or downloads a catalog. Rendering (postcard + online viewer) uses pdf.js. */
 const CATALOG_MAX_BYTES = 15 * 1024 * 1024;
 const CATALOG_CHUNK_CHARS = 700000;   // under Firestore's 1 MB document limit; a multiple of 4 so every piece decodes on its own
+const PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
 const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 let catalogsUnavailable = false;
 const catalogBytesCache = new Map();
-function pdfLib(){
-  if (!window.pdfjsLib) throw new Error('โหลดตัวแสดง PDF ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
-  return pdfjsLib;
+// pdf.js is only ever needed on the catalog page or the PDF viewer - loaded on first use (same lazy pattern as loadXlsx() below)
+// rather than as a blocking <head> <script>, since that used to make every single page load wait on cdnjs even for users who never
+// touch a PDF.
+let pdfJsPromise = null;
+function loadPdfJs(){
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!pdfJsPromise) pdfJsPromise = new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = PDFJS_URL; el.onload = () => resolve(window.pdfjsLib);
+    el.onerror = () => { pdfJsPromise = null; reject(new Error('โหลดตัวแสดง PDF ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่')); };
+    document.head.appendChild(el);
+  });
+  return pdfJsPromise;
+}
+async function pdfLib(){
+  const lib = await loadPdfJs();
+  lib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  return lib;
 }
 const fmtBytes = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 function blobToBase64(blob){
@@ -3620,6 +3693,32 @@ function photoSetsFor(rec){
   if (rec.jobType !== 'sale') return ['equipment', 'install'];   // a โครงการ always has both sets available
   return rec.photoSets && rec.photoSets.length ? rec.photoSets : ['equipment', 'install'];   // an older sale saved before this feature existed
 }
+// Which equipment a photo shows: picked from the job's own equipment lines (rid + one specific serial, if that line has serials) rather than
+// typed by hand, so the brand/name/serial baked into a photo always matches a real line on the job. Set once when the photo is attached
+// (see addProjectPhotos) - there is no edit-after-the-fact UI, so a wrong pick means re-attaching the photo.
+function equipmentOptionsFor(rec){
+  const opts = [];
+  (rec && rec.items || []).forEach(it => {
+    const label = [it.brand, it.name || it.part].filter(Boolean).join(' ').trim();
+    if (!label) return;
+    if ((it.serials || []).length) it.serials.forEach(sn => { if (sn) opts.push({ value: `${it.rid}::${sn}`, label: `${label} — SN ${sn}` }); });
+    else opts.push({ value: `${it.rid}::`, label });
+  });
+  return opts;
+}
+function fillPhotoItemSelect(selId, rec){
+  $(selId).innerHTML = `<option value="">ไม่ระบุอุปกรณ์</option>` + equipmentOptionsFor(rec).map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join('');
+}
+function equipFromSelection(rec, raw){
+  if (!raw) return { equipBrand: '', equipName: '', equipSerial: '' };
+  const sep = raw.indexOf('::'), rid = sep < 0 ? raw : raw.slice(0, sep), serial = sep < 0 ? '' : raw.slice(sep + 2);
+  const it = (rec.items || []).find(x => x.rid === rid);
+  return { equipBrand: it ? (it.brand || '') : '', equipName: it ? (it.name || it.part || '') : '', equipSerial: serial };
+}
+function equipCaption(p){
+  const label = [p.equipBrand, p.equipName].filter(Boolean).join(' ').trim();
+  return label ? label + (p.equipSerial ? ` — SN ${p.equipSerial}` : '') : (p.equipSerial ? `SN ${p.equipSerial}` : '');
+}
 async function renderPhotos(){
   const rec = getPhotosRecord();
   if (!rec){ $('photosProjectName').textContent = 'ไม่พบรายการนี้ (อาจถูกลบ)'; $('photosMeta').innerHTML = ''; $('photosEquipPanel').style.display = 'none'; $('photosInstallPanel').style.display = 'none'; return; }
@@ -3629,7 +3728,8 @@ async function renderPhotos(){
   const sets = photoSetsFor(rec);
   $('photosEquipPanel').style.display = sets.includes('equipment') ? '' : 'none';
   $('photosInstallPanel').style.display = sets.includes('install') ? '' : 'none';
-  ['photosEquipHint', 'photosInstallHint'].forEach(id => $(id).textContent = `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)}`);
+  ['photosEquipHint', 'photosInstallHint'].forEach(id => $(id).textContent = `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)} · เลือกอุปกรณ์ก่อนแนบรูป (ใช้กับรูปที่เลือกในครั้งนี้ทั้งหมด แก้ทีหลังไม่ได้)`);
+  fillPhotoItemSelect('photosEquipItemSel', rec); fillPhotoItemSelect('photosInstallItemSel', rec);
   $('photosEquipGrid').innerHTML = ''; $('photosInstallGrid').innerHTML = ''; projectPhotos = [];
   try{
     let q = db.collection(COL.photos).where('projectId', '==', rec.id);
@@ -3651,7 +3751,7 @@ function renderPhotoGrids(){
     $(gridId).innerHTML = list.map(ph => `<div class="photo-item">
         <img src="data:${ph.type || 'image/jpeg'};base64,${ph.data}" alt="${escapeHtml(ph.name)}" loading="lazy" onclick="window.open(this.src, '_blank')">
         <button type="button" class="icon-btn delete-btn" onclick="deleteProjectPhoto('${ph.id}')" aria-label="ลบรูปภาพ">ลบ</button>
-        <span class="cell-sub">${fmtBytes(ph.size || 0)}</span>
+        <span class="cell-sub">${equipCaption(ph) ? escapeHtml(equipCaption(ph)) : '<i>ไม่ระบุอุปกรณ์</i>'} · ${fmtBytes(ph.size || 0)}</span>
       </div>`).join('') || '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
   });
 }
@@ -3659,6 +3759,7 @@ async function addProjectPhotos(set, files){
   const rec = getPhotosRecord();
   if (!rec || !files.length) return;
   const btnId = set === 'equipment' ? 'photosEquipBtn' : 'photosInstallBtn';
+  const equip = equipFromSelection(rec, $(set === 'equipment' ? 'photosEquipItemSel' : 'photosInstallItemSel').value);
   $(btnId).disabled = true;
   let added = 0;
   try{
@@ -3669,7 +3770,7 @@ async function addProjectPhotos(set, files){
       catch(e){ toast(`"${f.name}" อ่านไฟล์รูปไม่สำเร็จ`); continue; }
       const base64 = dataUrl.split(',')[1] || '';
       if (base64.length > PHOTO_MAX_BYTES){ toast(`"${f.name}" ใหญ่เกินแม้ย่อขนาดแล้ว`); continue; }
-      const doc = { projectId: rec.id, ownerId: rec.createdBy, set, name: f.name, size: base64.length, type: 'image/jpeg', data: base64, createdBy: currentUserUid, createdAt: new Date().toISOString() };
+      const doc = { projectId: rec.id, ownerId: rec.createdBy, set, name: f.name, size: base64.length, type: 'image/jpeg', data: base64, ...equip, createdBy: currentUserUid, createdAt: new Date().toISOString() };
       const ref = await db.collection(COL.photos).add(doc);
       projectPhotos.push({ id: ref.id, ...doc }); added++;
       await db.collection(COL.projects).doc(rec.id).update({ [`photoCounts.${set}`]: firebase.firestore.FieldValue.increment(1) });
@@ -3714,9 +3815,9 @@ function buildPhotosPrintHtml(rec, photos){
     if (!list.length) return '';
     return `<div class="pr-photo-sec"><div class="pr-title" style="font-size:15pt; text-align:left; border-bottom:0.3mm solid #7F7F7F; padding-bottom:1mm;">${label}</div></div>
       <div class="pr-photo-grid">${list.map(p => `<div class="pr-photo-cell"><img src="data:${p.type || 'image/jpeg'};base64,${p.data}" alt="">
-        <div class="pr-photo-cap">${escapeHtml(p.name)}</div></div>`).join('')}</div>`;
+        <div class="pr-photo-cap">${escapeHtml(equipCaption(p) || p.name)}</div></div>`).join('')}</div>`;
   };
-  return letterheadHtml(co) + `<div class="pr-title">ภาพถ่ายการส่งมอบงาน</div><table class="pr-info">${info}</table>`
+  return letterheadHtml(co) + `<table class="pr-info">${info}</table>`
     + section('ชุดที่ 1: รูปภาพอุปกรณ์', 'equipment') + section('ชุดที่ 2: รูปภาพงานติดตั้ง', 'install')
     + (photos.length ? '' : '<p class="cell-sub">ยังไม่มีรูปภาพ</p>');
 }
@@ -3744,7 +3845,7 @@ function triggerDownload(blob, name){
 }
 // page count + a JPEG of page 1 (the postcard picture)
 async function analysePdf(bytes){
-  const doc = await pdfLib().getDocument({ data: bytes.slice() }).promise;   // slice: pdf.js takes ownership of the buffer it is given
+  const doc = await (await pdfLib()).getDocument({ data: bytes.slice() }).promise;   // slice: pdf.js takes ownership of the buffer it is given
   const page = await doc.getPage(1);
   const scale = 520 / page.getViewport({ scale: 1 }).width;
   const vp = page.getViewport({ scale });
@@ -3852,7 +3953,7 @@ async function openPdfViewer(opts){   // opts: { title, load: async () => Uint8A
   pdfState = mine;
   try{
     const src = await opts.load();
-    const doc = await pdfLib().getDocument(typeof src === 'string' ? { url: src } : { data: src.slice() }).promise;
+    const doc = await (await pdfLib()).getDocument(typeof src === 'string' ? { url: src } : { data: src.slice() }).promise;
     if (pdfState !== mine){ doc.destroy(); return; }
     Object.assign(mine, { doc, fit: true, scale: 1, token: 0, pages: [], observer: null, download: opts.download, title: opts.title });
     $('pdfLoading').style.display = 'none';

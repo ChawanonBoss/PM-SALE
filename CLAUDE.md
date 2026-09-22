@@ -39,27 +39,40 @@ equipment/customers/companies/users/audit/trash, and keep `NAV_GROUP_OF` in sync
 
 ## Handover photos: print to PDF
 `#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows
-the exact same `letterheadHtml(co)` + `.pr-title` + `.pr-info` system already used by `printActionPlan()` - same fonts/margins/print-only CSS, so it
-looks like the same document family rather than a bolted-on export. The header's fields are all pulled from the record itself, never typed by hand:
-เลขที่เอกสาร, ประเภทงาน (ซื้อขาย/โครงการ), ชื่องาน/ชื่อโครงการ, หน่วยงาน/ลูกค้า, เลขที่สัญญา (only if set - a sale rarely has one), วันที่พิมพ์ (today), and
-จำนวนรูปภาพ (count actually being printed). Below that, each visible set (per `photoSetsFor()` - a sale only prints the set(s) it chose, a project
-always offers both) gets its own heading and a 2-column `.pr-photo-grid` of images with their filename as a caption underneath (`buildPhotosPrintHtml()`,
-`.pr-photo-*` CSS added to the shared `@media print` block). Refuses with a toast if there are no photos at all to print.
+the exact same `letterheadHtml(co)` + `.pr-info` system already used by `printActionPlan()` - same fonts/margins/print-only CSS, so it looks like the same
+document family rather than a bolted-on export (there is no generic `.pr-title` heading above the info table any more - it was dropped since the header's
+own info table already says ประเภทงาน/ชื่องาน, and a page-wide title added nothing per-photo captions didn't already say better). The header's fields are
+all pulled from the record itself, never typed by hand: เลขที่เอกสาร, ประเภทงาน (ซื้อขาย/โครงการ), ชื่องาน/ชื่อโครงการ, หน่วยงาน/ลูกค้า, เลขที่สัญญา (only if
+set - a sale rarely has one), วันที่พิมพ์ (today), and จำนวนรูปภาพ (count actually being printed). Below that, each visible set (per `photoSetsFor()` - a
+sale only prints the set(s) it chose, a project always offers both) gets its own heading and a 2-column `.pr-photo-grid` of images
+(`buildPhotosPrintHtml()`, `.pr-photo-*` CSS added to the shared `@media print` block). Each photo's caption is `equipCaption(p)` - "ยี่ห้อ ชื่ออุปกรณ์ — SN
+xxx" from whichever equipment line it was tagged with (see "Handover photos" below) - falling back to the photo's own filename only if it was never tagged
+(older photos, or one left as "ไม่ระบุอุปกรณ์"). Refuses with a toast if there are no photos at all to print.
 
-## โครงการ list: "สถานะงาน" status columns + column picker
-Three read-only, never-clickable `<input type="checkbox" disabled>` columns under one grouped `<thead>` header ("สถานะงาน" spanning "แผนการดำเนินงาน" /
-"รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง") show whether a project's plan (`(p.plan||[]).length>0`) and each photo set (`p.photoCounts.equipment`/`.install > 0`)
-have actually been saved - there is no way to tick them by hand, only by really saving that data. `computeColumnLabels()` (near `labelCardCells`) walks the
-2-row `<thead>` grid so the mobile card view still labels each cell correctly. `#projectsColumnsBtn` opens `#projectColumnsModal`, a checkbox list backed by
-`PROJECT_COLUMNS` / `projectColumnPrefs` (localStorage `pm-sale-project-columns`, per-browser only, not synced) that toggles `data-hide` on `#projectsTable`;
-"สร้างโดย" defaults OFF (hidden even for admin) and every other column defaults ON. The ซื้อขาย list is untouched - single-row header, no status columns, no picker.
+## โครงการ/ซื้อขาย lists: "สถานะงาน" status columns + column picker
+Read-only, never-clickable `<input type="checkbox" disabled>` columns under one grouped `<thead>` header ("สถานะงาน") show whether real data behind each
+one has actually been saved - there is no way to tick them by hand, only by really saving that data. `computeColumnLabels()` (near `labelCardCells`) walks
+the 2-row `<thead>` grid so the mobile card view still labels each cell correctly. Both lists have their own picker, independent localStorage key, and
+independent column set - they are NOT the same list of toggles:
+- **โครงการ** (`#projectsTable`): 3 sub-columns ("แผนการดำเนินงาน" / "รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง") reading `(p.plan||[]).length>0` and
+  `p.photoCounts.equipment`/`.install > 0`. `#projectsColumnsBtn` (a toolbar button, in the filter-bar) opens `#projectColumnsModal`, backed by
+  `PROJECT_COLUMNS` / `projectColumnPrefs` (localStorage `pm-sale-project-columns`).
+- **ซื้อขาย** (`#salesTable`): only 2 sub-columns ("รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง" - a sale has no plan, so no first column). Its column-picker
+  trigger lives inside the table header itself instead (the rightmost `<th>`, a small `⚙` icon button, `#salesColumnsBtn`) rather than the toolbar, opening
+  `#salesColumnsModal`, backed by its own `SALES_COLUMNS` / `salesColumnPrefs` (localStorage `pm-sale-sales-columns`).
+- A sale only ever offers whichever photo set(s) it chose on its own create form (`photoSetsFor(rec)`), so for a sale row, a set that was never chosen
+  renders as a **blank `<td>`, not an unchecked checkbox** (`photoChk()` inside `renderJobs`) - the column has nothing to say about a set that record
+  never had in the first place. A โครงการ always has both sets, so this never actually blanks out for a project.
+
+In both lists, "สร้างโดย" defaults OFF (hidden even for admin) and every other column defaults ON.
 
 ## Handover photos
 `pm_photos` holds one document per photo (`projectId`, `ownerId` = the parent job's `createdBy`, `set: 'equipment'|'install'`, base64 `data`, `size`, `type`,
-`createdBy`, `createdAt`), scoped/rule-gated exactly like `pm_files` (see `firestore.rules`). `photoCounts.equipment`/`photoCounts.install` on the parent
-`pm_projects` doc is kept in sync via `firebase.firestore.FieldValue.increment(±1)` on every add/delete - that field is what the status-column checkboxes
-above read, so the โครงการ/ซื้อขาย list never has to load actual photos just to know whether any exist. `openPhotosPage(id)` -> `showTab('photos')` renders
-`#tab-photos`: a header (job type + `docNo` + customer) and up to two sections ("ชุดที่ 1: รูปภาพอุปกรณ์" / "ชุดที่ 2: รูปภาพงานติดตั้ง"), each a
+`equipBrand`/`equipName`/`equipSerial` (see below), `createdBy`, `createdAt`), scoped/rule-gated exactly like `pm_files` (see `firestore.rules`; the create
+rule has no `hasOnly()` on keys, so these extra fields needed no rules change). `photoCounts.equipment`/`photoCounts.install` on the parent `pm_projects`
+doc is kept in sync via `firebase.firestore.FieldValue.increment(±1)` on every add/delete - that field is what the status-column checkboxes above read, so
+the โครงการ/ซื้อขาย list never has to load actual photos just to know whether any exist. `openPhotosPage(id)` -> `showTab('photos')` renders `#tab-photos`:
+a header (job type + `docNo` + customer) and up to two sections ("ชุดที่ 1: รูปภาพอุปกรณ์" / "ชุดที่ 2: รูปภาพงานติดตั้ง"), each a
 `resizeImageToDataUrl(file, 1280, 'image/jpeg', 0.72)` upload + thumbnail grid + delete. A โครงการ always shows both sections; a ซื้อขาย only shows whichever
 set(s) were picked on its own create form (`doc.photoSets`, sale-only field, checkboxes default both-checked, hidden entirely for a project since a project
 always gets both). Saving a **brand-new** record (`isNew` only - never on an edit) routes onward: a new project -> `openActionPlan(ref.id)` (Action Plan gained
@@ -68,6 +81,14 @@ straight to `openPhotosPage(ref.id)`. Every job row also has its own "รูป�
 button for the first time needs the `db.runTransaction` shim** (see `docno_and_history_test.py`'s `TX_SHIM`) since `commitProject()` always saves through a
 transaction and the mock doesn't implement one; the mock's `FieldValue` also had to gain `increment()` (dotted-path aware, e.g. `photoCounts.equipment`)
 alongside its existing `delete()` for this feature - a real gap in the persisted mock, now fixed there permanently rather than worked around per-test.
+
+Each of the two panels (equipment/install) carries its own `<select>` (`#photosEquipItemSel` / `#photosInstallItemSel`, next to its "+ เพิ่มรูปภาพ" button,
+filled by `fillPhotoItemSelect()` from `equipmentOptionsFor(rec)`) listing every serial on the job's own `items[]` lines (one option per `rid`+serial, or
+one per item with no serials at all) - this is how a photo gets tagged with which real piece of equipment it shows, rather than typed free-text. Whatever
+is selected when "+ เพิ่มรูปภาพ" is used applies to every file picked in that one action (`equipFromSelection()` inside `addProjectPhotos()`); there is
+**no edit-after-the-fact UI** - a wrong pick means deleting the photo and re-attaching it, chosen deliberately so this needed no `pm_photos` rules change
+(the `allow update: if false` on `pm_photos` stays exactly as-is). `equipCaption(p)` turns those three fields into the one line used both under each
+thumbnail in the grid ("ไม่ระบุอุปกรณ์" if left blank) and as the photo's caption in the printed PDF (see above).
 
 ## Printing
 Browser print -> "Save as PDF". `setPrintPage(css)` sets one `<style id="printPageStyle">` per print (portrait for the handover document, landscape for the Action Plan) and it is removed afterwards.

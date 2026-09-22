@@ -16,7 +16,8 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     page.evaluate("""async () => {
       await db.collection('pm_customers').doc('c1').set({name:'ลูกค้า ก', type:'gov', createdBy:'admin1'});
       await db.collection('pm_companies').doc('co1').set({name:'บริษัท ทดสอบ จำกัด', address:'กรุงเทพฯ', phone:'02-000-0000', taxId:'1234567890123'});
-      await db.collection('pm_projects').doc('p1').set({jobType:'project', docNo:'PJ1', name:'โครงการทดสอบรูป', customerId:'c1', customerName:'ลูกค้า ก', contractNo:'CT-99', companyId:'co1', startDate:'2026-09-01', endDate:'2026-12-31', items:[], createdBy:'admin1'});
+      await db.collection('pm_projects').doc('p1').set({jobType:'project', docNo:'PJ1', name:'โครงการทดสอบรูป', customerId:'c1', customerName:'ลูกค้า ก', contractNo:'CT-99', companyId:'co1', startDate:'2026-09-01', endDate:'2026-12-31',
+        items:[{rid:'r1', whId:'', part:'P1', brand:'Yeti', name:'เราเตอร์ XR500', type:'', serials:['SN-001'], qty:1, status:'pending'}], createdBy:'admin1'});
       await db.collection('pm_projects').doc('s1').set({jobType:'sale', docNo:'SO1', name:'ขายทดสอบรูป', customerId:'c1', customerName:'ลูกค้า ก', startDate:'2026-09-02', endDate:'2026-09-02', items:[], createdBy:'admin1', photoSets:['equipment']}); }""")
     page.wait_for_timeout(500)
     # commitProject() saves through a real Firestore transaction, which this mock doesn't implement - shim it the same way docno_and_history_test.py does
@@ -41,20 +42,30 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
         page.set_input_files(f'#{input_id}', {"name": filename, "mimeType": "image/png", "buffer": __import__("base64").b64decode(PIXEL_PNG_B64)})
         page.wait_for_timeout(700)
 
+    # equipment picker is built from the job's own items[] (rid+serial) - pick the one line this job actually has before attaching
+    opt_labels = page.evaluate("[...document.querySelectorAll('#photosEquipItemSel option')].map(o => o.textContent)")
+    assert any('Yeti' in l and 'SN-001' in l for l in opt_labels)
+    page.select_option('#photosEquipItemSel', 'r1::SN-001')
     upload('photosEquipInput')
     assert page.locator('#photosEquipGrid .photo-item').count() == 1
-    upload('photosInstallInput')
+    assert 'Yeti' in page.inner_text('#photosEquipGrid') and 'SN-001' in page.inner_text('#photosEquipGrid')
+    upload('photosInstallInput')   # left as "ไม่ระบุอุปกรณ์" - install panel's own select was never touched
     assert page.locator('#photosInstallGrid .photo-item').count() == 1
+    assert 'ไม่ระบุอุปกรณ์' in page.inner_text('#photosInstallGrid')
     page.wait_for_timeout(300)
 
     # ---- print PDF: header pulls its fields straight from the system record (docNo/type/name/customer/contract/company letterhead), not typed in ----
     page.evaluate("window.print = () => {}")
     page.click('#photosPrintBtn'); page.wait_for_timeout(200)
     printed = page.inner_html('#printArea')
-    assert 'ภาพถ่ายการส่งมอบงาน' in printed
+    assert 'ภาพถ่ายการส่งมอบงาน' not in printed, "generic title was dropped in favor of per-photo equipment captions"
     for expect in ('PJ1', 'โครงการ', 'โครงการทดสอบรูป', 'ลูกค้า ก', 'CT-99', 'บริษัท ทดสอบ จำกัด', '2 รูป', 'ชุดที่ 1: รูปภาพอุปกรณ์', 'ชุดที่ 2: รูปภาพงานติดตั้ง'):
         assert expect in printed, expect
     assert page.locator('#printArea .pr-photo-cell').count() == 2
+    # the tagged equipment photo prints the equipment line, not its filename; the untagged install photo falls back to its filename
+    assert page.locator('#printArea .pr-photo-cap:has-text("Yeti")').count() == 1
+    assert page.locator('#printArea .pr-photo-cap:has-text("SN-001")').count() == 1
+    assert page.locator('#printArea .pr-photo-cap:has-text("a.png")').count() == 1
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")   # runs printPhotos()'s own restore() so #printArea is cleared for what follows
     assert page.inner_html('#printArea') == ''
 

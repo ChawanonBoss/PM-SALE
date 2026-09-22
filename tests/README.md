@@ -24,8 +24,8 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `paging_test.py` | 10/20/50/100 rows per page and the page buttons on every list |
 | `pdf_test.py` | prints the handover document and the Action Plan through Chromium's PDF engine and checks fonts, page size and orientation |
 | `sample_set_test.py` | the 10-per-menu sample generator (`fixtures/`) produces consistent stock, numbers and alert variety |
-| `project_status_columns_test.py` | โครงการ list's grouped "สถานะงาน" checkbox columns (unclickable, reflect real saved data only), the column-visibility picker, "สร้างโดย" hidden by default |
-| `photos_test.py` | handover photo upload/delete for both sets, sale-only photo-set picker on the create form, post-save routing (new project -> Action Plan -> "รูปภาพ →"; new sale -> photo page directly) |
+| `project_status_columns_test.py` | โครงการ's and ซื้อขาย's own grouped "สถานะงาน" checkbox columns (unclickable, reflect real saved data only; a sale's not-chosen photo set renders a blank cell, not an unticked box), each list's own column-visibility picker and localStorage key (โครงการ's toolbar button vs ซื้อขาย's in-header ⚙), "สร้างโดย" hidden by default in both |
+| `photos_test.py` | handover photo upload/delete for both sets, sale-only photo-set picker on the create form, tagging a photo with equipment from the job's own items[] (and the PDF caption/grid falling back to the filename when untagged), post-save routing (new project -> Action Plan -> "รูปภาพ →"; new sale -> photo page directly) |
 | `nav_groups_test.py` | sidebar group flyouts (which pages list under which group, open/close/outside-click, active state, badge aggregation), ตั้งค่า hidden for non-admin, mobile drawer closes on a flyout pick |
 
 `fixtures/` holds the sample generators. The same files were used to seed the live site with `[ตัวอย่าง]` rows (`sample: true`).
