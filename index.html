@@ -431,6 +431,12 @@
     .pr-foot{ margin-top:4mm; font-size:11pt; color:#333; }
     .pr-sign{ display:flex; justify-content:space-around; margin-top:24mm; text-align:center; page-break-inside:avoid; font-size:16pt; }
     .pr-sign div{ width:62mm; border-top:0.3mm solid #000; padding-top:2mm; }
+    /* Handover photo sets */
+    .pr-photo-sec{ break-after:avoid; }
+    .pr-photo-grid{ display:grid; grid-template-columns:repeat(2, 1fr); gap:4mm; margin:0 0 6mm; }
+    .pr-photo-cell{ break-inside:avoid; border:0.25mm solid #BFC8D6; border-radius:1mm; padding:2mm; }
+    .pr-photo-cell img{ width:100%; height:75mm; object-fit:contain; display:block; }
+    .pr-photo-cap{ font-size:11pt; color:#595959; text-align:center; margin-top:1mm; overflow-wrap:anywhere; }
   }
 
   @media (max-width:900px){
@@ -715,9 +721,14 @@
       <!-- Handover photos: equipment set + installation set, reached from a project/sale row's "รูปภาพ" button or after saving a new job -->
       <div id="tab-photos" class="tab-panel" style="display:none;">
         <div class="panel">
-          <button class="btn outline" id="photosBackBtn" type="button" style="margin-bottom:14px;">← กลับ</button>
-          <h3 class="serif" id="photosProjectName" style="font-size:21px; font-weight:500;"></h3>
-          <div class="plan-meta" id="photosMeta"></div>
+          <div class="plan-head">
+            <div style="flex:1; min-width:260px;">
+              <button class="btn outline" id="photosBackBtn" type="button" style="margin-bottom:14px;">← กลับ</button>
+              <h3 class="serif" id="photosProjectName" style="font-size:21px; font-weight:500;"></h3>
+              <div class="plan-meta" id="photosMeta"></div>
+            </div>
+            <button class="btn outline" id="photosPrintBtn" type="button">พิมพ์ PDF</button>
+          </div>
         </div>
         <div class="panel" id="photosEquipPanel">
           <div class="panel-head">
@@ -1295,7 +1306,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.18.0';
+const APP_VERSION = '1.18.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3686,6 +3697,44 @@ function deleteProjectPhoto(id){
     }catch(err){ toast('ลบไม่สำเร็จ'); }
   }, 'ลบรูปภาพ');
 }
+
+/* ---- Print the photo sets as PDF (A4 portrait, same letterhead/info-table system as the handover doc / Action Plan print).
+   Header fields are pulled straight from the system record, not typed by hand: document number, job type, job/project name,
+   customer, contract number (projects only) and print date - the same identifying fields the photo page itself already shows on
+   screen, plus the ones a printed sheet needs to stand on its own once separated from the app (contract no., print date, photo count). ---- */
+function buildPhotosPrintHtml(rec, photos){
+  const co = data.companies.find(c => c.id === rec.companyId);
+  const sale = rec.jobType === 'sale';
+  const info = [
+    ['เลขที่เอกสาร', rec.docNo], ['ประเภทงาน', sale ? 'ซื้อขาย' : 'โครงการ'], [sale ? 'ชื่องาน' : 'ชื่อโครงการ', rec.name],
+    ['หน่วยงาน / ลูกค้า', rec.customerName], ['เลขที่สัญญา', rec.contractNo], ['วันที่พิมพ์', fmtDate(todayStr())], ['จำนวนรูปภาพ', `${photos.length} รูป`],
+  ].filter(r => r[1]).map(r => `<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(String(r[1]))}</td></tr>`).join('');
+  const section = (label, set) => {
+    const list = photos.filter(p => p.set === set);
+    if (!list.length) return '';
+    return `<div class="pr-photo-sec"><div class="pr-title" style="font-size:15pt; text-align:left; border-bottom:0.3mm solid #7F7F7F; padding-bottom:1mm;">${label}</div></div>
+      <div class="pr-photo-grid">${list.map(p => `<div class="pr-photo-cell"><img src="data:${p.type || 'image/jpeg'};base64,${p.data}" alt="">
+        <div class="pr-photo-cap">${escapeHtml(p.name)}</div></div>`).join('')}</div>`;
+  };
+  return letterheadHtml(co) + `<div class="pr-title">ภาพถ่ายการส่งมอบงาน</div><table class="pr-info">${info}</table>`
+    + section('ชุดที่ 1: รูปภาพอุปกรณ์', 'equipment') + section('ชุดที่ 2: รูปภาพงานติดตั้ง', 'install')
+    + (photos.length ? '' : '<p class="cell-sub">ยังไม่มีรูปภาพ</p>');
+}
+async function printPhotos(){
+  const rec = getPhotosRecord();
+  if (!rec) return;
+  if (!projectPhotos.length){ toast('ยังไม่มีรูปภาพให้พิมพ์'); return; }
+  if (!data.companies.find(c => c.id === rec.companyId)) toast('รายการนี้ยังไม่ได้เลือกบริษัท — เอกสารจะไม่มีหัวกระดาษ');
+  const sets = photoSetsFor(rec);
+  $('printArea').innerHTML = buildPhotosPrintHtml(rec, projectPhotos.filter(p => sets.includes(p.set)));
+  setPrintPage('@page{ size:A4 portrait; margin:15mm 14mm; }');
+  const oldTitle = document.title;
+  document.title = 'รูปภาพ_' + (rec.docNo || rec.name || 'project').replace(/[\\/:*?"<>|]/g, '_');
+  const restore = () => { document.title = oldTitle; $('printArea').innerHTML = ''; clearPrintPage(); window.removeEventListener('afterprint', restore); };
+  window.addEventListener('afterprint', restore);
+  printWhenReady();
+}
+$('photosPrintBtn').addEventListener('click', printPhotos);
 
 function triggerDownload(blob, name){
   const a = document.createElement('a');

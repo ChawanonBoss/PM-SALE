@@ -15,7 +15,8 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     page.evaluate("() => window.__authListeners[0]({uid:'admin1', email:'admin@a.com', displayName:'Admin One'})"); page.wait_for_timeout(900)
     page.evaluate("""async () => {
       await db.collection('pm_customers').doc('c1').set({name:'ลูกค้า ก', type:'gov', createdBy:'admin1'});
-      await db.collection('pm_projects').doc('p1').set({jobType:'project', docNo:'PJ1', name:'โครงการทดสอบรูป', customerId:'c1', customerName:'ลูกค้า ก', startDate:'2026-09-01', endDate:'2026-12-31', items:[], createdBy:'admin1'});
+      await db.collection('pm_companies').doc('co1').set({name:'บริษัท ทดสอบ จำกัด', address:'กรุงเทพฯ', phone:'02-000-0000', taxId:'1234567890123'});
+      await db.collection('pm_projects').doc('p1').set({jobType:'project', docNo:'PJ1', name:'โครงการทดสอบรูป', customerId:'c1', customerName:'ลูกค้า ก', contractNo:'CT-99', companyId:'co1', startDate:'2026-09-01', endDate:'2026-12-31', items:[], createdBy:'admin1'});
       await db.collection('pm_projects').doc('s1').set({jobType:'sale', docNo:'SO1', name:'ขายทดสอบรูป', customerId:'c1', customerName:'ลูกค้า ก', startDate:'2026-09-02', endDate:'2026-09-02', items:[], createdBy:'admin1', photoSets:['equipment']}); }""")
     page.wait_for_timeout(500)
     # commitProject() saves through a real Firestore transaction, which this mock doesn't implement - shim it the same way docno_and_history_test.py does
@@ -45,6 +46,17 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     upload('photosInstallInput')
     assert page.locator('#photosInstallGrid .photo-item').count() == 1
     page.wait_for_timeout(300)
+
+    # ---- print PDF: header pulls its fields straight from the system record (docNo/type/name/customer/contract/company letterhead), not typed in ----
+    page.evaluate("window.print = () => {}")
+    page.click('#photosPrintBtn'); page.wait_for_timeout(200)
+    printed = page.inner_html('#printArea')
+    assert 'ภาพถ่ายการส่งมอบงาน' in printed
+    for expect in ('PJ1', 'โครงการ', 'โครงการทดสอบรูป', 'ลูกค้า ก', 'CT-99', 'บริษัท ทดสอบ จำกัด', '2 รูป', 'ชุดที่ 1: รูปภาพอุปกรณ์', 'ชุดที่ 2: รูปภาพงานติดตั้ง'):
+        assert expect in printed, expect
+    assert page.locator('#printArea .pr-photo-cell').count() == 2
+    page.evaluate("window.dispatchEvent(new Event('afterprint'))")   # runs printPhotos()'s own restore() so #printArea is cleared for what follows
+    assert page.inner_html('#printArea') == ''
 
     page.click('#photosBackBtn'); page.wait_for_timeout(400)
     assert page.evaluate("currentTab") == 'projects'

@@ -37,6 +37,15 @@ code. Tests reach a grouped tab through the `goto_tab(page, tab)` helper in `har
 the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any new test that navigates to sales/projects/warehouse/catalog/
 equipment/customers/companies/users/audit/trash, and keep `NAV_GROUP_OF` in sync with `NAV_GROUPS` if a tab ever changes group.
 
+## Handover photos: print to PDF
+`#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows
+the exact same `letterheadHtml(co)` + `.pr-title` + `.pr-info` system already used by `printActionPlan()` - same fonts/margins/print-only CSS, so it
+looks like the same document family rather than a bolted-on export. The header's fields are all pulled from the record itself, never typed by hand:
+เลขที่เอกสาร, ประเภทงาน (ซื้อขาย/โครงการ), ชื่องาน/ชื่อโครงการ, หน่วยงาน/ลูกค้า, เลขที่สัญญา (only if set - a sale rarely has one), วันที่พิมพ์ (today), and
+จำนวนรูปภาพ (count actually being printed). Below that, each visible set (per `photoSetsFor()` - a sale only prints the set(s) it chose, a project
+always offers both) gets its own heading and a 2-column `.pr-photo-grid` of images with their filename as a caption underneath (`buildPhotosPrintHtml()`,
+`.pr-photo-*` CSS added to the shared `@media print` block). Refuses with a toast if there are no photos at all to print.
+
 ## โครงการ list: "สถานะงาน" status columns + column picker
 Three read-only, never-clickable `<input type="checkbox" disabled>` columns under one grouped `<thead>` header ("สถานะงาน" spanning "แผนการดำเนินงาน" /
 "รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง") show whether a project's plan (`(p.plan||[]).length>0`) and each photo set (`p.photoCounts.equipment`/`.install > 0`)
