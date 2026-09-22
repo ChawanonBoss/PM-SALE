@@ -118,6 +118,13 @@ one-for-one, reading from `data.serviceWarehouse` instead of `data.warehouse`. `
 this was added: it used to blank out `type` for any line with no `whId` (meant for old freeform/unlinked goods lines), which would have wrongly blanked a
 service line's ประเภทงาน too since a service never has a `whId` either - the condition is now `(it.whId || service)`.
 
+## Catalog: หมวดสินค้า
+`#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather
+than the plain text+`<datalist>` input it used to be - adding a new category is now an explicit, visible action instead of only discoverable by typing past
+the suggestions. `ยี่ห้อ` (`#catBrand`) on the same form was left as its original text+datalist input (not asked for, so not touched) - the two fields are
+intentionally inconsistent with each other for now. Suggested/existing values still come from the same two sources as before (`data.catalogs.map(c =>
+c.category)` and `data.warehouse.map(w => w.type)`), just read by `used()` inside the addable-select instead of building a `<datalist>`.
+
 ## Printing
 Browser print -> "Save as PDF". `setPrintPage(css)` sets one `<style id="printPageStyle">` per print (portrait for the handover document, landscape for the Action Plan) and it is removed afterwards.
 The handover document follows `docs/handover-template.docx` (measured with Word: TH Sarabun New, navy #1F3A5F, gold #B08D57, label cells #EEF2F7). Page 1 has the letterhead in the flow; pages 2+ get a running header and every page a footer + "หน้า x / y" through page-margin boxes (Chromium).

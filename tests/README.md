@@ -29,6 +29,7 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `nav_groups_test.py` | sidebar group flyouts (which pages list under which group, open/close/outside-click, active state, badge aggregation), ตั้งค่า hidden for non-admin, mobile drawer closes on a flyout pick |
 | `service_warehouse_test.py` | โกดังบริการ page CRUD (no quantity/Serial columns at all) and its own addable-selects, Trash round-trip, the ซื้อขาย/โครงการ form's separate "+ เพิ่มสินค้า"/"+ เพิ่มบริการ" tables sharing one flat items[] on save, a service line never triggering the warehouse stock-effects confirm dialog (even mixed with a goods line that does) |
 | `delete_sample_data_test.py` | Trash page's "ลบข้อมูลตัวอย่างทั้งหมด" button hard-deletes every `sample: true` row across all 5 affected collections, including ones already sitting in the Trash, while real (non-sample) rows in the same collections are left alone |
+| `catalog_category_test.py` | Catalog upload/edit form's หมวดสินค้า field is an addable-select (existing value pre-selected on edit, options seeded from both catalogs and warehouse types, "+" adds and saves a brand-new one) |
 
 `fixtures/` holds the sample generators. The same files were used to seed the live site with `[ตัวอย่าง]` rows (`sample: true`).
 

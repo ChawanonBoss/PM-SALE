@@ -1157,7 +1157,17 @@
         <div class="field full"><div class="pc-preview" id="catPreview"></div></div>
         <div class="field full"><label>ชื่อ Catalog *</label><input type="text" id="catTitle" required></div>
         <div class="field"><label>ยี่ห้อ</label><input type="text" id="catBrand" list="catBrandList" autocomplete="off"><datalist id="catBrandList"></datalist></div>
-        <div class="field"><label>หมวดสินค้า</label><input type="text" id="catCategory" list="catCategoryList" autocomplete="off"><datalist id="catCategoryList"></datalist></div>
+        <div class="field"><label>หมวดสินค้า</label>
+          <div class="type-row">
+            <select id="catCategory"></select>
+            <button type="button" class="serial-add-btn" id="catCategoryAddBtn" title="เพิ่มหมวดสินค้าใหม่">+</button>
+          </div>
+          <div class="type-new" id="catCategoryNewRow" style="display:none;">
+            <input type="text" id="catCategoryNew" placeholder="ชื่อหมวดสินค้าใหม่" autocomplete="off">
+            <button type="button" class="icon-btn" id="catCategoryNewOk">เพิ่ม</button>
+            <button type="button" class="icon-btn" id="catCategoryNewCancel">ยกเลิก</button>
+          </div>
+        </div>
         <div class="field full"><label>หมายเหตุ</label><textarea id="catNote"></textarea></div>
       </div>
       <div class="modal-actions">
@@ -1411,7 +1421,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.1';
+const APP_VERSION = '1.20.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -4252,8 +4262,11 @@ let pendingCatalogFile = null;
 function fillCatalogDatalists(){
   const uniq = arr => [...new Set(arr.map(v => (v || '').trim()).filter(Boolean))].sort();
   $('catBrandList').innerHTML = uniq([...data.catalogs.map(c => c.brand), ...data.warehouse.map(w => w.brand)]).map(v => `<option value="${escapeHtml(v)}">`).join('');
-  $('catCategoryList').innerHTML = uniq([...data.catalogs.map(c => c.category), ...data.warehouse.map(w => w.type)]).map(v => `<option value="${escapeHtml(v)}">`).join('');
 }
+// หมวดสินค้า: an addable-select (same "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) instead of a plain text+datalist input, so adding a new
+// category is an explicit, visible action rather than something only discoverable by typing past the suggestions.
+const catCategorySel = makeAddableSelect({ sel:'catCategory', addBtn:'catCategoryAddBtn', newRow:'catCategoryNewRow', newInput:'catCategoryNew', ok:'catCategoryNewOk', cancel:'catCategoryNewCancel',
+  placeholder:'— เลือกหมวดสินค้า —', noun:'หมวดสินค้า', builtin: [], used: () => [...data.catalogs.map(c => c.category), ...data.warehouse.map(w => w.type)] });
 function openCatalogForm(id){
   const c = id ? data.catalogs.find(x => x.id === id) : null;
   editingCatalogId = c ? c.id : null;
@@ -4265,7 +4278,8 @@ function openCatalogForm(id){
   $('catPreview').innerHTML = c ? `<img src="${c.thumb}" alt="">` : '';
   $('catTitle').value = c ? c.title || '' : '';
   $('catBrand').value = c ? c.brand || '' : '';
-  $('catCategory').value = c ? c.category || '' : '';
+  catCategorySel.reset();
+  catCategorySel.fill(c ? c.category : '');
   $('catNote').value = c ? c.note || '' : '';
   $('catalogSaveBtn').textContent = c ? 'บันทึก' : 'อัปโหลด';
   $('catalogSaveBtn').disabled = false;
