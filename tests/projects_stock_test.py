@@ -58,7 +58,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert page.inner_text('#projectModalTitle') == 'เพิ่มการซื้อขาย' and page.inner_text('#projectSaveBtn') == 'บันทึกรายการ'
     order = page.evaluate("[...document.querySelectorAll('#projectForm .form-grid .field label')].map(l => l.textContent.trim())")
     print(order)
-    assert order == ['ชื่องาน *', 'หน่วยงาน / ลูกค้า *', 'เลขที่สัญญา', 'เลขที่ PO', 'จำนวนงวดงานทั้งหมด', 'วันที่สั่งซื้อ *', 'วันที่สิ้นสุด *', 'บริษัทของเรา (หัวกระดาษ PDF)', 'สถานที่ส่งสินค้า', 'การรับประกัน (เดือน)', 'หมายเหตุ'], order
+    assert order == ['ชื่องาน *', 'หน่วยงาน / ลูกค้า *', 'เลขที่สัญญา', 'เลขที่ PO', 'จำนวนงวดงานทั้งหมด', 'บันทึกรูปภาพชุดใด (เลือกได้มากกว่า 1)', 'รูปภาพอุปกรณ์', 'รูปภาพงานติดตั้ง', 'วันที่สั่งซื้อ *', 'วันที่สิ้นสุด *', 'บริษัทของเรา (หัวกระดาษ PDF)', 'สถานที่ส่งสินค้า', 'การรับประกัน (เดือน)', 'หมายเหตุ'], order
     assert page.evaluate("document.getElementById('prjJobType').type") == 'hidden' and page.input_value('#prjJobType') == 'sale', "no job-type select: the menu decides"
     heads = page.evaluate("[...document.querySelectorAll('#projectModal .items-table thead th')].map(t => t.textContent.trim())")
     assert heads[1].startswith('Part') and heads[2:8] == ['ยี่ห้อ', 'ชื่อ', 'ประเภท', 'รหัสอุปกรณ์', 'จำนวน', 'สถานะ'], heads
@@ -96,6 +96,8 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert 'S2' not in offered and 'S4' not in offered and 'S1' in offered, offered
     page.click(f"{R(3,9)} button")                                                                                  # remove that third line again
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
+    # saving a brand-new sale now routes straight to its photo page (see the photo-attachment feature) - come back to the sales list to keep checking it
+    page.click('.nav-item[data-tab="sales"]')
     prj = P(); print(prj['jobType'], prj['startDate'], prj['endDate'], [(i['part'], i['qty'], i['status'], i['serials']) for i in prj['items']])
     assert prj['jobType'] == 'sale' and prj['startDate'] == '2026-09-01' and prj['endDate'] == '2026-09-01'
     assert [(i['part'], i['qty'], i['status'], i['serials']) for i in prj['items']] == [('SW-24', 2, 'pending', ['S2', 'S4']), ('RT-1', 1, 'pending', [])]
@@ -157,6 +159,8 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.fill('#prjStart', D(-5)); page.fill('#prjEnd', D(60)); page.fill('#prjLocation', 'อาคาร A')
     assert 'นับจากวันสิ้นสุดโครงการ' in page.inner_text('#prjWarrantyHint')
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
+    # saving a brand-new project now routes straight to its Action Plan (see the photo-attachment feature's "2-page" flow) - come back to the list
+    page.click('.nav-item[data-tab="projects"]')
     pj = page.evaluate("data.projects.find(p => p.name === 'โครงการ CCTV')")
     assert pj['jobType'] == 'project' and pj['endDate'] == D(60) and pj['items'] == []
     assert 'รอดำเนินการ' in page.inner_text('#projectsBody tr:has-text("โครงการ CCTV")')   # in contract, no plan yet

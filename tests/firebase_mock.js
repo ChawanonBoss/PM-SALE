@@ -9,10 +9,22 @@
   }
   const FV_DELETE = '__FV_DELETE__';
 
+  // A dotted key in an update() patch (e.g. "photoCounts.equipment") must merge into that nested object rather than
+  // create a literal "photoCounts.equipment" property, matching real Firestore's field-path behavior.
+  function setPath(obj, path, value){
+    const parts = path.split('.');
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++){ if (typeof cur[parts[i]] !== 'object' || cur[parts[i]] === null) cur[parts[i]] = {}; cur = cur[parts[i]]; }
+    cur[parts[parts.length - 1]] = value;
+  }
+  function getPath(obj, path){ return path.split('.').reduce((o, k) => (o && typeof o === 'object') ? o[k] : undefined, obj); }
+
   function applyPatch(obj, patch){
     for (const k in patch){
-      if (patch[k] === FV_DELETE) delete obj[k];
-      else obj[k] = patch[k];
+      const v = patch[k];
+      if (v === FV_DELETE) delete obj[k];
+      else if (v && v.__FV_INCREMENT__ !== undefined) setPath(obj, k, (Number(getPath(obj, k)) || 0) + v.__FV_INCREMENT__);
+      else setPath(obj, k, v);
     }
   }
 
@@ -124,7 +136,7 @@
         return api;
       },
     }), {
-      FieldValue: { delete: () => FV_DELETE }
+      FieldValue: { delete: () => FV_DELETE, increment: (n) => ({ __FV_INCREMENT__: n }) }
     }),
   };
 })();

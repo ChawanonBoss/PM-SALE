@@ -84,6 +84,16 @@
       allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
     }
 
+    // Handover photos (equipment / installation sets): one document per photo, same base64-under-1MB shape and ownerId scoping as pm_files above.
+    match /pm_photos/{id} {
+      allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
+      allow create: if pmIsAdmin()
+        || (pmIsApproved() && request.resource.data.ownerId == request.auth.uid && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.data is string && request.resource.data.data.size() < 900000);
+      allow update: if false;
+      allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
+    }
+
     // Document-number counters (SO20260921 -> n): any signed-in user may create one or raise it, never lower it. The app falls back to
     // "highest visible number + 1" if these rules aren't published, so publishing them is what makes numbering race-proof.
     match /pm_counters/{id} {

@@ -131,6 +131,15 @@
   .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table{ width:100%; border-collapse:collapse; font-size:13.5px; }
   th{ text-align:left; font-weight:500; color:var(--ink-soft); font-size:12px; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+  /* โครงการ list: the 2-row "สถานะงาน" group header, its 3 read-only checkboxes, and the per-browser column-visibility toggle */
+  #projectsTable thead tr:first-child th{ text-align:center; }
+  #projectsTable thead tr:last-child th{ text-align:center; border-top:none; padding-top:2px; font-weight:400; }
+  #projectsTable td input[type="checkbox"]:disabled{ width:16px; height:16px; cursor:default; vertical-align:middle; }
+  #projectsTable td[data-col="workstatus"]{ text-align:center; }
+  #projectsTable[data-hide~="inst"] [data-col="inst"], #projectsTable[data-hide~="customer"] [data-col="customer"],
+  #projectsTable[data-hide~="contract"] [data-col="contract"], #projectsTable[data-hide~="period"] [data-col="period"],
+  #projectsTable[data-hide~="items"] [data-col="items"], #projectsTable[data-hide~="status"] [data-col="status"],
+  #projectsTable[data-hide~="workstatus"] [data-col="workstatus"], #projectsTable[data-hide~="creator"] [data-col="creator"]{ display:none !important; }
   td{ padding:12px 10px; border-bottom:1px solid var(--line); vertical-align:middle; }
   tr:last-child td{ border-bottom:none; }
   tbody tr:hover{ background:rgba(59,130,246,0.04); }
@@ -293,6 +302,12 @@
   .pc-img img{ width:100%; height:100%; object-fit:cover; object-position:top; display:block; }
   .pc-badge{ position:absolute; right:8px; top:8px; background:rgba(20,24,34,.78); color:#fff; font-size:11px; padding:2px 9px; border-radius:100px; }
   .pc-sample{ position:absolute; left:8px; top:8px; background:#FF9F43; color:#fff; font-size:11px; padding:2px 9px; border-radius:100px; font-weight:600; }
+  /* ---- Photo sets (equipment / installation handover photos) ---- */
+  .photo-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:14px; margin-top:12px; }
+  .photo-item{ position:relative; border-radius:10px; overflow:hidden; background:#EEF0F3; aspect-ratio:1/1; }
+  .photo-item img{ width:100%; height:100%; object-fit:cover; display:block; cursor:pointer; }
+  .photo-item .icon-btn{ position:absolute; right:6px; top:6px; }
+  .photo-item .cell-sub{ position:absolute; left:0; right:0; bottom:0; background:rgba(20,24,34,.72); color:#fff; font-size:10.5px; padding:3px 6px; }
   .pc-title{ font-weight:600; font-size:13.5px; line-height:1.35; color:#1E2430; padding:0 4px; }
   .pc-sub{ font-size:12px; color:#8B909C; padding:0 4px; }
   .pc-actions{ display:flex; gap:6px; flex-wrap:wrap; padding:0 4px; }
@@ -618,7 +633,7 @@
           </div>
           <p class="panel-note"><b>ซื้อขาย</b> — สถานะดูจากรายการสินค้าแต่ละบรรทัด: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว · เลือกสินค้าจากโกดัง เมื่อบันทึกเป็น "ดำเนินการแล้ว" ระบบตัดจำนวนและ Serial ออกจากโกดังให้</p>
           <div class="table-scroll"><table class="m-cards">
-            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน</th><th>ลูกค้า</th><th>เลขที่ PO</th><th>วันที่สั่งซื้อ</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่องาน</th><th>ลูกค้า</th><th>เลขที่ PO</th><th>วันที่สั่งซื้อ</th><th>รายการ</th><th>สถานะ</th><th class="creator-col" data-col="creator">สร้างโดย</th><th></th></tr></thead>
             <tbody id="salesBody"></tbody>
           </table></div>
           <div class="pager" id="salesPager"></div>
@@ -640,12 +655,23 @@
               </select>
               <button class="btn" id="projectsCreateBtn" type="button">+ เพิ่มโครงการ</button>
               <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
+              <button class="btn outline" type="button" id="projectsColumnsBtn">คอลัมน์</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan · ตัวกรอง "งวดงาน" อ้างอิงจากงวดที่ยังไม่ได้ส่ง (หรืองวดสุดท้ายถ้าส่งครบแล้ว) ของแต่ละโครงการ</p>
-          <div class="table-scroll"><table class="m-cards">
-            <thead><tr><th>เลขที่เอกสาร</th><th>งวดงาน</th><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan · ตัวกรอง "งวดงาน" อ้างอิงจากงวดที่ยังไม่ได้ส่ง (หรืองวดสุดท้ายถ้าส่งครบแล้ว) ของแต่ละโครงการ · ช่อง "สถานะงาน" ติ๊กเองไม่ได้ ระบบติ๊กให้เมื่อบันทึกแผนดำเนินงาน/รูปภาพจริงเท่านั้น · กด "คอลัมน์" เพื่อเลือกว่าจะแสดงคอลัมน์ไหนบ้าง (มีผลเฉพาะเบราว์เซอร์นี้)</p>
+          <div class="table-scroll"><table class="m-cards" id="projectsTable">
+            <thead>
+              <tr>
+                <th rowspan="2">เลขที่เอกสาร</th><th rowspan="2" data-col="inst">งวดงาน</th><th rowspan="2">ชื่อโครงการ</th><th rowspan="2" data-col="customer">ลูกค้า</th>
+                <th rowspan="2" data-col="contract">เลขที่สัญญา</th><th rowspan="2" data-col="period">ระยะเวลา</th><th rowspan="2" data-col="items">รายการ</th><th rowspan="2" data-col="status">สถานะ</th>
+                <th colspan="3" data-col="workstatus">สถานะงาน</th>
+                <th rowspan="2" class="creator-col" data-col="creator">สร้างโดย</th><th rowspan="2"></th>
+              </tr>
+              <tr>
+                <th data-col="workstatus">แผนการดำเนินงาน</th><th data-col="workstatus">รูปภาพอุปกรณ์</th><th data-col="workstatus">รูปภาพงานติดตั้ง</th>
+              </tr>
+            </thead>
             <tbody id="projectsBody"></tbody>
           </table></div>
           <div class="pager" id="projectsPager"></div>
@@ -685,6 +711,7 @@
               </div>
               <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button class="btn outline" id="planPrintBtn" type="button">พิมพ์ PDF</button>
+                <button class="btn outline" id="planPhotosBtn" type="button">รูปภาพ →</button>
                 <button class="btn outline" id="planEditProjectBtn" type="button">ข้อมูลโครงการ</button>
                 <button class="btn" id="planEditBtn" type="button">แก้ไขแผนดำเนินการ</button>
               </div>
@@ -694,6 +721,33 @@
             <p class="panel-note" id="planNote" style="margin-top:0;">สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด (ส่วนสีเข้มคือความคืบหน้า) · ลากแถบเพื่อย้าย, ลากขอบซ้าย/ขวาเพื่อปรับความยาว (เป็นรายสัปดาห์), ลากบนแถวที่ยังไม่มีวันที่เพื่อสร้างแถบ · ติ๊กช่อง ✓ หน้าสุดของแถวเมื่อดำเนินการแล้ว (ความคืบหน้าคำนวณจากจำนวนที่ติ๊ก)</p>
             <div id="planBody"></div>
           </div>
+        </div>
+      </div>
+
+      <!-- Handover photos: equipment set + installation set, reached from a project/sale row's "รูปภาพ" button or after saving a new job -->
+      <div id="tab-photos" class="tab-panel" style="display:none;">
+        <div class="panel">
+          <button class="btn outline" id="photosBackBtn" type="button" style="margin-bottom:14px;">← กลับ</button>
+          <h3 class="serif" id="photosProjectName" style="font-size:21px; font-weight:500;"></h3>
+          <div class="plan-meta" id="photosMeta"></div>
+        </div>
+        <div class="panel" id="photosEquipPanel">
+          <div class="panel-head">
+            <h3>ชุดที่ 1: รูปภาพอุปกรณ์ <span class="count-pill" id="photosEquipCount"></span></h3>
+            <button class="btn" type="button" id="photosEquipBtn">+ เพิ่มรูปภาพ</button>
+          </div>
+          <p class="panel-note" id="photosEquipHint" style="margin-top:0;"></p>
+          <div class="photo-grid" id="photosEquipGrid"></div>
+          <input type="file" id="photosEquipInput" accept="image/*" multiple style="display:none;">
+        </div>
+        <div class="panel" id="photosInstallPanel">
+          <div class="panel-head">
+            <h3>ชุดที่ 2: รูปภาพงานติดตั้ง <span class="count-pill" id="photosInstallCount"></span></h3>
+            <button class="btn" type="button" id="photosInstallBtn">+ เพิ่มรูปภาพ</button>
+          </div>
+          <p class="panel-note" id="photosInstallHint" style="margin-top:0;"></p>
+          <div class="photo-grid" id="photosInstallGrid"></div>
+          <input type="file" id="photosInstallInput" accept="image/*" multiple style="display:none;">
         </div>
       </div>
 
@@ -939,6 +993,13 @@
         <div class="field"><label>เลขที่ PO</label><input type="text" id="prjPo" placeholder="เลขที่ใบสั่งซื้อของลูกค้า (ถ้ามี)"></div>
         <div class="field" id="prjInstallmentField"><label>จำนวนงวดงานทั้งหมด</label><input type="number" min="1" max="99" step="1" id="prjInstallmentTotal" placeholder="เช่น 4 (เว้นว่าง = ไม่แบ่งงวด)">
           <div class="cell-sub" id="prjInstallmentHint"></div></div>
+        <div class="field" id="prjPhotoSetsField" style="grid-column:1/-1;">
+          <label>บันทึกรูปภาพชุดใด (เลือกได้มากกว่า 1)</label>
+          <div style="display:flex; gap:18px; margin-top:6px;">
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer;"><input type="checkbox" id="prjPhotoEquip" checked> รูปภาพอุปกรณ์</label>
+            <label style="display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer;"><input type="checkbox" id="prjPhotoInstall" checked> รูปภาพงานติดตั้ง</label>
+          </div>
+        </div>
         <div class="field"><label id="prjStartLabel">วันที่เซ็นสัญญา *</label>
           <div class="date-edit-wrap"><input type="date" id="prjStart" required><span class="date-display placeholder" id="prjStartText">dd/mm/yyyy</span></div>
         </div>
@@ -971,6 +1032,16 @@
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกรายการ</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- โครงการ list: which columns to show (per browser, see PROJECT_COLUMNS / projectColumnPrefs) -->
+<div class="modal-overlay" id="projectColumnsModal" style="display:none;">
+  <div class="modal" style="max-width:360px;">
+    <h3 class="serif" style="font-size:19px; margin-bottom:4px;">เลือกคอลัมน์ที่จะแสดง</h3>
+    <p class="cell-sub" style="margin-bottom:14px;">มีผลเฉพาะเบราว์เซอร์นี้ ไม่กระทบคนอื่น</p>
+    <div id="projectColumnsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+    <div class="modal-actions"><button class="btn" type="button" id="projectColumnsCloseBtn">เสร็จสิ้น</button></div>
   </div>
 </div>
 
@@ -1236,12 +1307,12 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.15.0';
+const APP_VERSION = '1.17.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
-  warehouse:'pm_warehouse', files:'pm_files', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+  warehouse:'pm_warehouse', files:'pm_files', photos:'pm_photos', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -1374,7 +1445,8 @@ const TITLES = {
   companies:['ข้อมูลบริษัท','โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร'],
   users:['ผู้ใช้งาน','จัดการผู้ใช้งานและสิทธิ์'],
   audit:['ประวัติของระบบ','บันทึกการแก้ไขและข้อผิดพลาด'],
-  trash:['ถังขยะ','กู้คืนหรือลบถาวร']
+  trash:['ถังขยะ','กู้คืนหรือลบถาวร'],
+  photos:['รูปภาพการส่งมอบงาน','แนบรูปภาพอุปกรณ์และรูปภาพงานติดตั้ง']
 };
 const ADMIN_ONLY_TABS = ['users','audit','trash'];
 function showTab(tab){
@@ -1396,7 +1468,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 function renderActiveTab(){
   const fn = {
     dashboard:renderDashboard, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, catalog:renderCatalogs,
-    customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit
+    customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit, photos:renderPhotos
   }[currentTab];
   if (fn) fn();
   updateNavBadge();
@@ -1483,10 +1555,32 @@ document.addEventListener('click', e => {
 });
 let renderQueued = false;
 // Card layout on phones: give every cell of an .m-cards table its column heading as data-label (the CSS prints it before the value)
+// A plain single-row <thead> just lists its <th> left to right. A grouped, 2-row <thead> (a colspan group over its own sub-headers,
+// like the โครงการ list's "สถานะงาน" over 3 checkbox columns) needs an actual column grid walk: `document.querySelectorAll('thead th')`
+// visits row 1 fully before row 2, which does NOT match left-to-right column order once a col-span group is involved. For each column,
+// the label that should reach the card view is whichever header cell is DEEPEST there (a sub-header under a group, or the plain
+// rowspan-2 header where there's no group) - so later rows are left to overwrite earlier ones at the same column index.
+function computeColumnLabels(table){
+  const rows = [...table.querySelectorAll('thead tr')];
+  if (rows.length <= 1) return [...table.querySelectorAll('thead th')].map(h => h.textContent.trim());
+  const grid = rows.map(() => []);
+  let maxCols = 0;
+  rows.forEach((tr, r) => {
+    let col = 0;
+    [...tr.children].forEach(cell => {
+      while (grid[r][col] !== undefined) col++;   // a column already claimed by an earlier row's rowspan
+      const rs = Number(cell.rowSpan) || 1, cs = Number(cell.colSpan) || 1, label = cell.textContent.trim();
+      for (let dr = 0; dr < rs; dr++) for (let dc = 0; dc < cs; dc++) grid[r + dr][col + dc] = label;
+      col += cs; maxCols = Math.max(maxCols, col);
+    });
+  });
+  const last = grid[grid.length - 1];
+  return Array.from({ length: maxCols }, (_, i) => last[i] || '');
+}
 function labelCardCells(tb){
   const table = tb.closest('table.m-cards');
   if (!table) return;
-  const heads = [...table.querySelectorAll('thead th')].map(h => h.textContent.trim());
+  const heads = computeColumnLabels(table);
   tb.querySelectorAll('tr').forEach(tr => {
     const cells = [...tr.children];
     if (cells.length === 1 && cells[0].colSpan > 1) return;
@@ -2010,27 +2104,36 @@ function renderJobs(kind){
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
   lastList[k] = rows;
   $(k + 'Count').textContent = rows.length;
-  const cols = isAdmin ? (sale ? 9 : 10) : (sale ? 8 : 9);
+  const cols = sale ? 9 : 13;   // creator's <td> is always emitted now (hidden by CSS, not omitted), so the "no rows" colspan no longer depends on role
+  if (!sale){
+    const hide = PROJECT_COLUMNS.filter(c => !projectColumnPrefs[c.key] || (c.key === 'creator' && !isAdmin)).map(c => c.key);
+    $('projectsTable').dataset.hide = hide.join(' ');
+  }
   const view = pageSlice(k, rows);
   $(k + 'Body').innerHTML = rows.length ? view.map(p => {
     const its = p.items || [], done = its.filter(i => i.status === 'done').length;
-    const itemsCell = `<td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>`;
+    const itemsCell = `<td data-col="items">${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>`;
     const total = Number(p.installmentTotal) || 0, delivered = lastDelivered(p);
-    const instCell = sale ? '' : `<td>${total ? `<span class="docno">${delivered}/${total}</span><div class="cell-sub">${delivered >= total ? 'ครบทุกงวด' : 'รอส่งงวดที่ ' + (delivered + 1)}</div>` : '<span class="cell-sub">-</span>'}</td>`;
+    const instCell = sale ? '' : `<td data-col="inst">${total ? `<span class="docno">${delivered}/${total}</span><div class="cell-sub">${delivered >= total ? 'ครบทุกงวด' : 'รอส่งงวดที่ ' + (delivered + 1)}</div>` : '<span class="cell-sub">-</span>'}</td>`;
     const middle = sale
       ? `<td>${escapeHtml(p.poNo || '-')}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}</td>`
-      : `<td>${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>`;
+      : `<td data-col="contract">${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td><td data-col="period" style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>`;
+    // "สถานะงาน": ticked only once the real data behind it is actually saved - never user-clickable (see the shared handling in printProject etc.).
+    const wchk = (done, label) => `<td data-col="workstatus" style="text-align:center;"><input type="checkbox" disabled ${done ? 'checked' : ''} title="${label}${done ? ' — บันทึกแล้ว' : ' — ยังไม่ได้บันทึก'}"></td>`;
+    const workCells = sale ? '' : wchk((p.plan || []).length > 0, 'แผนการดำเนินงาน') + wchk(Number(p.photoCounts && p.photoCounts.equipment) > 0, 'รูปภาพอุปกรณ์') + wchk(Number(p.photoCounts && p.photoCounts.install) > 0, 'รูปภาพงานติดตั้ง');
     return `
     <tr>
       <td>${p.docNo ? `<span class="docno">${escapeHtml(p.docNo)}</span>` : '<span class="cell-sub">-</span>'}</td>
       ${instCell}
       <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
-      <td>${escapeHtml(p.customerName || '-')}</td>
+      <td data-col="customer">${escapeHtml(p.customerName || '-')}</td>
       ${middle}
       ${itemsCell}
-      <td>${statusBadgeFor(p)}</td>
-      ${isAdmin ? `<td class="cell-sub">${escapeHtml(getUserDisplayName(p.createdBy))}</td>` : ''}
+      <td data-col="status">${statusBadgeFor(p)}</td>
+      ${workCells}
+      <td class="cell-sub creator-col" data-col="creator">${isAdmin ? escapeHtml(getUserDisplayName(p.createdBy)) : ''}</td>
       <td><div class="row-actions">
+        <button class="icon-btn" onclick="openPhotosPage('${p.id}')">รูปภาพ</button>
         ${sale ? '' : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
         ${!sale && Number(p.installmentTotal) > 0 ? `<button class="icon-btn" onclick="openDeliveryModal('${p.id}')">ส่งงาน</button>` : ''}
         <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
@@ -2091,6 +2194,8 @@ function openProjectForm(id, kind){
   $('prjContract').value = p ? p.contractNo || '' : '';
   $('prjPo').value = p ? p.poNo || '' : '';
   $('prjInstallmentTotal').value = p && p.installmentTotal > 0 ? p.installmentTotal : '';
+  $('prjPhotoEquip').checked = !p || !p.photoSets || p.photoSets.includes('equipment');
+  $('prjPhotoInstall').checked = !p || !p.photoSets || p.photoSets.includes('install');
   $('prjInstallmentHint').textContent = p && (p.deliveries || []).length ? `ส่งงานแล้ว ${installmentLabel(p) || (p.deliveries || []).length + ' ครั้ง'} — กด "ส่งงาน" ในรายการเพื่อบันทึกงวดถัดไป` : (p && p.installmentTotal > 0 ? 'ยังไม่เคยส่งงาน — กด "ส่งงาน" ในรายการเมื่อส่งมอบแต่ละงวด' : '');
   $('prjStart').value = p ? p.startDate || '' : '';
   $('prjEnd').value = p && !isSale(p) ? p.endDate || '' : '';
@@ -2112,6 +2217,7 @@ function applyJobType(){
   $('prjEndField').style.display = sale ? 'none' : '';
   $('prjEnd').required = !sale;
   $('prjInstallmentField').style.display = sale ? 'none' : '';   // sales are not split into installments
+  $('prjPhotoSetsField').style.display = sale ? '' : 'none';   // a โครงการ always has both sets available; only a ซื้อขาย picks
   $('prjLocationLabel').textContent = sale ? 'สถานที่ส่งสินค้า' : 'สถานที่ติดตั้ง';
   syncProjectDateTexts();
 }
@@ -2345,6 +2451,7 @@ $('projectForm').addEventListener('submit', async e => {
     companyId: $('prjCompany').value, notes: $('prjNotes').value.trim(),
     installLocation: $('prjLocation').value.trim(), warrantyMonths: Math.max(0, Math.floor(Number($('prjWarranty').value) || 0)), items
   };
+  if (sale) doc.photoSets = [$('prjPhotoEquip').checked && 'equipment', $('prjPhotoInstall').checked && 'install'].filter(Boolean);
   const effects = stockEffects(editingOrigItems, items);
   const save = async () => {
     $('projectSaveBtn').disabled = true;
@@ -2365,6 +2472,7 @@ $('projectForm').addEventListener('submit', async e => {
       setSync('ok');
       closeModal('projectModal');
       toast('บันทึกรายการแล้ว' + (docNo ? ' · ' + docNo : ''));
+      if (isNew){ if (sale) openPhotosPage(ref.id); else openActionPlan(ref.id); }
     }catch(err){
       setSync('error');
       toast(err && err.message && !/permission|insufficient/i.test(err.message) ? err.message : 'บันทึกไม่สำเร็จ');
@@ -2455,6 +2563,27 @@ function buildProjectPrintHtml(p){
 /* ====== Installments ("งวดงาน") and delivering a batch ("ส่งงาน") ======
    A project can be split into N installments (installmentTotal). Each time a batch is handed over the "ส่งงาน" dialog records which one
    (installmentNo, plus a deliveries[] history); the handover PDF then shows it as "3/4". Sales are never split. */
+// โครงการ list: which columns to show. "สร้างโดย" starts OFF (even for admin) so the list reads cleaner by default; everything
+// else starts ON. Purely a per-browser display preference (like the theme/language toggles), so it lives in localStorage, not Firestore.
+const PROJECT_COLUMNS = [
+  { key:'inst', label:'งวดงาน' }, { key:'customer', label:'ลูกค้า' }, { key:'contract', label:'เลขที่สัญญา / PO' },
+  { key:'period', label:'ระยะเวลา' }, { key:'items', label:'รายการอุปกรณ์' }, { key:'status', label:'สถานะ' },
+  { key:'workstatus', label:'สถานะงาน (แผนดำเนินงาน / รูปภาพ)' }, { key:'creator', label:'สร้างโดย' },
+];
+function loadProjectColumnPrefs(){
+  let saved = {}; try{ saved = JSON.parse(localStorage.getItem('pm-sale-project-columns') || '{}'); }catch(e){}
+  const prefs = {}; PROJECT_COLUMNS.forEach(c => { prefs[c.key] = c.key in saved ? !!saved[c.key] : c.key !== 'creator'; });
+  return prefs;
+}
+let projectColumnPrefs = loadProjectColumnPrefs();
+function saveProjectColumnPrefs(){ try{ localStorage.setItem('pm-sale-project-columns', JSON.stringify(projectColumnPrefs)); }catch(e){} }
+function renderProjectColumnsModal(){
+  $('projectColumnsList').innerHTML = PROJECT_COLUMNS.map(c => `<label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer;">
+    <input type="checkbox" ${projectColumnPrefs[c.key] ? 'checked' : ''} onchange="projectColumnPrefs['${c.key}']=this.checked; saveProjectColumnPrefs(); renderProjects();">${c.label}</label>`).join('');
+}
+$('projectsColumnsBtn').addEventListener('click', () => { renderProjectColumnsModal(); openModal('projectColumnsModal'); });
+$('projectColumnsCloseBtn').addEventListener('click', () => closeModal('projectColumnsModal'));
+
 function installmentLabel(p){
   const total = Number(p.installmentTotal) || 0, no = p.installmentNo;
   if (isSale(p)) return '';
@@ -2776,6 +2905,7 @@ function renderPlanDetail(p){
 ['planListSearch', 'planListStatus'].forEach(id => $(id).addEventListener('input', renderActionPlan));
 $('planBackBtn').addEventListener('click', () => { selectedPlanProjectId = null; renderActionPlan(); window.scrollTo(0, 0); });
 $('planEditProjectBtn').addEventListener('click', () => { if (selectedPlanProjectId) openProjectForm(selectedPlanProjectId); });
+$('planPhotosBtn').addEventListener('click', () => { if (selectedPlanProjectId) openPhotosPage(selectedPlanProjectId); });
 function openActionPlan(id){ selectedPlanProjectId = id; showTab('actionplan'); }
 
 // Write a whole plan back to its project; parents with sub-items get their computed dates/done stored too.
@@ -3406,6 +3536,100 @@ function deleteProjectFile(id){
       toast('ลบไฟล์แนบแล้ว');
     }catch(err){ toast('ลบไม่สำเร็จ'); }
   }, 'ลบไฟล์แนบ');
+}
+
+/* ---- Handover photos: one document per photo in pm_photos (base64, same storage pattern as pm_files) - two sets, "equipment" and "install".
+   A โครงการ always offers both sets; a ซื้อขาย only offers whichever set(s) were picked on its own create form (doc.photoSets), defaulting to
+   both for an older sale saved before this feature existed. photoCounts{equipment,install} on the parent doc is kept in sync via
+   FieldValue.increment() on every add/delete - it's what the โครงการ list's read-only "สถานะงาน" checkboxes read from, so a project/sale never
+   needs its own photos loaded just to show whether photos exist. */
+const PHOTO_MAX_BYTES = 900 * 1024;   // base64 stays under Firestore's 1MB document limit, mirroring the pm_files cap
+let photosProjectId = null;
+let projectPhotos = [];   // both sets, for whichever record is currently open
+function openPhotosPage(id){ photosProjectId = id; showTab('photos'); }
+function getPhotosRecord(){ return data.projects.find(x => x.id === photosProjectId); }
+$('photosBackBtn').addEventListener('click', () => { const rec = getPhotosRecord(); showTab(rec && rec.jobType === 'sale' ? 'sales' : 'projects'); });
+function photoSetsFor(rec){
+  if (!rec) return ['equipment', 'install'];
+  if (rec.jobType !== 'sale') return ['equipment', 'install'];   // a โครงการ always has both sets available
+  return rec.photoSets && rec.photoSets.length ? rec.photoSets : ['equipment', 'install'];   // an older sale saved before this feature existed
+}
+async function renderPhotos(){
+  const rec = getPhotosRecord();
+  if (!rec){ $('photosProjectName').textContent = 'ไม่พบรายการนี้ (อาจถูกลบ)'; $('photosMeta').innerHTML = ''; $('photosEquipPanel').style.display = 'none'; $('photosInstallPanel').style.display = 'none'; return; }
+  const sale = rec.jobType === 'sale';
+  $('photosProjectName').textContent = rec.name;
+  $('photosMeta').innerHTML = `ประเภทงาน: <b>${sale ? 'ซื้อขาย' : 'โครงการ'}</b> · เลขที่เอกสาร: <b>${escapeHtml(rec.docNo || '-')}</b> · ลูกค้า: ${escapeHtml(rec.customerName || '-')}`;
+  const sets = photoSetsFor(rec);
+  $('photosEquipPanel').style.display = sets.includes('equipment') ? '' : 'none';
+  $('photosInstallPanel').style.display = sets.includes('install') ? '' : 'none';
+  ['photosEquipHint', 'photosInstallHint'].forEach(id => $(id).textContent = `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)}`);
+  $('photosEquipGrid').innerHTML = ''; $('photosInstallGrid').innerHTML = ''; projectPhotos = [];
+  try{
+    let q = db.collection(COL.photos).where('projectId', '==', rec.id);
+    if (currentUserRole !== 'admin') q = q.where('ownerId', '==', currentUserUid);   // must match the rule: a non-admin only sees photos of their own jobs
+    const snap = await q.get();
+    if (photosProjectId !== rec.id) return;   // navigated away meanwhile
+    projectPhotos = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    renderPhotoGrids();
+  }catch(err){
+    const msg = /permission|insufficient/i.test(err.message || '') ? 'ยังใช้งานรูปภาพไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_photos) ที่ Firebase Console' : 'โหลดรูปภาพไม่สำเร็จ';
+    $('photosEquipGrid').textContent = msg; $('photosInstallGrid').textContent = msg;
+  }
+}
+function renderPhotoGrids(){
+  ['equipment', 'install'].forEach(set => {
+    const list = projectPhotos.filter(ph => ph.set === set);
+    const gridId = set === 'equipment' ? 'photosEquipGrid' : 'photosInstallGrid';
+    $(set === 'equipment' ? 'photosEquipCount' : 'photosInstallCount').textContent = list.length ? `(${list.length})` : '';
+    $(gridId).innerHTML = list.map(ph => `<div class="photo-item">
+        <img src="data:${ph.type || 'image/jpeg'};base64,${ph.data}" alt="${escapeHtml(ph.name)}" loading="lazy" onclick="window.open(this.src, '_blank')">
+        <button type="button" class="icon-btn delete-btn" onclick="deleteProjectPhoto('${ph.id}')" aria-label="ลบรูปภาพ">ลบ</button>
+        <span class="cell-sub">${fmtBytes(ph.size || 0)}</span>
+      </div>`).join('') || '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
+  });
+}
+async function addProjectPhotos(set, files){
+  const rec = getPhotosRecord();
+  if (!rec || !files.length) return;
+  const btnId = set === 'equipment' ? 'photosEquipBtn' : 'photosInstallBtn';
+  $(btnId).disabled = true;
+  let added = 0;
+  try{
+    for (const f of files){
+      if (!/^image\//.test(f.type)){ toast(`"${f.name}" ไม่ใช่รูปภาพ`); continue; }
+      let dataUrl;
+      try{ dataUrl = await resizeImageToDataUrl(f, 1280, 'image/jpeg', 0.72); }
+      catch(e){ toast(`"${f.name}" อ่านไฟล์รูปไม่สำเร็จ`); continue; }
+      const base64 = dataUrl.split(',')[1] || '';
+      if (base64.length > PHOTO_MAX_BYTES){ toast(`"${f.name}" ใหญ่เกินแม้ย่อขนาดแล้ว`); continue; }
+      const doc = { projectId: rec.id, ownerId: rec.createdBy, set, name: f.name, size: base64.length, type: 'image/jpeg', data: base64, createdBy: currentUserUid, createdAt: new Date().toISOString() };
+      const ref = await db.collection(COL.photos).add(doc);
+      projectPhotos.push({ id: ref.id, ...doc }); added++;
+      await db.collection(COL.projects).doc(rec.id).update({ [`photoCounts.${set}`]: firebase.firestore.FieldValue.increment(1) });
+    }
+    renderPhotoGrids();
+    if (added){ logAudit('แนบรูปภาพ' + (set === 'equipment' ? 'อุปกรณ์' : 'งานติดตั้ง'), rec.docNo || rec.name, `${added} รูป`); toast(`แนบรูปภาพ ${added} รูปแล้ว`); }
+  }catch(err){ toast(err && /permission|insufficient/i.test(err.message || '') ? 'แนบไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของรูปภาพ' : (err.message || 'แนบรูปภาพไม่สำเร็จ')); }
+  $(btnId).disabled = false;
+}
+$('photosEquipBtn').addEventListener('click', () => $('photosEquipInput').click());
+$('photosInstallBtn').addEventListener('click', () => $('photosInstallInput').click());
+$('photosEquipInput').addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; addProjectPhotos('equipment', files); });
+$('photosInstallInput').addEventListener('change', e => { const files = [...e.target.files]; e.target.value = ''; addProjectPhotos('install', files); });
+function deleteProjectPhoto(id){
+  const ph = projectPhotos.find(x => x.id === id);
+  if (!ph) return;
+  confirmAction('ลบรูปภาพนี้ถาวรใช่หรือไม่?', async () => {
+    try{
+      await db.collection(COL.photos).doc(id).delete();
+      await db.collection(COL.projects).doc(ph.projectId).update({ [`photoCounts.${ph.set}`]: firebase.firestore.FieldValue.increment(-1) });
+      projectPhotos = projectPhotos.filter(x => x.id !== id);
+      renderPhotoGrids();
+      logAudit('ลบรูปภาพ' + (ph.set === 'equipment' ? 'อุปกรณ์' : 'งานติดตั้ง'), ph.name, '');
+      toast('ลบรูปภาพแล้ว');
+    }catch(err){ toast('ลบไม่สำเร็จ'); }
+  }, 'ลบรูปภาพ');
 }
 
 function triggerDownload(blob, name){

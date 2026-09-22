@@ -85,7 +85,8 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert 'SO' + YMD + '-001' in page.inner_text('#toast')
     assert page.evaluate(f"(async () => (await db.collection('pm_counters').doc('SO{YMD}').get()).data().n)()") == 1
     # second sale on the same day -> 002 ; a project -> PJ...-001 (separate sequence)
-    page.click('#salesCreateBtn'); page.fill('#prjName', 'ขายใหม่ 2'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.fill('#prjStart', D(0))
+    # saving a brand-new sale now routes straight to its photo page (see the photo-attachment feature), so come back to the sales list first
+    page.click('.nav-item[data-tab="sales"]'); page.click('#salesCreateBtn'); page.fill('#prjName', 'ขายใหม่ 2'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.fill('#prjStart', D(0))
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'ขายใหม่ 2').docNo") == f"SO{YMD}-002"
     page.click('.nav-item[data-tab="projects"]'); page.click('#projectsCreateBtn'); assert page.input_value('#prjJobType') == 'project'; page.fill('#prjName', 'โครงการใหม่'); page.select_option('#prjCustomer', label='กรมทดสอบ')
