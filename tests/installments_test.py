@@ -39,7 +39,7 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     page.fill('#prjInstallmentTotal', '4'); page.click('#projectSaveBtn'); page.wait_for_timeout(700)
     assert page.evaluate("data.projects.find(p => p.id === 'p1').installmentTotal") == 4
     assert page.evaluate("data.projects.find(p => p.id === 'p1').installmentNo") is None
-    assert 'ส่งงานแล้ว 0/4 งวด' in row('โครงการแบ่งงวด').inner_text()
+    assert '0/4' in row('โครงการแบ่งงวด').inner_text() and 'รอส่งงวดที่ 1' in row('โครงการแบ่งงวด').inner_text()
     # PDF before any delivery: installment cell is "-"
     assert '<td>-</td>' in page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.id === 'p1'))").split('งวดงานที่')[1][:80]
 
@@ -51,7 +51,7 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     page.fill('#dlvNote', 'ชุดที่ 1'); page.click('#dlvSaveBtn'); page.wait_for_timeout(700)
     p1 = page.evaluate("data.projects.find(p => p.id === 'p1')")
     assert p1['installmentNo'] == 1 and len(p1['deliveries']) == 1 and p1['deliveries'][0]['note'] == 'ชุดที่ 1' and p1['deliveries'][0]['total'] == 4
-    assert 'ส่งงานแล้ว 1/4 งวด' in row('โครงการแบ่งงวด').inner_text() and not page.is_visible('#deliveryModal')
+    assert '1/4' in row('โครงการแบ่งงวด').inner_text() and 'รอส่งงวดที่ 2' in row('โครงการแบ่งงวด').inner_text() and not page.is_visible('#deliveryModal')
     row('โครงการแบ่งงวด').locator('button:text-is("ส่งงาน")').click(); page.wait_for_timeout(300)
     assert page.input_value('#dlvNo') == '2', "default moves to the next installment"
     assert 'เคยส่งแล้ว' in page.evaluate("$('dlvNo').options[0].textContent") and 'ชุดที่ 1' in page.inner_text('#dlvHistory')
@@ -60,7 +60,7 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     assert p1['installmentNo'] == 3 and len(p1['deliveries']) == 2 and p1['deliveries'][1]['date'] == '2026-11-05'
     audits = page.evaluate("[...window.__mockStore['pm_auditLog'].values()].filter(a => a.action === 'ส่งงาน').map(a => a.details)")
     assert audits and 'งวดที่ 3/4' in audits[-1], audits
-    assert 'ส่งงานแล้ว 3/4 งวด' in row('โครงการแบ่งงวด').inner_text()
+    assert '3/4' in row('โครงการแบ่งงวด').inner_text() and 'รอส่งงวดที่ 4' in row('โครงการแบ่งงวด').inner_text()
 
     # PDF shows 3/4 and the delivery date of that installment
     html = page.evaluate("buildProjectPrintHtml(data.projects.find(p => p.id === 'p1'))")

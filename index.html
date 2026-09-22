@@ -635,14 +635,17 @@
                 <option value="all">ทุกสถานะ</option>
                 <option value="pending">รอดำเนินการ</option><option value="active">กำลังดำเนินการ</option><option value="ended">สิ้นสุดสัญญาโครงการ</option>
               </select>
+              <select id="projectsInstallmentFilter" class="filter-control">
+                <option value="all">ทั้งหมด</option>
+              </select>
               <button class="btn" id="projectsCreateBtn" type="button">+ เพิ่มโครงการ</button>
               <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan</p>
+          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan · ตัวกรอง "งวดงาน" อ้างอิงจากงวดที่ยังไม่ได้ส่ง (หรืองวดสุดท้ายถ้าส่งครบแล้ว) ของแต่ละโครงการ</p>
           <div class="table-scroll"><table class="m-cards">
-            <thead><tr><th>เลขที่เอกสาร</th><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
+            <thead><tr><th>เลขที่เอกสาร</th><th>งวดงาน</th><th>ชื่อโครงการ</th><th>ลูกค้า</th><th>เลขที่สัญญา</th><th>ระยะเวลา</th><th>รายการ</th><th>สถานะ</th><th class="creator-col">สร้างโดย</th><th></th></tr></thead>
             <tbody id="projectsBody"></tbody>
           </table></div>
           <div class="pager" id="projectsPager"></div>
@@ -1233,7 +1236,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.14.1';
+const APP_VERSION = '1.15.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1406,7 +1409,7 @@ const PAGE_SIZES = [10, 20, 50, 100];
 const pagerState = {};
 const PAGER_UI = {
   sales:     { el:'salesPager',     render: () => renderSales(),        filters:['salesSearch','salesStatusFilter'] },
-  projects:  { el:'projectsPager',  render: () => renderProjects(),     filters:['projectsSearch','projectsStatusFilter'] },
+  projects:  { el:'projectsPager',  render: () => renderProjects(),     filters:['projectsSearch','projectsStatusFilter','projectsInstallmentFilter'] },
   plan:      { el:'planPager',      render: () => renderActionPlan(),   filters:['planListSearch','planListStatus'] },
   equipment: { el:'equipmentPager', render: () => renderEquipment(),    filters:['equipmentSearch','equipmentTypeFilter','equipmentWarrantyFilter'] },
   warehouse: { el:'warehousePager', render: () => renderWarehouse(),    filters:['warehouseSearch','warehouseBrandFilter','warehouseTypeFilter','warehouseSortFilter'] },
@@ -1454,7 +1457,7 @@ function setPageSize(key, v){ pagerState[key].size = Number(v) || 10; pagerState
 function filterGroups(){
   return [
     { btn:'salesClearBtn',     fields:{ salesSearch:'', salesStatusFilter:'all' }, render: renderSales },
-    { btn:'projectsClearBtn',  fields:{ projectsSearch:'', projectsStatusFilter:'all' }, render: renderProjects },
+    { btn:'projectsClearBtn',  fields:{ projectsSearch:'', projectsStatusFilter:'all', projectsInstallmentFilter:'all' }, render: renderProjects },
     { btn:'planListClearBtn',  fields:{ planListSearch:'', planListStatus:'all' }, render: renderActionPlan },
     { btn:'equipmentClearBtn', fields:{ equipmentSearch:'', equipmentTypeFilter:'all', equipmentWarrantyFilter:'all' }, render: renderEquipment },
     { btn:'catalogClearBtn',   fields:{ catalogSearch:'', catalogBrandFilter:'all' }, render: renderCatalogs },
@@ -1987,24 +1990,40 @@ function renderJobs(kind){
   document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
   const q = $(k + 'Search').value.trim().toLowerCase();
   const sf = $(k + 'StatusFilter').value;
+  // งวดงาน filter (โครงการ only): options are rebuilt from however many installments the biggest currently-visible project has,
+  // so "งวดที่ 4" only ever appears once some project actually has 4. A project with no installments at all never matches a specific number.
+  let instSel = null, instVal = 'all';
+  if (!sale){
+    instSel = $('projectsInstallmentFilter');
+    const maxTotal = getVisibleProjects().filter(x => jobTypeOf(x) === 'project')
+      .reduce((m, x) => Math.max(m, Number(x.installmentTotal) || 0), 0);
+    const prev = instSel.value || 'all';
+    instSel.innerHTML = `<option value="all">ทั้งหมด</option>` + Array.from({ length: maxTotal }, (_, i) => i + 1).map(n => `<option value="${n}">งวดที่ ${n}</option>`).join('');
+    instSel.value = (prev !== 'all' && Number(prev) <= maxTotal) ? prev : 'all';
+    instVal = instSel.value;
+  }
   const rows = getVisibleProjects()
     .filter(p => jobTypeOf(p) === kind)
     .filter(p => sf === 'all' || projectStatus(p) === sf)
+    .filter(p => sale || instVal === 'all' || currentInstallmentStage(p) === Number(instVal))
     .filter(p => !q || [p.name, p.customerName, p.contractNo, p.poNo, p.docNo].some(v => (v||'').toLowerCase().includes(q)))
     .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
   lastList[k] = rows;
   $(k + 'Count').textContent = rows.length;
-  const cols = isAdmin ? 9 : 8;
+  const cols = isAdmin ? (sale ? 9 : 10) : (sale ? 8 : 9);
   const view = pageSlice(k, rows);
   $(k + 'Body').innerHTML = rows.length ? view.map(p => {
     const its = p.items || [], done = its.filter(i => i.status === 'done').length;
-    const itemsCell = `<td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}${!sale && Number(p.installmentTotal) > 0 ? `<div class="cell-sub">ส่งงานแล้ว ${lastDelivered(p)}/${p.installmentTotal} งวด</div>` : ''}</td>`;
+    const itemsCell = `<td>${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>`;
+    const total = Number(p.installmentTotal) || 0, delivered = lastDelivered(p);
+    const instCell = sale ? '' : `<td>${total ? `<span class="docno">${delivered}/${total}</span><div class="cell-sub">${delivered >= total ? 'ครบทุกงวด' : 'รอส่งงวดที่ ' + (delivered + 1)}</div>` : '<span class="cell-sub">-</span>'}</td>`;
     const middle = sale
       ? `<td>${escapeHtml(p.poNo || '-')}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}</td>`
       : `<td>${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td><td style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>`;
     return `
     <tr>
       <td>${p.docNo ? `<span class="docno">${escapeHtml(p.docNo)}</span>` : '<span class="cell-sub">-</span>'}</td>
+      ${instCell}
       <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
       <td>${escapeHtml(p.customerName || '-')}</td>
       ${middle}
@@ -2023,7 +2042,7 @@ function renderJobs(kind){
 }
 function renderProjects(){ renderJobs('project'); }
 function renderSales(){ renderJobs('sale'); }
-['projectsSearch', 'projectsStatusFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
+['projectsSearch', 'projectsStatusFilter', 'projectsInstallmentFilter'].forEach(id => $(id).addEventListener('input', renderProjects));
 ['salesSearch', 'salesStatusFilter'].forEach(id => $(id).addEventListener('input', renderSales));
 
 let editingProjectId = null;
@@ -2442,6 +2461,14 @@ function installmentLabel(p){
   if (no === undefined || no === null || no === '') return '';
   if (total && /^\d+$/.test(String(no))) return `${no}/${total}`;
   return String(no);   // older free-text value ("งวดที่ 2")
+}
+// The installment a project is "sitting at" right now: the next one still owed, or the last one once everything has been sent.
+// Used by the โครงการ list's "งวดงาน" column/filter — a project with no installments at all (installmentTotal falsy) has no stage (null).
+function currentInstallmentStage(p){
+  const total = Number(p.installmentTotal) || 0;
+  if (!total) return null;
+  const delivered = lastDelivered(p);
+  return delivered >= total ? total : delivered + 1;
 }
 const lastDelivered = p => Math.max(0, ...(p.deliveries || []).map(d => Number(d.no) || 0));
 // date of the delivery that the PDF is about: the latest record of the current installment, else the project's end date

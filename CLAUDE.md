@@ -10,7 +10,7 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 - Patch `index.html` with small Python scripts that assert exact match counts; avoid bash heredocs with mixed quotes (write files with the editor tools). After a big edit run `python tests/static_test.py` (a bad replace once left `class="tab-panel"...` visible on the dashboard).
 
 ## Data model (short)
-`pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse`; plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered, printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped 500),
+`pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse`; plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered, printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog; the โครงการ list's own "งวดงาน" column/filter reads `currentInstallmentStage()` - the next undelivered installment, or the last one once everything is in - not `installmentNo` directly), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped 500),
 `pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB each, 8 per project), `pm_users` (`status` approved|pending|rejected; no status = approved),
 `pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
 

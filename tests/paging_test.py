@@ -43,10 +43,10 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
     assert nums('projectsPager') == ['‹', '1', '2', '3', '4', '5', '›'], nums('projectsPager')
     assert active('projectsPager') == '1' and page.evaluate("document.querySelector('#projectsPager .page-btn').disabled"), "‹ disabled on page 1"
     assert page.evaluate("[...document.querySelectorAll('#projectsPager select option')].map(o => o.textContent)") == ['10', '20', '50', '100']
-    first_p1 = page.inner_text('#projectsBody tr:first-child td:nth-child(2)')
+    first_p1 = page.inner_text('#projectsBody tr:first-child td:nth-child(3)')
     page.click('#projectsPager .page-btn:has-text("3")')
     assert active('projectsPager') == '3' and rows('projectsBody') == 10 and '21–30' in pager('projectsPager')
-    assert page.inner_text('#projectsBody tr:first-child td:nth-child(2)') != first_p1
+    assert page.inner_text('#projectsBody tr:first-child td:nth-child(3)') != first_p1
     assert nums('projectsPager') == ['‹', '1', '2', '3', '4', '5', '›']
     page.click('#projectsPager .page-btn:has-text("5")')                             # window slides once you go past 5
     assert nums('projectsPager') == ['‹', '3', '4', '5', '6', '7', '›'], nums('projectsPager')
