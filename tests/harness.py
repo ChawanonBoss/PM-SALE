@@ -83,6 +83,26 @@ def new_page(viewport=None, collect_errors=True):
             browser.close()
 
 
+# Which sidebar group flyout a given tab now lives inside (see index.html's NAV_GROUPS) - dashboard/actionplan/photos have no group,
+# they're still plain top-level `.nav-item[data-tab]` buttons. Keep this in sync with NAV_GROUPS if a tab ever moves between groups.
+NAV_GROUP_OF = {
+    "sales": "group1", "projects": "group1",
+    "warehouse": "group2", "catalog": "group2", "equipment": "group2",
+    "customers": "group3", "companies": "group3",
+    "users": "settings", "audit": "settings", "trash": "settings",
+}
+
+
+def goto_tab(page, tab):
+    """Navigates to a sidebar tab, opening its group flyout first if it lives inside one (see NAV_GROUP_OF)."""
+    group = NAV_GROUP_OF.get(tab)
+    if group:
+        page.click(f'.nav-item[data-group="{group}"]')
+        page.click(f'.nav-group-item[data-tab="{tab}"]')
+    else:
+        page.click(f'.nav-item[data-tab="{tab}"]')
+
+
 SEED_BASIC_ADMIN = """
 async () => {
   await db.collection('users').doc('admin1').set({ email:'admin@a.com', name:'Admin', role:'admin' });

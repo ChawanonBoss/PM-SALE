@@ -1,7 +1,7 @@
 import os, sys, tempfile
 import sys, os, http.server, threading, functools, base64, zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 h = functools.partial(Q, directory=REPO_ROOT)
@@ -72,7 +72,7 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     # purging a project from the Trash takes its files along
     page.evaluate("db.collection('pm_files').add({projectId:'p2', ownerId:'admin1', name:'z.txt', size:3, type:'text/plain', data:'eHl6', createdBy:'admin1', createdAt:'2026-09-21T00:00:00Z'})")
     page.evaluate("db.collection('pm_projects').doc('p2').update({deletedAt:'2026-09-21T00:00:00Z', deletedBy:'admin1'})"); page.wait_for_timeout(300)
-    page.click('.nav-item[data-tab="trash"]'); page.wait_for_timeout(700)
+    goto_tab(page, 'trash'); page.wait_for_timeout(700)
     page.locator('#trashBody tr:has-text("ขายหนึ่ง") button:has-text("ลบถาวร")').click(); page.click('#confirmModalOkBtn'); page.wait_for_timeout(700)
     assert page.evaluate("window.__mockStore['pm_files'].size") == 0 and page.evaluate("window.__mockStore['pm_projects'].has('p2')") is False
 
@@ -80,7 +80,8 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     page.evaluate("showTab('projects')"); page.wait_for_timeout(300)
     missing = page.evaluate("[...document.querySelectorAll('button')].filter(b => b.offsetParent !== null && !b.textContent.trim() && !b.getAttribute('aria-label')).length")
     assert missing == 0, missing
-    assert page.get_attribute('.nav-item[data-tab="warehouse"]', 'aria-label') == 'โกดังสินค้า'
+    # warehouse now lives inside the "คลังและอุปกรณ์" group flyout, not as its own rail button - check the group button's own derived name instead
+    assert page.get_attribute('.nav-item[data-group="group2"]', 'aria-label') == 'คลังและอุปกรณ์'
     page.evaluate("openProjectForm('p1')"); page.wait_for_timeout(300)
     assert page.evaluate("[...document.querySelectorAll('#prjItemsBody .delete-btn')].every(b => b.getAttribute('aria-label') === 'ลบ' || b.title)")
     page.click('#projectCancelBtn')

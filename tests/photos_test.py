@@ -1,6 +1,6 @@
 import sys, os, http.server, threading, functools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 h = functools.partial(Q, directory=REPO_ROOT)
@@ -62,7 +62,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     assert [chks.nth(i).is_checked() for i in range(chks.count())] == [False, False, True]
 
     # ---- ซื้อขาย: only the equipment set was chosen at creation, so the install panel is hidden ----
-    page.click('.nav-item[data-tab="sales"]'); page.wait_for_timeout(300)
+    goto_tab(page, 'sales'); page.wait_for_timeout(300)
     page.click('tr:has-text("ขายทดสอบรูป") .icon-btn:has-text("รูปภาพ")'); page.wait_for_timeout(300)
     assert 'ซื้อขาย' in page.inner_text('#photosMeta') and 'SO1' in page.inner_text('#photosMeta')
     assert page.is_visible('#photosEquipPanel') and not page.is_visible('#photosInstallPanel')
@@ -83,7 +83,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     new_sale = page.evaluate("data.projects.find(p => p.name === 'ขายใหม่จากฟอร์ม')")
     assert new_sale['photoSets'] == ['equipment']
 
-    page.click('.nav-item[data-tab="projects"]'); page.wait_for_timeout(200)
+    goto_tab(page, 'projects'); page.wait_for_timeout(200)
     assert not page.is_visible('#prjPhotoSetsField'), "a project never shows the set-picker (it always gets both sets)"
 
     # ---- Action Plan header: "รูปภาพ ->" opens the same photo page for the project currently open ----

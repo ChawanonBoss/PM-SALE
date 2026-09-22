@@ -1,7 +1,7 @@
 import os
 import sys, os, http.server, threading, functools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
 h = functools.partial(Q, directory=REPO_ROOT)
@@ -79,10 +79,10 @@ with new_page(viewport={"width": 1600, "height": 900}) as (page, errors):
     page.evaluate("currentUserRole = 'admin'; renderProjects()")
 
     # ซื้อขาย menu is untouched: single-row header, no สถานะงาน, no column picker
-    page.click('.nav-item[data-tab="sales"]'); page.wait_for_timeout(300)
+    goto_tab(page, 'sales'); page.wait_for_timeout(300)
     assert page.locator('#tab-sales thead tr').count() == 1 and 'สถานะงาน' not in page.inner_text('#tab-sales thead')
     assert page.locator('#tab-sales #projectsColumnsBtn, #salesColumnsBtn').count() == 0
-    page.click('.nav-item[data-tab="projects"]'); page.wait_for_timeout(300)
+    goto_tab(page, 'projects'); page.wait_for_timeout(300)
     page.screenshot(path=os.path.join(OUT, "status_columns.png"))
     print("errors:", errors); assert not errors
 print("OK")

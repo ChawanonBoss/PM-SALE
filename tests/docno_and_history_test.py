@@ -1,7 +1,7 @@
 import os, sys, tempfile
 import sys, http.server, threading, functools, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -55,9 +55,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     badge = lambda id: (page.inner_text(f'#{id}').strip() if page.is_visible(f'#{id}') else None)
     a = page.evaluate("getDashAlerts()")
     print({k: (len(v) if isinstance(v, list) else v) for k, v in a.items()})
-    assert badge('projectsNavBadge') == '1', "projects icon: contracts ending soon"
+    # projects/equipment moved into group flyouts (see the sidebar-groups feature) - their old per-tab badge ids are gone, but the group button
+    # they now live inside carries the same aggregate count
+    assert badge('group1NavBadge') == '1', "group1 (ซื้อขาย/โครงการ) icon: contracts ending soon"
     assert badge('planNavBadge') == '2' and 'late' in page.get_attribute('#planNavBadge', 'class'), "plan icon: 1 soon + 1 overdue, red"
-    assert badge('equipmentNavBadge') == '1', "warranty icon: 1 ending soon"
+    assert badge('group2NavBadge') == '1', "group2 (คลังและอุปกรณ์) icon: warranty ending soon"
     assert badge('dashNavBadge') == '4', "dashboard icon: total"
     page.evaluate("db.collection('pm_projects').doc('pA').update({plan:[{title:'ขั้นตอนใกล้ครบ', owner:'', start:'%s', end:'%s', done:false, subs:[]}]})" % (D(3), D(3))); page.wait_for_timeout(300)
     assert badge('planNavBadge') == '1' and 'late' not in page.get_attribute('#planNavBadge', 'class'), "no overdue step -> orange"
@@ -66,10 +68,10 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.evaluate("db.collection('pm_projects').doc('pA').update({plan:[{title:'ขั้นตอนเลยกำหนด', owner:'', start:'%s', end:'%s', done:false, subs:[]}]})" % (D(-2), D(-2))); page.wait_for_timeout(300)
 
     # ---------------- document numbers ----------------
-    page.click('.nav-item[data-tab="projects"]')
+    goto_tab(page, 'projects')
     heads = page.evaluate("[...document.querySelectorAll('#tab-projects thead th')].map(t => t.textContent.trim())")
     assert heads[0] == 'เลขที่เอกสาร', heads
-    page.click('.nav-item[data-tab="sales"]'); page.click('#salesCreateBtn')
+    goto_tab(page, 'sales'); page.click('#salesCreateBtn')
     assert 'จะรันให้อัตโนมัติ' in page.inner_text('#prjDocNo')
     assert page.evaluate("document.getElementById('prjJobType').disabled") is False and page.input_value('#prjJobType') == 'sale'
     page.fill('#prjName', 'ขายใหม่ 1'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.select_option('#prjCompany', label='บริษัทเรา A')
@@ -86,15 +88,15 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert page.evaluate(f"(async () => (await db.collection('pm_counters').doc('SO{YMD}').get()).data().n)()") == 1
     # second sale on the same day -> 002 ; a project -> PJ...-001 (separate sequence)
     # saving a brand-new sale now routes straight to its photo page (see the photo-attachment feature), so come back to the sales list first
-    page.click('.nav-item[data-tab="sales"]'); page.click('#salesCreateBtn'); page.fill('#prjName', 'ขายใหม่ 2'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.fill('#prjStart', D(0))
+    goto_tab(page, 'sales'); page.click('#salesCreateBtn'); page.fill('#prjName', 'ขายใหม่ 2'); page.select_option('#prjCustomer', label='กรมทดสอบ'); page.fill('#prjStart', D(0))
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'ขายใหม่ 2').docNo") == f"SO{YMD}-002"
-    page.click('.nav-item[data-tab="projects"]'); page.click('#projectsCreateBtn'); assert page.input_value('#prjJobType') == 'project'; page.fill('#prjName', 'โครงการใหม่'); page.select_option('#prjCustomer', label='กรมทดสอบ')
+    goto_tab(page, 'projects'); page.click('#projectsCreateBtn'); assert page.input_value('#prjJobType') == 'project'; page.fill('#prjName', 'โครงการใหม่'); page.select_option('#prjCustomer', label='กรมทดสอบ')
     page.fill('#prjStart', D(0)); page.fill('#prjEnd', D(90)); page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'โครงการใหม่').docNo") == f"PJ{YMD}-001"
     assert page.evaluate(f"(async () => (await db.collection('pm_counters').doc('SO{YMD}').get()).data().n)()") == 2
     # editing keeps the number and locks the type
-    page.click('.nav-item[data-tab="sales"]'); page.click('#salesBody tr:has-text("ขายใหม่ 1") button:has-text("แก้ไข")')
+    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายใหม่ 1") button:has-text("แก้ไข")')
     assert page.inner_text('#prjDocNo') == f"SO{YMD}-001" and page.evaluate("document.getElementById('prjJobType').disabled") is True
     page.keyboard.press('Escape')
     # a legacy item without a number gets one on save, dated by its creation day (2026-02-03), prefix by type
@@ -117,11 +119,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.evaluate("window.print = () => {}"); page.click('#planPrintBtn'); page.wait_for_timeout(200)
     assert 'PJ20260101-001' in page.inner_html('#printArea'); page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     page.click('#planBackBtn')
-    page.click('.nav-item[data-tab="customers"]'); page.click('#customersBody tr:has-text("กรมทดสอบ") td:nth-child(1)')
+    goto_tab(page, 'customers'); page.click('#customersBody tr:has-text("กรมทดสอบ") td:nth-child(1)')
     assert f"SO{YMD}-001" in page.inner_text('#customerProjectsModal'); page.click('#cpCloseBtn')
 
     # ---------------- warranty page: number + type columns and a type filter ----------------
-    page.click('.nav-item[data-tab="equipment"]')
+    goto_tab(page, 'equipment')
     heads = page.evaluate("[...document.querySelectorAll('#tab-equipment thead th')].map(t => t.textContent.trim())")
     assert heads[:3] == ['เลขที่เอกสาร', 'ซื้อขาย/โครงการ · ลูกค้า', 'ประเภท'], heads
     body = page.inner_text('#equipmentBody'); assert 'PJ20260101-002' in body and 'โครงการ' in body
@@ -130,7 +132,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.fill('#equipmentSearch', '')
 
     # ---------------- warehouse: withdrawal history ----------------
-    page.click('.nav-item[data-tab="warehouse"]')
+    goto_tab(page, 'warehouse')
     row = page.inner_text('#warehouseBody tr:has-text("Catalyst")'); assert 'เบิก/คืน 1 ครั้ง' in row, row
     page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)')
     hist = page.inner_text('#serialHistoryBody'); print(hist.replace('\n', ' | '))
@@ -158,7 +160,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.select_option('#warehouseBrandFilter', 'all'); page.select_option('#warehouseSortFilter', 'name')
 
     # ---------------- customers: type filter + sort by number of sales/projects ----------------
-    page.click('.nav-item[data-tab="customers"]')
+    goto_tab(page, 'customers')
     cnt = lambda: page.evaluate("[...document.querySelectorAll('#customersBody tr')].map(r => [r.querySelector('td b').textContent, parseInt(r.children[6].textContent)])")
     page.select_option('#customersSortFilter', 'desc'); c = cnt(); print("desc", c); assert [x[1] for x in c] == sorted([x[1] for x in c], reverse=True) and c[0][0] == 'กรมทดสอบ'
     page.select_option('#customersSortFilter', 'asc'); c = cnt(); assert [x[1] for x in c] == sorted([x[1] for x in c]) and c[0][0] == 'ลูกค้าไม่มีงาน'
@@ -167,7 +169,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.select_option('#customersTypeFilter', 'all'); page.select_option('#customersSortFilter', 'name')
 
     # ---------------- companies: click the name -> that company's sales/projects ----------------
-    page.click('.nav-item[data-tab="companies"]')
+    goto_tab(page, 'companies')
     assert 'ซื้อขาย/โครงการ:' in page.inner_text('#companiesGrid .company-card:has-text("บริษัทเรา A")')
     page.click('#companiesGrid .company-name-link:has-text("บริษัทเรา A")')
     assert page.is_visible('#companyProjectsModal') and page.inner_text('#cpoTitle') == 'บริษัทเรา A'
@@ -207,8 +209,8 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.screenshot(path="v19_dash.png")
 
     # ---------------- trash shows the number ----------------
-    page.click('.nav-item[data-tab="sales"]'); page.click('#salesBody tr:has-text("ขายใหม่ 2") .delete-btn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(300)
-    page.click('.nav-item[data-tab="trash"]'); page.wait_for_timeout(500)
+    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายใหม่ 2") .delete-btn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(300)
+    goto_tab(page, 'trash'); page.wait_for_timeout(500)
     assert f"SO{YMD}-002" in page.inner_text('#trashBody')
     print("errors:", errors); assert not errors
 print("OK")

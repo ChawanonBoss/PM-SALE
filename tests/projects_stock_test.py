@@ -1,7 +1,7 @@
 import os, sys, tempfile
 import sys, http.server, threading, functools, datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -44,13 +44,15 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     W = lambda id: page.evaluate(f"(() => {{ const w = data.warehouse.find(x => x.id === '{id}'); return {{quantity: w.quantity, serials: w.serials}}; }})()")
 
     # ---------------- renames + filter ----------------
-    assert page.evaluate("document.querySelector('.nav-item[data-tab=\"sales\"] .nav-tooltip').textContent") == 'ซื้อขาย' and page.evaluate("document.querySelector('.nav-item[data-tab=\"projects\"] .nav-tooltip').textContent") == 'โครงการ'
+    # sales/projects now live inside the "ซื้อขาย/โครงการ" group flyout, not their own rail buttons - open it to check their renamed labels
+    page.click('.nav-item[data-group="group1"]')
+    assert page.inner_text('.nav-group-item[data-tab="sales"]').strip() == 'ซื้อขาย' and page.inner_text('.nav-group-item[data-tab="projects"]').strip() == 'โครงการ'
     page.click('.nav-item[data-tab="dashboard"]')
     assert page.inner_text('#dashStats .stat-card:first-child .stat-label') == 'ซื้อขาย / โครงการทั้งหมด'
-    page.click('.nav-item[data-tab="projects"]')
+    goto_tab(page, 'projects')
     assert page.inner_text('#pageTitle') == 'โครงการ' and 'โครงการทั้งหมด' in page.inner_text('#tab-projects .panel-head h3') and page.inner_text('#projectsCreateBtn') == '+ เพิ่มโครงการ'
     assert page.locator('#projectsTypeFilter').count() == 0 and 'ประเภทงาน' not in page.inner_text('#tab-projects thead'), "the job-type filter and column are gone"
-    page.click('.nav-item[data-tab="sales"]')
+    goto_tab(page, 'sales')
     assert page.inner_text('#pageTitle') == 'ซื้อขาย' and 'ซื้อขายทั้งหมด' in page.inner_text('#tab-sales .panel-head h3') and page.inner_text('#salesCreateBtn') == '+ เพิ่มการซื้อขาย'
 
     # ---------------- form: order + labels per job type ----------------
@@ -97,7 +99,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.click(f"{R(3,9)} button")                                                                                  # remove that third line again
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     # saving a brand-new sale now routes straight to its photo page (see the photo-attachment feature) - come back to the sales list to keep checking it
-    page.click('.nav-item[data-tab="sales"]')
+    goto_tab(page, 'sales')
     prj = P(); print(prj['jobType'], prj['startDate'], prj['endDate'], [(i['part'], i['qty'], i['status'], i['serials']) for i in prj['items']])
     assert prj['jobType'] == 'sale' and prj['startDate'] == '2026-09-01' and prj['endDate'] == '2026-09-01'
     assert [(i['part'], i['qty'], i['status'], i['serials']) for i in prj['items']] == [('SW-24', 2, 'pending', ['S2', 'S4']), ('RT-1', 1, 'pending', [])]
@@ -118,11 +120,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert W('w1') == {'quantity': 3, 'serials': ['S1', 'S3', 'S5']}, W('w1')
     assert P()['items'][0]['status'] == 'done' and P()['items'][0]['serials'] == ['S2', 'S4']
     assert 'กำลังดำเนินการ' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')                             # 1 of 2 lines done
-    page.click('.nav-item[data-tab="warehouse"]')
+    goto_tab(page, 'warehouse')
     assert '3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")') and 'SN 3/3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")')
 
     # ---------------- finish the second line -> sale is 'ดำเนินการแล้ว' ----------------
-    page.click('.nav-item[data-tab="sales"]'); page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
     page.select_option(f"{R(2,8)} select", 'done'); page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert W('w2')['quantity'] == 1 and 'ดำเนินการแล้ว' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')
     assert page.evaluate("projectStatus(data.projects.find(p => p.name === 'ขายสวิตช์'))") == 'ended'
@@ -154,13 +156,13 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert 'ตัดสต็อกโกดัง' in acts and 'คืนสต็อกโกดัง' in acts and 'สร้างรายการซื้อขาย' in acts
 
     # ---------------- a PROJECT: two dates, plan, legacy lines ----------------
-    page.click('.nav-item[data-tab="projects"]'); page.click('#projectsCreateBtn')
+    goto_tab(page, 'projects'); page.click('#projectsCreateBtn')
     page.fill('#prjName', 'โครงการ CCTV'); page.select_option('#prjCustomer', index=1)
     page.fill('#prjStart', D(-5)); page.fill('#prjEnd', D(60)); page.fill('#prjLocation', 'อาคาร A')
     assert 'นับจากวันสิ้นสุดโครงการ' in page.inner_text('#prjWarrantyHint')
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     # saving a brand-new project now routes straight to its Action Plan (see the photo-attachment feature's "2-page" flow) - come back to the list
-    page.click('.nav-item[data-tab="projects"]')
+    goto_tab(page, 'projects')
     pj = page.evaluate("data.projects.find(p => p.name === 'โครงการ CCTV')")
     assert pj['jobType'] == 'project' and pj['endDate'] == D(60) and pj['items'] == []
     assert 'รอดำเนินการ' in page.inner_text('#projectsBody tr:has-text("โครงการ CCTV")')   # in contract, no plan yet
@@ -168,10 +170,10 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # separate menus: each list only holds its own kind
     body = page.inner_text('#projectsBody')
     assert 'โครงการ CCTV' in body and 'โครงการเก่า' in body and 'ขายสวิตช์' not in body
-    page.click('.nav-item[data-tab="sales"]'); body = page.inner_text('#salesBody')
+    goto_tab(page, 'sales'); body = page.inner_text('#salesBody')
     assert 'ขายสวิตช์' in body and 'โครงการ CCTV' not in body and 'โครงการเก่า' not in body
     assert page.locator('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แผนงาน")').count() == 0     # sales have no action plan
-    page.click('.nav-item[data-tab="projects"]')
+    goto_tab(page, 'projects')
 
     # legacy project opens; old lines become plain-text lines and survive a save
     page.click('#projectsBody tr:has-text("โครงการเก่า") button:has-text("แก้ไข")')
@@ -190,11 +192,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # ---------------- warranty page basis + dashboard + customers ----------------
     assert page.evaluate("projectWarranty(data.projects.find(p => p.name === 'ขายสวิตช์')).expiry") == '2027-09-01'
     assert page.evaluate("projectWarranty(data.projects.find(p => p.name === 'โครงการ CCTV')).expiry") == (D(60)[:4] and page.evaluate(f"addMonths('{D(60)}', 12)"))
-    page.click('.nav-item[data-tab="equipment"]'); assert 'ซื้อขาย' in page.inner_text('#equipmentBody tr:has-text("ขายสวิตช์")')
+    goto_tab(page, 'equipment'); assert 'ซื้อขาย' in page.inner_text('#equipmentBody tr:has-text("ขายสวิตช์")')
     page.click('.nav-item[data-tab="actionplan"]')
     cards = page.inner_text('#planCards'); print(cards.replace('\n', ' | ')[:200])
     assert 'ขายสวิตช์' not in cards and 'โครงการ CCTV' in cards and 'โครงการเก่า' in cards
-    page.click('.nav-item[data-tab="customers"]'); page.click('#customersBody tr:has-text("การไฟฟ้าทดสอบ") td:nth-child(1)')
+    goto_tab(page, 'customers'); page.click('#customersBody tr:has-text("การไฟฟ้าทดสอบ") td:nth-child(1)')
     cp = page.inner_text('#customerProjectsModal'); assert 'ขายสวิตช์' in cp and 'ซื้อขาย' in cp and 'ดำเนินการแล้ว' in cp or 'รอดำเนินการ' in cp
     page.click('#cpCloseBtn')
     page.click('.nav-item[data-tab="dashboard"]')

@@ -61,6 +61,14 @@
   .nav-count-badge{ position:absolute; top:1px; right:1px; min-width:15px; height:15px; padding:0 3px; border-radius:100px; background:var(--sun); color:#fff; font-size:9px; font-weight:700; line-height:15px; text-align:center; border:2px solid var(--paper-dim); box-sizing:content-box; }
   .rail-menu-wrap{ position:relative; flex-shrink:0; }
   .rail-menu-popover{ position:absolute; left:calc(100% + 12px); bottom:0; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 28px rgba(20,24,34,0.16); padding:14px; width:220px; z-index:400; flex-direction:column; gap:10px; }
+  /* ---- Sidebar group flyout: a group button (e.g. "ซื้อขาย/โครงการ") reveals its real pages here ---- */
+  .nav-group-popover{ position:fixed; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:0 10px 28px rgba(20,24,34,0.16); padding:8px; width:220px; z-index:400; display:flex; flex-direction:column; gap:2px; }
+  .nav-group-title{ font-size:11px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; padding:6px 10px 4px; }
+  .nav-group-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:10px; border:none; background:none; width:100%; text-align:left; cursor:pointer; font-size:13.5px; color:var(--ink); font-family:inherit; }
+  .nav-group-item:hover{ background:var(--paper); }
+  .nav-group-item.active{ background:var(--accent-soft); color:var(--accent); font-weight:600; }
+  .nav-group-item svg{ width:18px; height:18px; flex-shrink:0; }
+  .nav-group-count{ margin-left:auto; min-width:15px; height:15px; padding:0 5px; border-radius:100px; background:var(--sun); color:#fff; font-size:10px; font-weight:700; line-height:15px; text-align:center; flex-shrink:0; }
   .rail-menu-user{ display:flex; flex-direction:column; gap:5px; padding-bottom:10px; border-bottom:1px solid var(--line); font-size:12.5px; }
   .rail-menu-user .user-email{ color:var(--ink); font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .rail-menu-row{ display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--ink-soft); }
@@ -468,55 +476,35 @@
         <span class="nav-count-badge" id="dashNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">แดชบอร์ด</span>
       </button>
-      <button class="nav-item" data-tab="sales">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6"/></svg>
-        <span class="nav-tooltip">ซื้อขาย</span>
-      </button>
-      <button class="nav-item" data-tab="projects">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/></svg>
-        <span class="nav-count-badge" id="projectsNavBadge" style="display:none;"></span>
-        <span class="nav-tooltip">โครงการ</span>
+      <button class="nav-item" data-group="group1">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+        <span class="nav-count-badge" id="group1NavBadge" style="display:none;"></span>
+        <span class="nav-tooltip">ซื้อขาย/โครงการ</span>
       </button>
       <button class="nav-item" data-tab="actionplan">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4v16"/><rect x="6" y="4" width="9" height="4" rx="1"/><rect x="10" y="10" width="11" height="4" rx="1"/><rect x="7" y="16" width="8" height="4" rx="1"/></svg>
         <span class="nav-count-badge" id="planNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">แผนดำเนินการ (Action Plan)</span>
       </button>
-      <button class="nav-item" data-tab="equipment">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-        <span class="nav-count-badge" id="equipmentNavBadge" style="display:none;"></span>
-        <span class="nav-tooltip">อุปกรณ์และการรับประกัน</span>
+      <button class="nav-item" data-group="group2">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+        <span class="nav-count-badge" id="group2NavBadge" style="display:none;"></span>
+        <span class="nav-tooltip">คลังและอุปกรณ์</span>
       </button>
-      <button class="nav-item" data-tab="warehouse">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/><path d="M8 17h8"/></svg>
-        <span class="nav-tooltip">โกดังสินค้า</span>
+      <button class="nav-item" data-group="group3">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="nav-tooltip">ลูกค้าและบริษัท</span>
       </button>
-      <button class="nav-item" data-tab="catalog">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h7"/></svg>
-        <span class="nav-tooltip">Catalog สินค้า</span>
-      </button>
-      <button class="nav-item" data-tab="customers">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span class="nav-tooltip">รายชื่อลูกค้า</span>
-      </button>
-      <button class="nav-item" data-tab="companies">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/></svg>
-        <span class="nav-tooltip">ข้อมูลบริษัท</span>
-      </button>
-      <button class="nav-item" data-tab="users" id="navUsersTab" style="display:none;">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span class="nav-count-badge" id="usersNavBadge" style="display:none;"></span>
-        <span class="nav-tooltip">ผู้ใช้งาน</span>
-      </button>
-      <button class="nav-item" data-tab="audit" id="navAuditTab" style="display:none;">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
-        <span class="nav-tooltip">ประวัติของระบบ</span>
-      </button>
-      <button class="nav-item" data-tab="trash" id="navTrashTab" style="display:none;">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-        <span class="nav-tooltip">ถังขยะ</span>
+      <button class="nav-item" data-group="settings" id="navSettingsGroup" style="display:none;">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+        <span class="nav-count-badge" id="settingsNavBadge" style="display:none;"></span>
+        <span class="nav-tooltip">ตั้งค่า</span>
       </button>
     </div>
+    <!-- Flyout for a group button above: lists that group's real pages. One shared, repositioned/repopulated per click (see renderGroupPopover) -
+         position:fixed (not the rail-menu-popover's plain absolute) because these buttons live inside #railNavScroll, which scrolls; a plain
+         absolutely-positioned popover would get clipped by that scroll container the same way .nav-tooltip did before it was made position:fixed. -->
+    <div class="nav-group-popover" id="navGroupPopover" style="display:none;"></div>
     <div class="rail-menu-wrap">
       <button class="nav-item" id="railMenuBtn" type="button">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1307,7 +1295,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.17.0';
+const APP_VERSION = '1.18.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1416,6 +1404,7 @@ $('railMenuBtn').addEventListener('click', e => {
 });
 document.addEventListener('click', e => {
   if (!$('railMenuBtn').contains(e.target) && !$('railMenuPopover').contains(e.target)) $('railMenuPopover').style.display = 'none';
+  if (!e.target.closest('.nav-item[data-group]') && !$('navGroupPopover').contains(e.target)) closeNavGroupPopover();
 });
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('mouseenter', () => {
@@ -1432,6 +1421,64 @@ function setMobileMenu(open){
 }
 $('mobileMenuBtn').addEventListener('click', () => setMobileMenu(!$('sidebar').classList.contains('open')));
 $('mobileBackdrop').addEventListener('click', () => setMobileMenu(false));
+
+/* ====== Sidebar groups: a rail button that reveals its real pages in a flyout (see .nav-group-popover CSS) instead of navigating directly.
+   Reuses each page's own icon/label so the flyout looks like a natural extension of the rail, not a different UI. ====== */
+const NAV_ICONS = {
+  sales: '<circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.7 12.4a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 7H6"/>',
+  projects: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
+  warehouse: '<path d="M3 9l9-6 9 6v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 21v-7h8v7"/><path d="M8 17h8"/>',
+  catalog: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h7"/>',
+  equipment: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  customers: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  companies: '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>',
+  users: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  audit: '<path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>',
+};
+const NAV_LABELS = { sales:'ซื้อขาย', projects:'โครงการ', warehouse:'โกดังสินค้า', catalog:'Catalog สินค้า', equipment:'อุปกรณ์และการรับประกัน', customers:'รายชื่อลูกค้า', companies:'ข้อมูลบริษัท', users:'ผู้ใช้งาน', audit:'ประวัติของระบบ', trash:'ถังขยะ' };
+const NAV_GROUPS = {
+  group1: { label:'ซื้อขาย/โครงการ', tabs:['sales','projects'] },
+  group2: { label:'คลังและอุปกรณ์', tabs:['warehouse','catalog','equipment'] },
+  group3: { label:'ลูกค้าและบริษัท', tabs:['customers','companies'] },
+  settings: { label:'ตั้งค่า', tabs:['users','audit','trash'] },
+};
+let navAlertCache = { projects:0, equipment:0, users:0 };   // filled by updateNavBadge(); a flyout bakes these numbers in at render time rather than keeping its own live badge elements
+function renderGroupPopover(groupKey){
+  const g = NAV_GROUPS[groupKey];
+  $('navGroupPopover').innerHTML = `<div class="nav-group-title">${g.label}</div>` + g.tabs.map(tab => {
+    const n = navAlertCache[tab] || 0;
+    return `<button type="button" class="nav-group-item ${tab === currentTab ? 'active' : ''}" data-tab="${tab}">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${NAV_ICONS[tab]}</svg>
+      <span>${NAV_LABELS[tab]}</span>${n ? `<span class="nav-group-count">${n > 99 ? '99+' : n}</span>` : ''}
+    </button>`;
+  }).join('');
+}
+function closeNavGroupPopover(){ $('navGroupPopover').style.display = 'none'; $('navGroupPopover').dataset.openGroup = ''; }
+$('navGroupPopover').addEventListener('click', e => {
+  const btn = e.target.closest('.nav-group-item');
+  if (!btn) return;
+  closeNavGroupPopover();
+  if (btn.dataset.tab === 'actionplan') selectedPlanProjectId = null;
+  showTab(btn.dataset.tab);
+});
+document.querySelectorAll('.nav-item[data-group]').forEach(btn => btn.addEventListener('click', e => {
+  e.stopPropagation();
+  const groupKey = btn.dataset.group;
+  const pop = $('navGroupPopover');
+  if (pop.style.display !== 'none' && pop.dataset.openGroup === groupKey){ closeNavGroupPopover(); return; }
+  $('railMenuPopover').style.display = 'none';
+  renderGroupPopover(groupKey);
+  pop.dataset.openGroup = groupKey;
+  pop.style.display = 'flex';
+  const r = btn.getBoundingClientRect();
+  pop.style.left = (r.right + 12) + 'px';
+  pop.style.top = r.top + 'px';
+  requestAnimationFrame(() => {   // clamp on-screen if the button sits low enough on a short viewport that the flyout would run off the bottom
+    const ph = pop.getBoundingClientRect().height;
+    if (r.top + ph > window.innerHeight - 10) pop.style.top = Math.max(10, window.innerHeight - ph - 10) + 'px';
+  });
+}));
 
 const TITLES = {
   dashboard:['แดชบอร์ด','สรุปสถานะซื้อขาย/โครงการทั้งหมด'],
@@ -1455,6 +1502,8 @@ function showTab(tab){
   document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
   $('tab-' + tab).style.display = 'block';
   document.querySelectorAll('.nav-item[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.querySelectorAll('.nav-item[data-group]').forEach(b => b.classList.toggle('active', NAV_GROUPS[b.dataset.group].tabs.includes(tab)));
+  if (tab === 'trash') loadTrash();   // trash is a one-time fetch, not a live listener (see "Soft-delete and Trash"); this used to be a click listener on its own nav button, which no longer exists now that it lives inside the ตั้งค่า flyout
   $('pageTitle').textContent = TITLES[tab][0];
   $('pageSub').textContent = TITLES[tab][1];
   setMobileMenu(false);
@@ -1821,7 +1870,7 @@ async function resolveUserRole(){
     else if (currentUserName && currentUserStatus === 'approved') await ref.update({ name: currentUserName });
   }
   const isAdmin = currentUserRole === 'admin';
-  ['navUsersTab','navAuditTab','navTrashTab'].forEach(id => $(id).style.display = isAdmin ? '' : 'none');
+  $('navSettingsGroup').style.display = isAdmin ? '' : 'none';
   $('companyCreateBtn').style.display = isAdmin ? '' : 'none';
   document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
   $('userEmail').textContent = currentUserEmail;
@@ -2011,10 +2060,16 @@ function updateNavBadge(){
   const a = getDashAlerts();   // the sidebar badges always count everything, whatever the dashboard switch shows
   const planN = a.planSoon + a.planLate;
   setNavBadge('dashNavBadge', a.endingSoon.length + a.warrantySoon.length + planN, a.planLate > 0);
-  setNavBadge('projectsNavBadge', a.endingSoon.length, false);
   setNavBadge('planNavBadge', planN, a.planLate > 0);
-  setNavBadge('equipmentNavBadge', a.warrantySoon.length, false);
-  setNavBadge('usersNavBadge', currentUserRole === 'admin' ? data.users.filter(u => (u.status || 'approved') === 'pending').length : 0, false);
+  // these three now live inside a group flyout rather than as permanent rail buttons of their own - navAlertCache feeds renderGroupPopover()'s
+  // per-item numbers, and the group button itself (always on the rail) shows the same count as an aggregate via its own badge below
+  navAlertCache.projects = a.endingSoon.length;
+  navAlertCache.equipment = a.warrantySoon.length;
+  navAlertCache.users = currentUserRole === 'admin' ? data.users.filter(u => (u.status || 'approved') === 'pending').length : 0;
+  setNavBadge('group1NavBadge', navAlertCache.projects, false);
+  setNavBadge('group2NavBadge', navAlertCache.equipment, false);
+  setNavBadge('settingsNavBadge', navAlertCache.users, false);
+  if ($('navGroupPopover').style.display !== 'none') renderGroupPopover($('navGroupPopover').dataset.openGroup);   // keep an already-open flyout's numbers live too
 }
 document.querySelectorAll('.subtab-item[data-dashjob]').forEach(btn => btn.addEventListener('click', () => { dashJobFilter = btn.dataset.dashjob; renderDashboard(); }));
 $('dashJobClear').addEventListener('click', () => { dashJobFilter = 'all'; renderDashboard(); });
@@ -4385,8 +4440,7 @@ $('trashBulkPurgeBtn').addEventListener('click', () => {
 });
 $('trashRefreshBtn').addEventListener('click', loadTrash);
 $('trashTypeFilter').addEventListener('change', renderTrash);
-// Trash isn't a live listener, so load it each time its tab is opened
-document.querySelector('.nav-item[data-tab="trash"]').addEventListener('click', loadTrash);
+// Trash isn't a live listener, so load it each time its tab is opened - see the `if (tab === 'trash') loadTrash();` line inside showTab()
 
 updateAuthFormMode();
 </script>

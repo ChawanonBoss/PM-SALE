@@ -1,7 +1,7 @@
 import os, sys, tempfile
 import sys, http.server, threading, functools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -36,7 +36,7 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
     active = lambda id: page.evaluate(f"(document.querySelector('#{id} .page-btn.active') || {{textContent:''}}).textContent.trim()")
 
     # ---------------- projects: 123 rows ----------------
-    page.click('.nav-item[data-tab="projects"]')
+    goto_tab(page, 'projects')
     assert rows('projectsBody') == 10, "default: 10 rows"
     print(pager('projectsPager'))
     assert '1–10 จากทั้งหมด 123' in pager('projectsPager')
@@ -66,12 +66,12 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
     page.select_option('#projectsPager select', '100'); assert rows('projectsBody') == 100 and nums('projectsPager')[1:-1] == ['1', '2']
     page.click('#projectsPager .page-btn:has-text("2")'); assert rows('projectsBody') == 23
     # the sales menu has its own list and pager (24 rows), and the projects list never shows them
-    page.click('.nav-item[data-tab="sales"]')
+    goto_tab(page, 'sales')
     assert rows('salesBody') == 10 and '1–10 จากทั้งหมด 24' in pager('salesPager') and nums('salesPager')[1:-1] == ['1', '2', '3']
     page.click('#salesPager .page-btn:has-text("3")'); assert rows('salesBody') == 4 and '21–24' in pager('salesPager')
     page.select_option('#salesPager select', '100'); assert rows('salesBody') == 24 and nums('salesPager')[1:-1] == ['1']
     page.fill('#salesSearch', 'ขาย 0'); assert '1–9 จากทั้งหมด 9' in pager('salesPager'); page.click('#salesClearBtn'); assert '1–24 จากทั้งหมด 24' in pager('salesPager')
-    page.click('.nav-item[data-tab="projects"]')
+    goto_tab(page, 'projects')
     # filters reset to page 1 and shrink the pager; size survives
     page.select_option('#projectsStatusFilter', 'active')
     assert active('projectsPager') == '1' and page.input_value('#projectsPager select') == '100'
@@ -92,7 +92,7 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
 
     # ---------------- every other list ----------------
     def check(tab, body, pager_id, total, expect_first_page=10):
-        page.click(f'.nav-item[data-tab="{tab}"]'); page.wait_for_timeout(250)
+        goto_tab(page, tab); page.wait_for_timeout(250)
         assert rows(body) == expect_first_page, (tab, rows(body))
         assert f'จากทั้งหมด {total}' in pager(pager_id), (tab, pager(pager_id))
         assert page.evaluate(f"[...document.querySelectorAll('#{pager_id} select option')].map(o => o.textContent)") == ['10', '20', '50', '100']
@@ -106,18 +106,18 @@ with new_page(viewport={"width": 1700, "height": 1000}) as (page, errors):
     check('equipment', 'equipmentBody', 'equipmentPager', 124)          # warranty page lists every project (100 left after the deletes)
     check('warehouse', 'warehouseBody', 'warehousePager', 34)
     check('customers', 'customersBody', 'customersPager', 25)
-    page.click('.nav-item[data-tab="companies"]'); assert page.locator('#companiesGrid > .company-card').count() == 10 and 'จากทั้งหมด 12' in pager('companiesPager')
+    goto_tab(page, 'companies'); assert page.locator('#companiesGrid > .company-card').count() == 10 and 'จากทั้งหมด 12' in pager('companiesPager')
     page.click('#companiesPager .page-btn:has-text("2")'); assert page.locator('#companiesGrid > .company-card').count() == 2; page.click('#companiesPager .page-btn:has-text("‹")'); print("ok: companies (cards)")
     check('users', 'usersBody', 'usersPager', 14)                        # admin + u? + 13 invites (+ the signed-in admin's own profile)
     page.click('.nav-item[data-tab="actionplan"]')
     assert page.locator('#planCards > .plan-card').count() == 10 and 'จากทั้งหมด' in pager('planPager'); print("ok: plan cards", pager('planPager'))
-    page.click('.nav-item[data-tab="audit"]')
+    goto_tab(page, 'audit')
     assert rows('auditBody') == 10 and 'จากทั้งหมด 15' in pager('auditPager'); page.click('#auditPager .page-btn:has-text("2")'); assert rows('auditBody') == 5
     page.click('.subtab-item[data-auditsub="errors"]'); assert rows('errorBody') == 10 and 'จากทั้งหมด 11' in pager('errorsPager'); print("ok: audit + errors")
-    page.click('.nav-item[data-tab="trash"]'); page.wait_for_timeout(600)
+    goto_tab(page, 'trash'); page.wait_for_timeout(600)
     assert rows('trashBody') == 10 and 'จากทั้งหมด 46' in pager('trashPager') and nums('trashPager')[1:-1] == ['1', '2', '3', '4', '5']; print("ok: trash")
     # search resets the page on the warehouse list too
-    page.click('.nav-item[data-tab="warehouse"]'); page.click('#warehousePager .page-btn:has-text("3")'); assert active('warehousePager') == '3'
+    goto_tab(page, 'warehouse'); page.click('#warehousePager .page-btn:has-text("3")'); assert active('warehousePager') == '3'
     page.select_option('#warehouseSortFilter', 'desc'); assert active('warehousePager') == '1'
     page.screenshot(path="v192_pager.png")
     print("errors:", errors); assert not errors

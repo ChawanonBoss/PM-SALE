@@ -1,7 +1,7 @@
 import os, sys, tempfile
 import sys, os, http.server, threading, functools
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from harness import new_page, REPO_ROOT
+from harness import new_page, REPO_ROOT, goto_tab
 
 class Q(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
@@ -25,7 +25,7 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
       await db.collection('pm_catalogChunks').doc('cat1_0').set({ catalogId:'cat1', n:0, data:'x' });
       await db.collection('pm_catalogChunks').doc('cat1_1').set({ catalogId:'cat1', n:1, data:'y' });
     }""")
-    page.click('.nav-item[data-tab="trash"]'); page.wait_for_timeout(800)
+    goto_tab(page, 'trash'); page.wait_for_timeout(800)
     cb = lambda: page.locator('#trashBody .trash-cb').count()
     checked = lambda: page.locator('#trashBody .trash-cb:checked').count()
     assert page.inner_text('#trashCount') == '20' and cb() == 10

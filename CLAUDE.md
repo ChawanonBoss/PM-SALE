@@ -18,6 +18,25 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 ซื้อขาย (`tab-sales`, `#salesBody`) and โครงการ (`tab-projects`, `#projectsBody`) are separate menus over the same `pm_projects` collection; `renderJobs(kind)` draws both. There is no job-type select/filter/column any more: `openProjectForm(id, kind)` sets the hidden `#prjJobType` from the menu.
 The Dashboard switch, the Warranty page and the Customer pop-up still mix both kinds.
 
+## Sidebar groups
+Most of the rail's pages are folded into 4 group buttons (`.nav-item[data-group]`) instead of each having its own permanent icon: clicking one opens
+`#navGroupPopover`, a `position:fixed` flyout (fixed rather than the plain-`absolute` `.rail-menu-popover` gear popover, because these buttons sit inside
+the scrollable `#railNavScroll` and a plain-absolute popover would get clipped the same way `.nav-tooltip` did before - see the "Sidebar: icon rail" note
+in the sibling BU-ABB app's CLAUDE.md for the original bug this mirrors) listing that group's real pages, built fresh on each click by
+`renderGroupPopover()` from `NAV_GROUPS`/`NAV_ICONS`/`NAV_LABELS`. Groups (names picked freely, per explicit user permission - content was specified,
+labels were not): **ซื้อขาย/โครงการ** (sales, projects), **คลังและอุปกรณ์** (warehouse, catalog, equipment), **ลูกค้าและบริษัท** (customers, companies),
+and **ตั้งค่า** (users, audit, trash - admin-only, name given explicitly by the user). `dashboard` and `actionplan` stay as their own permanent
+top-level buttons - the user's own grouping list never mentioned moving them. A group button's own badge (`group1NavBadge`/`group2NavBadge`/
+`settingsNavBadge`) is a live aggregate of whatever alert numbers its members would have shown individually (`navAlertCache`, filled by
+`updateNavBadge()`); the same numbers are baked directly into each flyout item's markup when the popover renders, rather than kept as their own
+persistent DOM elements - a badge span that only exists while its parent innerHTML happens to be freshly rebuilt would be a fragile thing for
+`setNavBadge()` to keep reaching for on every render tick, so the group button is the one truly-persistent badge. Trash's `loadTrash()` (a one-time
+fetch, not a live listener) used to be wired to a click listener on trash's own permanent nav button; since that button no longer exists, `showTab()`
+itself now calls `loadTrash()` when `tab === 'trash'`, which also makes it more robust to any future `showTab('trash')` call from elsewhere in the
+code. Tests reach a grouped tab through the `goto_tab(page, tab)` helper in `harness.py` (opens the right group first via `NAV_GROUP_OF`, then clicks
+the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any new test that navigates to sales/projects/warehouse/catalog/
+equipment/customers/companies/users/audit/trash, and keep `NAV_GROUP_OF` in sync with `NAV_GROUPS` if a tab ever changes group.
+
 ## โครงการ list: "สถานะงาน" status columns + column picker
 Three read-only, never-clickable `<input type="checkbox" disabled>` columns under one grouped `<thead>` header ("สถานะงาน" spanning "แผนการดำเนินงาน" /
 "รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง") show whether a project's plan (`(p.plan||[]).length>0`) and each photo set (`p.photoCounts.equipment`/`.install > 0`)
