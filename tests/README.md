@@ -30,6 +30,7 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `service_warehouse_test.py` | โกดังบริการ page CRUD (no quantity/Serial columns at all) and its own addable-selects, Trash round-trip, the ซื้อขาย/โครงการ form's separate "+ เพิ่มสินค้า"/"+ เพิ่มบริการ" tables sharing one flat items[] on save, a service line never triggering the warehouse stock-effects confirm dialog (even mixed with a goods line that does) |
 | `delete_sample_data_test.py` | Trash page's "ลบข้อมูลตัวอย่างทั้งหมด" button hard-deletes every `sample: true` row across all 5 affected collections, including ones already sitting in the Trash, while real (non-sample) rows in the same collections are left alone |
 | `catalog_category_test.py` | Catalog upload/edit form's หมวดสินค้า field is an addable-select (existing value pre-selected on edit, options seeded from both catalogs and warehouse types, "+" adds and saves a brand-new one) |
+| `warehouse_sample_data_test.py` | โกดังสินค้า's admin-only "+ เพิ่มข้อมูลตัวอย่าง" button creates exactly the canned 3 CCTV + 2 Switch set with every field filled in and unique serials, refuses to duplicate itself on a second click, each item is deletable individually via Trash like normal, and the rest are swept up by "ลบข้อมูลตัวอย่างทั้งหมด" |
 
 `fixtures/` holds the sample generators. The same files were used to seed the live site with `[ตัวอย่าง]` rows (`sample: true`).
 

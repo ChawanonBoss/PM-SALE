@@ -819,10 +819,11 @@
               </select>
               <button class="btn" id="warehouseCreateBtn" type="button">+ เพิ่มอุปกรณ์</button>
               <button class="btn outline" type="button" id="warehouseExportBtn">ส่งออก Excel</button>
+              <button class="btn outline" type="button" id="warehouseAddSampleBtn" style="display:none;">+ เพิ่มข้อมูลตัวอย่าง (5 รายการ)</button>
               <button class="btn outline" type="button" id="warehouseClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number และประวัติการเบิก/คืน (เบิกไปซื้อขาย/โครงการไหน) — การเรียงตามจำนวนดูจากจำนวนที่เหลืออยู่ในโกดังเท่านั้น</p>
+          <p class="panel-note">กดที่รายการอุปกรณ์เพื่อดู Serial Number และประวัติการเบิก/คืน (เบิกไปซื้อขาย/โครงการไหน) — การเรียงตามจำนวนดูจากจำนวนที่เหลืออยู่ในโกดังเท่านั้น · "เพิ่มข้อมูลตัวอย่าง" (เฉพาะผู้ดูแลระบบ) เพิ่มกล้องวงจรปิด 3 รายการและสวิตช์ 2 รายการ แท็กเป็นข้อมูลตัวอย่าง ลบทีเดียวได้ที่ถังขยะ ("ลบข้อมูลตัวอย่างทั้งหมด") หรือลบทีละรายการตามปกติ</p>
           <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>Part</th><th>ยี่ห้อ</th><th>ประเภท</th><th>ชื่ออุปกรณ์</th><th>จำนวนอุปกรณ์</th><th>หมายเหตุ</th><th></th></tr></thead>
             <tbody id="warehouseBody"></tbody>
@@ -1421,7 +1422,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.2';
+const APP_VERSION = '1.20.3';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3499,6 +3500,7 @@ const whBrandSel = makeAddableSelect({ sel:'whBrand', addBtn:'whBrandAddBtn', ne
   placeholder:'— เลือกยี่ห้อ —', noun:'ยี่ห้อ', builtin: [], used: () => data.warehouse.map(w => w.brand) });
 
 function renderWarehouse(){
+  $('warehouseAddSampleBtn').style.display = currentUserRole === 'admin' ? '' : 'none';
   const fillSel = (sel, label, values) => {
     const prev = sel.value || 'all';
     sel.innerHTML = `<option value="all">${label}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
@@ -3533,6 +3535,39 @@ function renderWarehouse(){
     </tr>`).join('') : `<tr><td colspan="7" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;
 }
 ['warehouseSearch','warehouseTypeFilter','warehouseBrandFilter','warehouseSortFilter'].forEach(id => $(id).addEventListener('input', renderWarehouse));
+
+// One-click canned sample set (admin only, see "Sample data" in CLAUDE.md): 3 CCTV + 2 Switch items, every field filled in, tagged sample:true so
+// they're covered by #deleteSampleDataBtn on the Trash page (and can just as well be deleted one at a time like any other warehouse item).
+// [part, brand, type, name, quantity, serialPrefix, note]
+const SAMPLE_WAREHOUSE_SET = [
+  ['CCTV-DOME-2MP', 'Hikvision', 'CCTV', 'กล้องวงจรปิดโดม 2MP', 10, 'HK-DOME', 'ติดตั้งภายในอาคาร ภาพคมชัดกลางคืน'],
+  ['CCTV-BULLET-4MP', 'Dahua', 'CCTV', 'กล้องวงจรปิดกระบอกกันน้ำ 4MP', 8, 'DH-BUL', 'กันน้ำ IP67 เหมาะติดตั้งภายนอกอาคาร'],
+  ['CCTV-NVR-8CH', 'Hikvision', 'CCTV', 'เครื่องบันทึกภาพ NVR 8 ช่อง', 5, 'HK-NVR', 'รองรับกล้อง IP สูงสุด 8 ตัว, ฮาร์ดดิสก์แยกซื้อ'],
+  ['SW-24P-GB', 'Cisco', 'Switch', 'สวิตช์เครือข่าย 24 พอร์ต Gigabit PoE+', 6, 'CS-24P', 'จ่ายไฟ PoE+ ให้กล้องวงจรปิดได้โดยตรง'],
+  ['SW-8P-UNMG', 'TP-Link', 'Switch', 'สวิตช์เครือข่าย 8 พอร์ต แบบ Unmanaged', 12, 'TPL-8P', 'สำหรับเครือข่ายขนาดเล็ก ไม่ต้องตั้งค่า'],
+];
+$('warehouseAddSampleBtn').addEventListener('click', () => {
+  const parts = new Set(SAMPLE_WAREHOUSE_SET.map(r => r[0]));
+  if (data.warehouse.some(w => parts.has(w.part))){ toast('มีข้อมูลตัวอย่างชุดนี้อยู่แล้วในโกดัง'); return; }
+  confirmAction('เพิ่มข้อมูลตัวอย่างในโกดังสินค้า 5 รายการ (กล้องวงจรปิด 3, สวิตช์ 2) ใช่หรือไม่?', async () => {
+    setSync('saving');
+    try{
+      const now = new Date().toISOString();
+      const batch = db.batch();
+      SAMPLE_WAREHOUSE_SET.forEach(([part, brand, type, name, qty, pre, note]) => {
+        batch.set(db.collection(COL.warehouse).doc(), {
+          part, brand, type, name: `[ตัวอย่าง] ${name}`, quantity: qty,
+          serials: Array.from({ length: qty }, (_, k) => `${pre}-${String(k + 1).padStart(3, '0')}`),
+          note, history: [], sample: true, createdBy: currentUserUid, createdAt: now
+        });
+      });
+      await batch.commit();
+      logAudit('เพิ่มข้อมูลตัวอย่างโกดัง', 'ตัวอย่างสินค้า', '5 รายการ (กล้องวงจรปิด 3, สวิตช์ 2)');
+      toast('เพิ่มข้อมูลตัวอย่างแล้ว 5 รายการ');
+      setSync('ok');
+    }catch(err){ setSync('error'); toast('เพิ่มไม่สำเร็จ'); }
+  }, 'เพิ่มข้อมูลตัวอย่าง');
+});
 
 /* ---- Serial number boxes: exactly one per unit (quantity 4 -> 4 boxes), re-drawn live as the quantity changes ---- */
 let editingWarehouseId = null;

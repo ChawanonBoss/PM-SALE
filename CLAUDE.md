@@ -137,3 +137,11 @@ whether that row is currently live or already sitting in the Trash - it queries 
 Trash's own `deletedAt` listing, so a soft-deleted sample row is caught too. No rules change was needed: admin already has unconditional delete on all five of
 those collections. Real, non-sample rows are matched by the same tag and are never touched. Audit-log rows written while seeding still cannot be deleted
 (rules) - this button doesn't try to.
+
+`#warehouseAddSampleBtn` on the โกดังสินค้า page (admin-only, same visibility toggle pattern as `#catalogUploadBtn`) is a matching one-click **add**: a fixed
+`SAMPLE_WAREHOUSE_SET` of 5 real-looking items (3 CCTV, 2 Switch; every field filled in, including a full set of unique serials sized to each item's own
+quantity), tagged `sample: true` and named `[ตัวอย่าง] ...` so it's picked up by `#deleteSampleDataBtn` above like any other sample row, and just as
+deletable one at a time through the page's own normal "ลบ" -> Trash flow. Guards against creating the set twice (checks `data.warehouse` for any of its
+five `part` codes first) since, unlike the bulk generators in `tests/fixtures/`, this one is meant to be clicked from the live production site by an
+admin, not just seeded once for a test run. Written directly with `history: []` and `sample: true` as extra keys beyond `pm_warehouse`'s non-admin
+`hasOnly()` create rule - safe only because the button itself is admin-only, since `pmIsAdmin()` bypasses that key restriction entirely.
