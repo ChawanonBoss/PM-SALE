@@ -406,7 +406,7 @@
     .ho-head .row{ display:flex; justify-content:space-between; align-items:flex-start; gap:6mm; }
     .ho-head img{ max-height:17mm; max-width:42mm; object-fit:contain; display:block; }
     .ho-head .co{ text-align:right; font-weight:700; font-size:15pt; line-height:1.2; }
-    .ho-head .addr{ font-size:12pt; font-weight:700; line-height:1.2; }
+    .ho-head .addr{ text-align:right; font-size:12pt; font-weight:700; line-height:1.2; }
     .ho-head .rule{ border-bottom:0.3mm solid #7F7F7F; margin-top:2mm; }
     .ho-title{ text-align:center; font-size:30pt; font-weight:700; color:#1F3A5F; line-height:1.15; border-bottom:0.8mm solid #1F3A5F; margin:0 4mm 5mm; padding-bottom:1mm; }
     .ho-sec{ display:flex; align-items:baseline; gap:2mm; background:#EEF2F7; border-left:1.8mm solid #B08D57; padding:0.4mm 3mm; margin:5mm 0 2mm; font-size:17pt; font-weight:700; color:#1F3A5F; break-after:avoid; }
@@ -1423,7 +1423,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.4';
+const APP_VERSION = '1.20.5';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2756,11 +2756,13 @@ function buildProjectPrintHtml(p){
   const sale = isSale(p);
   const e = v => escapeHtml(v || '-');
   // เอกสารส่งมอบงานแบบใหม่.docx (the reference template) splits ที่อยู่บริษัท / เลขประจำตัวผู้เสียภาษี into two lines instead of joining
-  // them with " / " on one - matched here as two separate .addr divs, each only rendered when that field is actually set.
+  // them with " / " on one - matched here as separate .addr divs (address, phone, tax id), each only rendered when that field is set,
+  // all right-aligned flush to the page's right margin (logo stays put on the left) same as the company name above them.
   const head = co ? `
     <div class="ho-head"><div class="row"><div>${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}</div>
       <div><div class="co">${escapeHtml(co.name)}</div>
         ${co.address ? `<div class="addr">${escapeHtml(co.address)}</div>` : ''}
+        ${co.phone ? `<div class="addr">โทร. ${escapeHtml(co.phone)}</div>` : ''}
         ${co.taxId ? `<div class="addr">เลขประจำตัวผู้เสียภาษี ${escapeHtml(co.taxId)}</div>` : ''}
       </div></div>
       <div class="rule"></div></div>` : '';
