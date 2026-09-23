@@ -70,6 +70,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     assert 'ภาพถ่ายการส่งมอบงาน' not in printed, "generic title was dropped in favor of per-photo equipment captions"
     for expect in ('PJ1', 'โครงการ', 'โครงการทดสอบรูป', 'ลูกค้า ก', 'CT-99', 'บริษัท ทดสอบ จำกัด', '2 รูป', 'ชุดที่ 1: รูปภาพอุปกรณ์', 'ชุดที่ 2: รูปภาพงานติดตั้ง'):
         assert expect in printed, expect
+    assert 'ประเภทงาน' not in printed and 'วันที่พิมพ์' not in printed, "dropped from the info table - not useful on the printed sheet"
     assert page.locator('#printArea .pr-photo-cell').count() == 2
     # each photo prints the equipment line it was tagged with, not its filename
     assert page.locator('#printArea .pr-photo-cap:has-text("Yeti")').count() == 1

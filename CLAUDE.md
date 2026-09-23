@@ -45,9 +45,10 @@ equipment/customers/companies/users/audit/trash, and keep `NAV_GROUP_OF` in sync
 `#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows
 the exact same `letterheadHtml(co)` + `.pr-info` system already used by `printActionPlan()` - same fonts/margins/print-only CSS, so it looks like the same
 document family rather than a bolted-on export (there is no generic `.pr-title` heading above the info table any more - it was dropped since the header's
-own info table already says ประเภทงาน/ชื่องาน, and a page-wide title added nothing per-photo captions didn't already say better). The header's fields are
-all pulled from the record itself, never typed by hand: เลขที่เอกสาร, ประเภทงาน (ซื้อขาย/โครงการ), ชื่องาน/ชื่อโครงการ, หน่วยงาน/ลูกค้า, เลขที่สัญญา (only if
-set - a sale rarely has one), วันที่พิมพ์ (today), and จำนวนรูปภาพ (count actually being printed). Below that, each visible set (per `photoSetsFor()` - a
+own info table already says ชื่องาน/ชื่อโครงการ, and a page-wide title added nothing per-photo captions didn't already say better). The header's fields are
+all pulled from the record itself, never typed by hand: เลขที่เอกสาร, ชื่องาน/ชื่อโครงการ, หน่วยงาน/ลูกค้า, เลขที่สัญญา (only if set - a sale rarely has one),
+and จำนวนรูปภาพ (count actually being printed) - ประเภทงาน and วันที่พิมพ์ used to be in this list too but were dropped as not useful on the printed sheet.
+Below that, each visible set (per `photoSetsFor()` - a
 sale only prints the set(s) it chose, a project always offers both) gets its own heading and a 2-column `.pr-photo-grid` of images
 (`buildPhotosPrintHtml()`, `.pr-photo-*` CSS added to the shared `@media print` block). Each photo's caption is `equipCaption(p)` - "ยี่ห้อ ชื่ออุปกรณ์ — SN
 xxx" from whichever equipment line it was tagged with (see "Handover photos" below) - falling back to the photo's own filename only if it was never tagged
@@ -129,7 +130,14 @@ c.category)` and `data.warehouse.map(w => w.type)`), just read by `used()` insid
 Browser print -> "Save as PDF". `setPrintPage(css)` sets one `<style id="printPageStyle">` per print (portrait for the handover document, landscape for the Action Plan) and it is removed afterwards.
 The handover document follows `docs/handover-template.docx` (measured with Word: TH Sarabun New, navy #1F3A5F, gold #B08D57, label cells #EEF2F7). Page 1 has the letterhead in the flow; pages 2+ get a running header and every page a footer + "หน้า x / y" through page-margin boxes (Chromium).
 `thead` repeat of an outer wrapper table did NOT work in Chromium, and `position:fixed` headers do not repeat either - hence the margin boxes.
-When the user says the template docx "has been edited," re-read it (`python-docx`, or unzip + diff `word/document.xml`/`header1.xml`/`footer1.xml` against the previous copy - Word re-splits unrelated text into more `<w:r>` runs on every save, so diff the *joined* text per paragraph, not the raw XML, or real edits get lost in run-fragmentation noise) and reconcile `buildProjectPrintHtml()` against whatever actually changed, then overwrite `docs/handover-template.docx` with the new file so it stays the one live reference copy. The page-1 letterhead's ที่อยู่บริษัท / เลขประจำตัวผู้เสียภาษี print as separate `.addr` divs (each only rendered when that field is set) rather than one line joined with " / ", matching the template's own two-line header - a third one prints เบอร์โทร the same way. `.ho-head .addr` (not just `.co`) needs its own `text-align:right`: the info block sits flush against the page's right margin via the row's `justify-content:space-between` regardless, but a shorter line left unstyled would sit at the LEFT edge of that block's own (content-sized) box, not the page's right margin - it only reads as right-aligned once every line in the block shares the same `text-align:right`.
+When the user says the template docx "has been edited," re-read it (`python-docx`, or unzip + diff `word/document.xml`/`header1.xml`/`footer1.xml` against the previous copy - Word re-splits unrelated text into more `<w:r>` runs on every save, so diff the *joined* text per paragraph, not the raw XML, or real edits get lost in run-fragmentation noise) and reconcile `buildProjectPrintHtml()` against whatever actually changed, then overwrite `docs/handover-template.docx` with the new file so it stays the one live reference copy. The page-1 letterhead's ที่อยู่บริษัท is its own `.addr` div, on the line below the company name; เบอร์โทร and เลขประจำตัวผู้เสียภาษี share the NEXT line
+together (`phoneTax`, same `' &nbsp;|&nbsp; '` join as the sibling `letterheadHtml()` uses elsewhere for the same two fields) rather than each getting
+its own line - only address gets split out on its own. Either line is skipped entirely when nothing in it is set; `phoneTax` itself must be computed
+inside a `co ? ... : ''`-style guard (or guarded some other way) since `co` (the job's company) can be `undefined` when no company was picked - a plain
+top-level `co.phone` reference blows up `buildProjectPrintHtml()` for that case where the old code never touched `co` at all until inside the ternary.
+`.ho-head .addr` (not just `.co`) needs its own `text-align:right`: the info block sits flush against the page's right margin via the row's
+`justify-content:space-between` regardless, but a shorter line left unstyled would sit at the LEFT edge of that block's own (content-sized) box, not the
+page's right margin - it only reads as right-aligned once every line in the block shares the same `text-align:right`.
 
 ## Sample data
 Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`). `#deleteSampleDataBtn` on the (admin-only) Trash page

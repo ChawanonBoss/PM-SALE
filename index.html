@@ -1423,7 +1423,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.5';
+const APP_VERSION = '1.20.6';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2755,15 +2755,15 @@ function buildProjectPrintHtml(p){
   const wr = projectWarranty(p);
   const sale = isSale(p);
   const e = v => escapeHtml(v || '-');
-  // เอกสารส่งมอบงานแบบใหม่.docx (the reference template) splits ที่อยู่บริษัท / เลขประจำตัวผู้เสียภาษี into two lines instead of joining
-  // them with " / " on one - matched here as separate .addr divs (address, phone, tax id), each only rendered when that field is set,
-  // all right-aligned flush to the page's right margin (logo stays put on the left) same as the company name above them.
+  // เอกสารส่งมอบงานแบบใหม่.docx (the reference template) puts ที่อยู่บริษัท on its own line, separate from โทร / เลขประจำตัวผู้เสียภาษี
+  // which share ONE line together (same " |  " join as the sibling letterheadHtml() used elsewhere) - each piece only appears when
+  // that field is set, and every line here is right-aligned flush to the page's right margin (logo stays put on the left).
+  const phoneTax = co ? [co.phone ? 'โทร. ' + co.phone : '', co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + co.taxId : ''].filter(Boolean).map(escapeHtml).join(' &nbsp;|&nbsp; ') : '';
   const head = co ? `
     <div class="ho-head"><div class="row"><div>${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}</div>
       <div><div class="co">${escapeHtml(co.name)}</div>
         ${co.address ? `<div class="addr">${escapeHtml(co.address)}</div>` : ''}
-        ${co.phone ? `<div class="addr">โทร. ${escapeHtml(co.phone)}</div>` : ''}
-        ${co.taxId ? `<div class="addr">เลขประจำตัวผู้เสียภาษี ${escapeHtml(co.taxId)}</div>` : ''}
+        ${phoneTax ? `<div class="addr">${phoneTax}</div>` : ''}
       </div></div>
       <div class="rule"></div></div>` : '';
   const contract = [p.contractNo, p.poNo ? 'PO ' + p.poNo : ''].filter(Boolean).join(' · ');
@@ -4091,8 +4091,8 @@ function buildPhotosPrintHtml(rec, photos){
   const co = data.companies.find(c => c.id === rec.companyId);
   const sale = rec.jobType === 'sale';
   const info = [
-    ['เลขที่เอกสาร', rec.docNo], ['ประเภทงาน', sale ? 'ซื้อขาย' : 'โครงการ'], [sale ? 'ชื่องาน' : 'ชื่อโครงการ', rec.name],
-    ['หน่วยงาน / ลูกค้า', rec.customerName], ['เลขที่สัญญา', rec.contractNo], ['วันที่พิมพ์', fmtDate(todayStr())], ['จำนวนรูปภาพ', `${photos.length} รูป`],
+    ['เลขที่เอกสาร', rec.docNo], [sale ? 'ชื่องาน' : 'ชื่อโครงการ', rec.name],
+    ['หน่วยงาน / ลูกค้า', rec.customerName], ['เลขที่สัญญา', rec.contractNo], ['จำนวนรูปภาพ', `${photos.length} รูป`],
   ].filter(r => r[1]).map(r => `<tr><td>${escapeHtml(r[0])}</td><td>${escapeHtml(String(r[1]))}</td></tr>`).join('');
   const section = (label, set) => {
     const list = photos.filter(p => p.set === set);
