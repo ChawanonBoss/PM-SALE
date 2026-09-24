@@ -178,7 +178,23 @@ same read-only view modal instead of dropping back onto the bare list - without 
 - only a รูปภาพ click that came from inside the view modal gets this shortcut back into it. `openProjectForm()` itself always resets to `setProjectViewMode(false)` before opening, so every OTHER existing entry
 point into the same modal (the dashboard's job click, Action Plan's own "แก้ไข", the warranty page's/serial page's/company page's links into a
 project) is untouched and still opens straight into the normal editable form - only a row click on the ซื้อขาย/โครงการ list itself goes through
-`openProjectView()` first.
+`openProjectView()` first. `setProjectViewMode()` recomputes the title from scratch on every call (`on ? 'รายละเอียด'+jobWord : (p?'แก้ไข':'เพิ่ม')+jobWord`)
+rather than only setting it inside `if(on)` - the first version only ever set the "รายละเอียด..." title and never put "แก้ไข..." back once `#prjViewEditBtn`
+switched view mode back off, since nothing else re-ran `openProjectForm()`'s own title line on that path. No test had asserted the title text after that
+specific transition, so it shipped once before being caught.
+
+## โกดังบริการ: click-a-row to view, edit-in-place
+Same pattern as the ซื้อขาย/โครงการ lists above, applied to `#serviceWarehouseModal`: clicking a row (`onclick` on the `<tr>`, guarded by
+`event.target.closest('.row-actions')` the same way) opens the existing add/edit modal in a read-only view first (`openServiceWarehouseView(id)` ->
+`openServiceWarehouseForm()` then `setServiceViewMode(true)`), with a single **แก้ไข** button (`#svcViewEditBtn`, next to the title - there's no
+รูปภาพ/พิมพ์ PDF equivalent here) switching the same modal into the normal editable form in place. `setServiceViewMode(on)` disables
+`<fieldset id="svcFormFieldset">` (wrapping the whole form-grid, including the addable-select "+" buttons for ซัพพลายเออร์/ประเภทงาน), hides the
+"บันทึก" button, and swaps "ยกเลิก"/"ปิด" and the title the same way the project modal does - recomputing the title on every call rather than only
+under `if(on)`, having already caught that mistake once on the project modal above. The row's own separate "แก้ไข" button was removed (`ลบ` is all
+that's left in `.row-actions`) since the view modal now provides one - โกดังบริการ has no serials/quantity/history the way โกดังสินค้า's own
+`openSerialModal()` shows, so reusing the just-built view-mode pattern (disable the existing form) made more sense here than adding a second,
+service-specific read-only viewer. โกดังสินค้า's own row keeps its original serial-viewer + separate "แก้ไข" button unchanged - only โกดังบริการ was
+asked for.
 
 ## Catalog: หมวดสินค้า
 `#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather

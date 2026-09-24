@@ -52,9 +52,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     row_text = page.inner_text('#serviceWarehouseBody')
     assert all(v in row_text for v in ('SVC-1', 'บริษัท ติดตั้ง จำกัด', 'ติดตั้งระบบ', 'ติดตั้งกล้องวงจรปิด'))
 
-    # ---- edit it: fields come back pre-filled, addable-selects keep the value already in use ----
-    page.click('#serviceWarehouseBody .icon-btn:has-text("แก้ไข")'); page.wait_for_timeout(200)
-    assert page.inner_text('#serviceWarehouseModalTitle') == 'แก้ไขบริการ'
+    # ---- click the row: opens read-only first (like a ซื้อขาย/โครงการ row), "แก้ไข" inside switches to the editable form in place ----
+    page.click('#serviceWarehouseBody tr:has-text("ติดตั้งกล้องวงจรปิด")'); page.wait_for_timeout(200)
+    assert page.inner_text('#serviceWarehouseModalTitle') == 'รายละเอียดบริการ' and page.is_disabled('#svcPart')
+    page.click('#svcViewEditBtn'); page.wait_for_timeout(100)
+    assert page.inner_text('#serviceWarehouseModalTitle') == 'แก้ไขบริการ' and not page.is_disabled('#svcPart')
     assert page.input_value('#svcPart') == 'SVC-1' and page.input_value('#svcBrand') == 'บริษัท ติดตั้ง จำกัด' and page.input_value('#svcType') == 'ติดตั้งระบบ'
     page.fill('#svcNote', 'แก้ไขแล้ว')
     page.click('#serviceWarehouseSaveBtn'); page.wait_for_timeout(400)

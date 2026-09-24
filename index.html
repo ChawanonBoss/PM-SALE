@@ -344,7 +344,7 @@
   .dash-job-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
 
   /* ---- Warehouse ---- */
-  #warehouseBody tr, #customersBody tr{ cursor:pointer; }
+  #warehouseBody tr, #customersBody tr, #serviceWarehouseBody tr{ cursor:pointer; }
   .code-mask{ font-family:ui-monospace,Consolas,monospace; letter-spacing:.06em; }
   .type-row{ display:flex; gap:8px; align-items:center; }
   .type-row select{ flex:1; }
@@ -1285,8 +1285,14 @@
 <!-- Service warehouse item form modal (same pattern as warehouseModal above, minus quantity/serial) -->
 <div class="modal-overlay" id="serviceWarehouseModal" style="display:none;">
   <div class="modal">
-    <h3 class="serif" id="serviceWarehouseModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มบริการ</h3>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+      <h3 class="serif" id="serviceWarehouseModalTitle" style="font-size:19px; margin-bottom:18px;">เพิ่มบริการ</h3>
+      <div id="svcViewActions" style="display:none;">
+        <button class="btn outline" type="button" id="svcViewEditBtn">แก้ไข</button>
+      </div>
+    </div>
     <form id="serviceWarehouseForm">
+      <fieldset id="svcFormFieldset" style="border:none; margin:0; padding:0;">
       <div class="form-grid">
         <div class="field"><label>Part *</label><input type="text" id="svcPart" required></div>
         <div class="field"><label>ซัพพลายเออร์</label>
@@ -1314,6 +1320,7 @@
         <div class="field full"><label>ชื่อบริการ *</label><input type="text" id="svcName" required></div>
         <div class="field full"><label>หมายเหตุ</label><textarea id="svcNote"></textarea></div>
       </div>
+      </fieldset>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="serviceWarehouseCancelBtn">ยกเลิก</button>
         <button class="btn" type="submit" id="serviceWarehouseSaveBtn">บันทึก</button>
@@ -1461,7 +1468,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.6';
+const APP_VERSION = '1.21.7';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2464,11 +2471,9 @@ function setProjectViewMode(on){
   $('prjViewActions').style.display = on ? 'flex' : 'none';
   $('projectSaveBtn').style.display = on ? 'none' : '';
   $('projectCancelBtn').textContent = on ? 'ปิด' : 'ยกเลิก';
-  if (on){
-    const p = editingProjectId ? data.projects.find(x => x.id === editingProjectId) : null;
-    const jobWord = (p ? isSale(p) : $('prjJobType').value === 'sale') ? 'การซื้อขาย' : 'โครงการ';
-    $('projectModalTitle').textContent = 'รายละเอียด' + jobWord;
-  }
+  const p = editingProjectId ? data.projects.find(x => x.id === editingProjectId) : null;
+  const jobWord = (p ? isSale(p) : $('prjJobType').value === 'sale') ? 'การซื้อขาย' : 'โครงการ';
+  $('projectModalTitle').textContent = on ? ('รายละเอียด' + jobWord) : ((p ? 'แก้ไข' : 'เพิ่ม') + jobWord);
 }
 $('prjViewEditBtn').addEventListener('click', () => setProjectViewMode(false));
 $('prjViewPrintBtn').addEventListener('click', () => editingProjectId && printProject(editingProjectId));
@@ -4008,14 +4013,13 @@ function renderServiceWarehouse(){
   lastList.serviceWarehouse = rows;
   const view = pageSlice('serviceWarehouse', rows);
   $('serviceWarehouseBody').innerHTML = rows.length ? view.map(s => `
-    <tr>
+    <tr onclick="if(!event.target.closest('.row-actions')) openServiceWarehouseView('${s.id}')" title="กดเพื่อดูรายละเอียด">
       <td>${escapeHtml(s.part || '-')}</td>
       <td>${escapeHtml(s.brand || '-')}</td>
       <td>${escapeHtml(s.type || '-')}</td>
       <td><b>${escapeHtml(s.name)}</b></td>
       <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(s.note || '-')}</td>
       <td><div class="row-actions">
-        <button class="icon-btn" onclick="openServiceWarehouseForm('${s.id}')">แก้ไข</button>
         ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="deleteEntity('serviceWarehouse','${s.id}')">ลบ</button>` : ''}
       </div></td>
     </tr>`).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่มีบริการในโกดังบริการ</td></tr>`;
@@ -4023,6 +4027,7 @@ function renderServiceWarehouse(){
 ['serviceWarehouseSearch','serviceWarehouseTypeFilter','serviceWarehouseBrandFilter'].forEach(id => $(id).addEventListener('input', renderServiceWarehouse));
 
 let editingServiceWarehouseId = null;
+let serviceViewMode = false;
 function openServiceWarehouseForm(id){
   const s = id ? data.serviceWarehouse.find(x => x.id === id) : null;
   if (id && !s) return;
@@ -4034,8 +4039,24 @@ function openServiceWarehouseForm(id){
   svcTypeSel.reset(); svcBrandSel.reset();
   svcTypeSel.fill(s ? s.type : '');
   svcBrandSel.fill(s ? s.brand : '');
+  setServiceViewMode(false);
   openModal('serviceWarehouseModal');
 }
+// Clicking a row on the โกดังบริการ list opens this same modal read-only first (like clicking a job row on ซื้อขาย/โครงการ), with its own
+// "แก้ไข" button next to the title switching it into the normal editable form in place - so the row itself no longer needs its own "แก้ไข" button.
+function openServiceWarehouseView(id){
+  openServiceWarehouseForm(id);
+  setServiceViewMode(true);
+}
+function setServiceViewMode(on){
+  serviceViewMode = on;
+  $('svcFormFieldset').disabled = on;
+  $('svcViewActions').style.display = on ? '' : 'none';
+  $('serviceWarehouseSaveBtn').style.display = on ? 'none' : '';
+  $('serviceWarehouseCancelBtn').textContent = on ? 'ปิด' : 'ยกเลิก';
+  $('serviceWarehouseModalTitle').textContent = on ? 'รายละเอียดบริการ' : (editingServiceWarehouseId ? 'แก้ไขบริการ' : 'เพิ่มบริการ');
+}
+$('svcViewEditBtn').addEventListener('click', () => setServiceViewMode(false));
 $('serviceWarehouseCreateBtn').addEventListener('click', () => openServiceWarehouseForm(null));
 $('serviceWarehouseCancelBtn').addEventListener('click', () => closeModal('serviceWarehouseModal'));
 $('serviceWarehouseForm').addEventListener('submit', async e => {
