@@ -1468,7 +1468,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.8';
+const APP_VERSION = '1.21.9';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3883,7 +3883,6 @@ function renderWarehouse(){
       <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length}/${fmtNum(w.quantity)}${(w.history || []).length ? ` · เบิก/คืน ${(w.history || []).length} ครั้ง` : ''}</div></td>
       <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(w.note || '-')}</td>
       <td><div class="row-actions">
-        <button class="icon-btn" onclick="event.stopPropagation(); openWarehouseForm('${w.id}')">แก้ไข</button>
         ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('warehouse','${w.id}')">ลบ</button>` : ''}
       </div></td>
     </tr>`).join('') : `<tr><td colspan="7" class="empty-row">ยังไม่มีอุปกรณ์ในโกดัง</td></tr>`;

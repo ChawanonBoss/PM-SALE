@@ -193,8 +193,9 @@ Same pattern as the ซื้อขาย/โครงการ lists above, app
 under `if(on)`, having already caught that mistake once on the project modal above. The row's own separate "แก้ไข" button was removed (`ลบ` is all
 that's left in `.row-actions`) since the view modal now provides one - โกดังบริการ has no serials/quantity/history the way โกดังสินค้า's own
 `openSerialModal()` shows, so reusing the just-built view-mode pattern (disable the existing form) made more sense here than adding a second,
-service-specific read-only viewer. โกดังสินค้า's own row keeps its original serial-viewer + separate "แก้ไข" button unchanged - only โกดังบริการ was
-asked for.
+service-specific read-only viewer. โกดังสินค้า's row-level "แก้ไข" (`openWarehouseForm()` called directly off the row) was later dropped too, for
+the same reason: its row click already opens `#serialModal`, which has always had its own `#serialEditBtn` - `.row-actions` there now holds only
+"ลบ" (admin), matching โกดังบริการ.
 
 ## Catalog: หมวดสินค้า
 `#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather
