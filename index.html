@@ -40,15 +40,17 @@
        whole app was asked to match it; see CLAUDE.md "Design system: Neumorphism" for the full rationale. ---- */
     --font-display:'Chillax','RSU',sans-serif;
     --font-body:'Chillax','RSU',sans-serif;
-    --paper:#EFE7D9; --paper-dim:#E5DAC6; --card:#EFE7D9;
-    --ink:#1A1714; --ink-soft:#8B8178; --line:rgba(139,129,120,0.32);
+    --paper:#F6F2E9; --paper-dim:#ECE4D3; --card:#F6F2E9;
+    --ink:#1A1714; --ink-soft:#8B8178; --line:rgba(139,129,120,0.28);
     --accent:#C4623D; --accent-light:#DD8760; --accent-soft:rgba(196,98,61,0.16);
     --sun:#CF9749; --sun-soft:rgba(207,151,73,0.18);
     --ok:#7A8A6F; --ok-ink:#5C6B52; --ok-soft:rgba(122,138,111,0.2);
     --gray:#8B8178; --gray-soft:rgba(139,129,120,0.18);
     --danger:#AE4438; --danger-soft:rgba(174,68,56,0.16);
-    /* dual-shadow components (rgb triples, composed below) - light source top-left, dark falls bottom-right */
-    --sh-hi:255,251,244; --sh-lo:176,159,135;
+    /* dual-shadow components (rgb triples, composed below) - light source top-left, dark falls bottom-right.
+       Lightened/desaturated from the original brief's tan (176,159,135) along with --paper, per the user's own
+       "too orange-cream, hard on the eyes" feedback - a paler base needs a softer shadow tone to match. */
+    --sh-hi:255,253,248; --sh-lo:190,177,157;
     --shadow-ext:9px 9px 16px rgba(var(--sh-lo),0.55), -9px -9px 16px rgba(var(--sh-hi),0.85);
     --shadow-ext-hover:12px 12px 20px rgba(var(--sh-lo),0.65), -12px -12px 20px rgba(var(--sh-hi),0.9);
     --shadow-ext-sm:5px 5px 10px rgba(var(--sh-lo),0.55), -5px -5px 10px rgba(var(--sh-hi),0.85);
@@ -68,6 +70,14 @@
     --sh-hi:64,50,36; --sh-lo:0,0,0;
   }
   *{ margin:0; padding:0; box-sizing:border-box; }
+  /* Custom scrollbar everywhere (.content, modals, the calendar's own scroll box, table-scroll, the Gantt frame, popovers, ...) -
+     the browser's default scrollbar is a flat grey/blue system control that clashed with the warm Neumorphism palette. */
+  *{ scrollbar-width:thin; scrollbar-color:rgba(var(--sh-lo),0.55) transparent; }
+  ::-webkit-scrollbar{ width:10px; height:10px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+  ::-webkit-scrollbar-thumb{ background-color:rgba(var(--sh-lo),0.55); border-radius:100px; border:2px solid transparent; background-clip:padding-box; }
+  ::-webkit-scrollbar-thumb:hover{ background-color:rgba(var(--sh-lo),0.8); background-clip:padding-box; }
+  ::-webkit-scrollbar-corner{ background:transparent; }
   body{ background:var(--paper); color:var(--ink); font-family:var(--font-body); line-height:1.5; transition:background-color .2s ease, color .2s ease; }
   .serif{ font-family:var(--font-display); font-weight:700; letter-spacing:-0.01em; }
   button{ font-family:inherit; cursor:pointer; }
@@ -154,9 +164,12 @@
   /* ---- Forms / modals ---- */
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field label{ font-size:12.5px; color:var(--ink-soft); font-weight:500; }
-  .field input, .field select, .field textarea{ padding:11px 14px; border:none; border-radius:16px; background:var(--paper); color:var(--ink); font-size:13.5px; width:100%; box-shadow:var(--shadow-inset); transition:box-shadow .2s ease; }
-  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; box-shadow:var(--shadow-inset-deep), 0 0 0 2px var(--accent-soft); }
+  .field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea{ padding:11px 14px; border:none; border-radius:16px; background:var(--paper); color:var(--ink); font-size:13.5px; width:100%; box-shadow:var(--shadow-inset); transition:box-shadow .2s ease; }
+  .field input:not([type="checkbox"]):not([type="radio"]):focus, .field select:focus, .field textarea:focus{ outline:none; box-shadow:var(--shadow-inset-deep), 0 0 0 2px var(--accent-soft); }
   .field textarea{ resize:vertical; min-height:70px; }
+  /* a checkbox/radio caught inside a .field (e.g. the photo-set pickers) must NOT inherit the text-input treatment above -
+     that turned each one into a full-width rounded well with the checkbox itself lost inside it, per the user's own report. */
+  .field input[type="checkbox"], .field input[type="radio"]{ width:16px; height:16px; flex-shrink:0; accent-color:var(--accent); box-shadow:none; }
   .form-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
   .form-grid .full{ grid-column:1 / -1; }
   .modal-overlay{ position:fixed; inset:0; background:rgba(20,24,34,0.45); z-index:600; align-items:center; justify-content:center; padding:16px; }
@@ -425,8 +438,9 @@
   @media (max-width:760px){ .cal-root{ margin:-20px -16px; height:calc(100% + 40px); } }
   .cal-topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:18px 32px; background:var(--paper); box-shadow:0 6px 16px rgba(var(--sh-lo),0.18); }
   .cal-brand{ display:flex; align-items:center; gap:10px; margin-right:6px; }
-  .cal-mark{ width:34px; height:34px; border-radius:12px; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
-  .cal-mark svg{ width:18px; height:18px; }
+  .cal-mark{ width:34px; height:34px; border-radius:12px; border:none; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; padding:0; transition:box-shadow .2s ease; }
+  .cal-mark:hover{ box-shadow:var(--shadow-ext-hover); }
+  .cal-mark svg{ width:18px; height:18px; pointer-events:none; }
   .cal-title{ font-family:var(--font-display); font-size:19px; font-weight:700; color:var(--ink); white-space:nowrap; }
   .cal-title-year{ color:var(--ink-soft); font-weight:500; }
   .cal-pill-btn{ height:34px; padding:0 16px; border-radius:100px; border:none; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--ink); font-size:12.5px; font-weight:600; transition:box-shadow .2s ease; }
@@ -445,19 +459,8 @@
 
   .cal-body{ display:flex; align-items:flex-start; }
   .cal-sidebar{ width:264px; flex-shrink:0; padding:22px 20px; align-self:stretch; }
-  .cal-mini{ background:var(--card); border-radius:24px; padding:16px; box-shadow:var(--shadow-ext); }
-  .cal-mini-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-  .cal-mini-head span{ font-family:var(--font-display); font-size:14.5px; font-weight:700; }
-  .cal-mini-head div{ display:flex; gap:4px; }
-  .cal-mini-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10px; color:var(--ink-soft); margin-bottom:4px; }
-  .cal-mini-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-  .cal-mini-cell{ position:relative; height:26px; display:flex; align-items:center; justify-content:center; font-size:11.5px; border-radius:50%; color:var(--ink); cursor:pointer; }
-  .cal-mini-cell.other-month{ color:var(--ink-soft); opacity:.5; }
-  .cal-mini-cell.in-week{ background:var(--accent-soft); border-radius:0; }
-  .cal-mini-cell.in-week.week-start{ border-radius:50% 0 0 50%; }
-  .cal-mini-cell.in-week.week-end{ border-radius:0 50% 50% 0; }
-  .cal-mini-cell.today{ background:var(--accent); color:#fff; font-weight:700; border-radius:50%; box-shadow:var(--shadow-ext-sm); }
   .cal-side-section{ margin-top:22px; background:var(--card); border-radius:24px; padding:16px; box-shadow:var(--shadow-ext); }
+  .cal-side-section.first{ margin-top:0; }
   .cal-eyebrow{ font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:12px; }
   .cal-cat-row{ display:flex; align-items:center; gap:9px; padding:5px 0; font-size:12.5px; cursor:pointer; }
   .cal-cat-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -800,7 +803,8 @@
       <div id="tab-calendar" class="tab-panel cal-root" style="display:none;">
         <div class="cal-topbar">
           <div class="cal-brand">
-            <span class="cal-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+            <button class="cal-mark" type="button" id="calJumpBtn" title="เลือกวันที่" aria-label="เลือกวันที่"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+            <input type="date" id="calJumpDate" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             <div class="cal-title"><span id="calMonthName">-</span> <span class="cal-title-year" id="calYearName"></span></div>
           </div>
           <button class="cal-pill-btn" type="button" id="calTodayBtn">วันนี้</button>
@@ -816,15 +820,7 @@
         </div>
         <div class="cal-body">
           <aside class="cal-sidebar">
-            <div class="cal-mini">
-              <div class="cal-mini-head">
-                <span id="calMiniLabel">-</span>
-                <div><button class="cal-icon-btn sm" type="button" id="calMiniPrev">‹</button><button class="cal-icon-btn sm" type="button" id="calMiniNext">›</button></div>
-              </div>
-              <div class="cal-mini-dow"><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span><span>อา</span></div>
-              <div class="cal-mini-grid" id="calMiniGrid"></div>
-            </div>
-            <div class="cal-side-section">
+            <div class="cal-side-section first">
               <div class="cal-eyebrow">ปฏิทินของฉัน</div>
               <div id="calCatList"></div>
             </div>
@@ -1397,7 +1393,11 @@
         <div class="field"><label>วันที่ *</label>
           <div class="date-edit-wrap"><input type="date" id="apptDate" required><span class="date-display placeholder" id="apptDateText">dd/mm/yyyy</span></div>
         </div>
-        <div class="field"><label>เวลา *</label><input type="time" id="apptTime" required></div>
+        <div class="field"><label>เวลา * (24 ชม.)</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <select id="apptHour" style="flex:1;"></select><span>:</span><select id="apptMinute" style="flex:1;"></select>
+          </div>
+        </div>
         <div class="field full"><label>บริษัท / ลูกค้า</label><select id="apptCustomer"><option value="">— ไม่ระบุ —</option></select></div>
         <div class="field full">
           <label>รูปแบบการนัดหมาย</label>
@@ -1719,7 +1719,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.2';
+const APP_VERSION = '1.23.3';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2673,24 +2673,6 @@ function calChip(e, mini){
     <span class="t">${escapeHtml(e.title)}</span>${mini ? '' : `<span class="m">${escapeHtml(e.meta || '')}</span>`}
   </button>`;
 }
-function renderCalMini(){
-  const y = calRefDate.getFullYear(), m = calRefDate.getMonth();
-  $('calMiniLabel').textContent = `${MONTH_TH_FULL[m]} ${y + 543}`;
-  const gridStart = calAddDays(new Date(y, m, 1), -((new Date(y, m, 1).getDay() + 6) % 7));
-  const weekStart = calStartOfWeek(calRefDate), weekEnd = calAddDays(weekStart, 6);
-  const today = todayStr();
-  $('calMiniGrid').innerHTML = Array.from({ length: 42 }, (_, i) => calAddDays(gridStart, i)).map(d => {
-    const ymd = calYMD(d);
-    const inWeek = calView === 'week' && d >= weekStart && d <= weekEnd;
-    const cls = ['cal-mini-cell'];
-    if (d.getMonth() !== m) cls.push('other-month');
-    if (inWeek) cls.push('in-week');
-    if (inWeek && ymd === calYMD(weekStart)) cls.push('week-start');
-    if (inWeek && ymd === calYMD(weekEnd)) cls.push('week-end');
-    if (ymd === today) cls.push('today');
-    return `<div class="${cls.join(' ')}" onclick="calGoToDate('${ymd}')">${d.getDate()}</div>`;
-  }).join('');
-}
 function calGoToDate(ymd){ calRefDate = calParseYMD(ymd); renderCalendar(); }
 function renderCalCatList(){
   $('calCatList').innerHTML = Object.entries(CAL_CATS).map(([key, c]) => `
@@ -2743,7 +2725,7 @@ function renderCalendar(){
   $('calMonthName').textContent = MONTH_TH_FULL[calRefDate.getMonth()];
   $('calYearName').textContent = calRefDate.getFullYear() + 543;
   document.querySelectorAll('.cal-switch-item').forEach(b => b.classList.toggle('active', b.dataset.view === calView));
-  renderCalMini();
+  $('calJumpDate').value = calYMD(calRefDate);
   renderCalCatList();
   renderCalUpNext();
   const byDate = calGroupByDate(calFilteredEvents());
@@ -2760,8 +2742,8 @@ function calNav(dir){
 $('calTodayBtn').addEventListener('click', () => { calRefDate = new Date(); renderCalendar(); });
 $('calPrevBtn').addEventListener('click', () => calNav(-1));
 $('calNextBtn').addEventListener('click', () => calNav(1));
-$('calMiniPrev').addEventListener('click', () => { calRefDate = calAddMonthsSafe(calRefDate, -1); renderCalendar(); });
-$('calMiniNext').addEventListener('click', () => { calRefDate = calAddMonthsSafe(calRefDate, 1); renderCalendar(); });
+$('calJumpBtn').addEventListener('click', () => { if ($('calJumpDate').showPicker) $('calJumpDate').showPicker(); else $('calJumpDate').focus(); });
+$('calJumpDate').addEventListener('change', () => { if ($('calJumpDate').value) calGoToDate($('calJumpDate').value); });
 document.querySelectorAll('.cal-switch-item').forEach(btn => btn.addEventListener('click', () => { calView = btn.dataset.view; renderCalendar(); }));
 $('calSearchInput').addEventListener('input', e => { calSearchTerm = e.target.value; renderCalendar(); });
 $('calCatList').addEventListener('change', e => {
@@ -2775,6 +2757,10 @@ $('calNewBtn').addEventListener('click', () => openAppointmentModal(null, calYMD
 /* ---- นัดหมาย (appointment) form: create/edit/delete, its own pm_appointments doc - see the comment above buildCalendarEvents() ---- */
 let editingAppointmentId = null;
 let apptMode = 'visit';
+// Plain <select> hour/minute instead of <input type="time"> - a native time input's displayed format (12h AM/PM vs 24h) follows
+// the browser/OS locale, which isn't reliably controllable from the page; two selects guarantee "HH:MM" 24-hour everywhere.
+$('apptHour').innerHTML = Array.from({ length: 24 }, (_, h) => `<option value="${String(h).padStart(2, '0')}">${String(h).padStart(2, '0')}</option>`).join('');
+$('apptMinute').innerHTML = Array.from({ length: 60 }, (_, m) => `<option value="${String(m).padStart(2, '0')}">${String(m).padStart(2, '0')}</option>`).join('');
 function fillApptCustomerSelect(selectedId){
   const customers = [...data.customers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   $('apptCustomer').innerHTML = `<option value="">— ไม่ระบุ —</option>` + customers.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
@@ -2797,7 +2783,8 @@ function openAppointmentModal(id, presetDate){
   $('apptTitle').value = a ? a.title || '' : '';
   $('apptDate').value = a ? a.date || '' : (presetDate || todayStr());
   syncApptDateText();
-  $('apptTime').value = a ? a.time || '' : '';
+  const [presetH, presetM] = (a && a.time ? a.time : '09:00').split(':');
+  $('apptHour').value = presetH; $('apptMinute').value = presetM;
   fillApptCustomerSelect(a && a.customerId);
   setApptMode(a ? (a.mode || 'visit') : 'visit');
   $('apptLocation').value = a ? a.location || '' : '';
@@ -2818,7 +2805,7 @@ $('appointmentForm').addEventListener('submit', async e => {
   e.preventDefault();
   const customer = $('apptCustomer').value;
   const doc = {
-    title: $('apptTitle').value.trim(), date: $('apptDate').value, time: $('apptTime').value,
+    title: $('apptTitle').value.trim(), date: $('apptDate').value, time: `${$('apptHour').value}:${$('apptMinute').value}`,
     customerId: customer, customerName: customer ? (data.customers.find(c => c.id === customer) || {}).name || '' : '',
     mode: apptMode,
     location: apptMode === 'visit' ? $('apptLocation').value.trim() : '',

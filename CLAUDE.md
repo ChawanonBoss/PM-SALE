@@ -28,11 +28,29 @@ solid enough that position:sticky cells don't let scrolled-past content show thr
 **Palette history**: this started as a cool-grey palette (`#E0E5EC`/`#3D4852`/violet accent) taken from a Neumorphism moodboard.
 The user later shared a separate warm-editorial design brief for the ปฏิทิน (Calendar) page (ivory canvas, terracotta accent,
 sage/dusty-blue/amber categories) and then asked for that SAME warm palette across the whole app, with the Neumorphism shadow
-system staying everywhere including the calendar - so the tokens were repainted warm (`--paper:#EFE7D9`, `--ink:#1A1714`,
-`--ink-soft:#8B8178`, `--accent:#C4623D` terracotta, `--sun:#CF9749` amber, `--ok:#7A8A6F` sage, `--danger:#AE4438`) rather than
-literally reusing the calendar's own near-white `#faf7f2` - a base that light leaves too little headroom between its highlight and
-shadow tints for the dual-shadow effect to read clearly, so it was deepened slightly while keeping the same warm hue. Dark mode
-follows the same logic with a warm-espresso base (`#241C15`) instead of the earlier cool-slate one.
+system staying everywhere including the calendar - so the tokens were repainted warm rather than literally reusing the
+calendar's own near-white `#faf7f2` - a base that light leaves too little headroom between its highlight and shadow tints for
+the dual-shadow effect to read clearly, so it was deepened slightly while keeping the same warm hue. That first warm pass
+(`--paper:#EFE7D9`) still read as "too orange/cream, hard on the eyes" once it covered the whole app rather than just one
+page, so `--paper`/`--paper-dim`/`--card` were lightened and desaturated a second time to `#F6F2E9`/`#ECE4D3` - and the shadow
+tone (`--sh-lo`) lightened and desaturated to match (`190,177,157`), since a paler base needs a softer shadow to stay
+proportional. `--accent`/`--sun`/`--ok`/`--danger`/`--ink`/`--ink-soft` (`#C4623D`/`#CF9749`/`#7A8A6F`/`#AE4438`/
+`#1A1714`/`#8B8178`) are unchanged - only the base surface moved, not the ink or accent colours. Dark mode follows the same
+logic with a warm-espresso base (`#241C15`) instead of the earlier cool-slate one, and wasn't part of the "too orange" report
+so its own tone is untouched.
+
+**Checkboxes inside `.field`** (the photo-set pickers, `#prjPhotoEquip`/`#prjPhotoInstall`) must be excluded from the generic
+`.field input{...}` text-input styling (`.field input:not([type="checkbox"]):not([type="radio"])`) - that rule's `width:100%`
++ `box-shadow:var(--shadow-inset)` turned every checkbox caught by it into a full-width rounded "well" with the tiny checkbox
+lost inside it, reported directly from a screenshot. `.field input[type="checkbox"], .field input[type="radio"]` get their own
+minimal reset instead (`width:16px; box-shadow:none; accent-color:var(--accent)`). Checked the rest of the app for the same
+`.field`-wraps-a-checkbox trap; every other checkbox in the app lives outside a `.field` (`.cal-cat-row`, the column-picker
+lists, `.trash-cb`, the Gantt's `.g-chk-input`, the disabled สถานะงาน cells) with its own dedicated, already-correct rule.
+
+**Scrollbars** are restyled globally (`*{ scrollbar-width:thin; scrollbar-color:... }` for Firefox, `::-webkit-scrollbar*` for
+Chromium) to a thin warm-toned thumb instead of the browser's flat default, which clashed with the rest of the palette on
+every scrollable region at once (`.content`, `.cal-root`'s own scroll box, `.table-scroll`, the Gantt's `.plan-scroll` frame,
+modals, popovers) - one global rule rather than restyling each scroll container individually.
 
 **Fonts**: `Chillax` (Latin letters + numbers) paired with `RSU` (Thai) - both local font files under `fonts/` (the user's own,
 loaded via `@font-face`, not a font pairing Claude picked), replacing the Google-Fonts pairs used earlier in the session. Every
@@ -121,9 +139,15 @@ row on the ซื้อขาย/โครงการ list. Because none of the
 overlapping-time-slot split were all left out - there's no time component to position them against - and every event instead
 renders as a whole-day chip (`calChip()`) inside whichever view is active: **เดือน (month, default)** - a traditional 6-row
 grid, up to 3 chips per cell plus a "+N เพิ่มเติม" overflow count; **สัปดาห์ (week)** - 7 day columns, each stacking that
-day's chips vertically; **วัน (day)** - a single large-format agenda list for one day. The topbar's month/year title and the
-sidebar's mini-month header use `MONTH_TH_FULL` (full Thai month names) rather than the abbreviated `MONTH_TH` used everywhere
-else in the app (`fmtDate()` etc.), since this page's own header was specifically asked to spell the month out in full.
+day's chips vertically; **วัน (day)** - a single large-format agenda list for one day. The topbar's month/year title uses
+`MONTH_TH_FULL` (full Thai month names) rather than the abbreviated `MONTH_TH` used everywhere else in the app (`fmtDate()`
+etc.), since this page's own header was specifically asked to spell the month out in full.
+
+**Jumping to an arbitrary date**: the calendar mark (`#calJumpBtn`, top-left) opens a native `<input type="date" id="calJumpDate">`
+(`showPicker()`, sized to 1x1px and hidden - it's a real form control, just not one meant to be seen directly) rather than a
+persistent mini-month grid in the sidebar - the sidebar's own mini-calendar was removed and "ปฏิทินของฉัน" moved up to take
+its place, per the user's own call that a small always-visible grid wasn't worth the space next to a one-click native picker
+that already handles jumping years back or forward faster than paging a mini-grid month by month.
 
 **นัดหมาย (appointment) is the fifth category, and the one real thing this page lets you create.** Unlike the other four, it
 has an actual time-of-day and its own Firestore collection, `pm_appointments` (`title`, `date`, `time`, `customerId`/
@@ -138,13 +162,16 @@ The mode toggle (`#apptModeSwitch`) reuses the shared `.subtabs`/`.subtab-item` 
 "เข้าพบลูกค้า" shows only the location field, "ออนไลน์" shows link/meeting-ID/passcode instead (`setApptMode()` toggles both the
 active class and each field group's `display`). Editing reopens the same modal pre-filled (`editingAppointmentId` set) rather
 than a separate view-then-edit step like the ซื้อขาย/โครงการ pattern - a single-owner scheduling note doesn't carry the same
-multi-editor risk that pattern exists to guard against.
+multi-editor risk that pattern exists to guard against. Its time is two plain `<select>`s (`#apptHour` 00-23, `#apptMinute`
+00-59, joined as `"HH:MM"`) rather than `<input type="time">` - a native time input's displayed format (12h AM/PM vs 24h)
+follows the browser/OS locale rather than anything the page controls, and the user specifically wants 24-hour shown
+regardless of whoever's machine is looking at it.
 
-The sidebar's mini-month picker, "ปฏิทินของฉัน" category checklist (`calActiveCats`, a real filter - unticking a category
-hides it from the grid and the up-next list), and "ถัดไป" mini-agenda (next 6 upcoming events, ignoring the search box but
-respecting the category filter) are all driven off the same single `calRefDate`/`calActiveCats`/`calSearchTerm` state and
-`buildCalendarEvents()` call - there's no separate data path per widget. `calYMD()`/`calParseYMD()` format and parse
-`YYYY-MM-DD` using local date components (never `toISOString()`, which converts through UTC and can roll the date back a day
+"ปฏิทินของฉัน" category checklist (`calActiveCats`, a real filter - unticking a category hides it from the grid and the
+up-next list) and "ถัดไป" mini-agenda (next 6 upcoming events, ignoring the search box but respecting the category filter)
+are driven off the same single `calRefDate`/`calActiveCats`/`calSearchTerm` state and `buildCalendarEvents()` call - there's
+no separate data path per widget. `calYMD()`/`calParseYMD()` format and parse `YYYY-MM-DD` using local date components
+(never `toISOString()`, which converts through UTC and can roll the date back a day
 depending on the browser's timezone offset).
 
 ## Data model (short)
