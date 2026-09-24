@@ -174,6 +174,53 @@ no separate data path per widget. `calYMD()`/`calParseYMD()` format and parse `Y
 (never `toISOString()`, which converts through UTC and can roll the date back a day
 depending on the browser's timezone offset).
 
+## Language: English overlay
+A toggle in the rail menu (`#langToggleBtn`, next to the dark-mode toggle - same `localStorage` persistence pattern,
+`pm-sale-lang`) switches the whole on-screen app between Thai (the real, permanent content of every hardcoded string in
+the HTML and every `render*()` function) and English. **The underlying content never becomes English** - rewriting every
+one of the hundreds of Thai strings across a 5000+ line single file to route through a translation-key helper would be a
+far larger, far riskier refactor (every future patch would touch a key AND a dictionary entry instead of just a string),
+so English mode works as a dictionary-driven overlay instead: `I18N_EN` maps an exact Thai phrase to its English
+translation, and `translatePage()` walks the live DOM (text nodes, plus `placeholder`/`title`/`aria-label` attributes)
+swapping any EXACT match. The original Thai is stashed on the node itself (`node.__pmTh`) the first time it's touched, so
+switching back to Thai is a plain restore from that stash, not a second dictionary or a page reload. Matching is
+exact-string, never substring, specifically so a customer's or project's own typed name is only ever at risk of being
+mistranslated if it happens to be byte-for-byte identical to a UI phrase like "บันทึก" - the same trade-off any
+dictionary-overlay i18n approach accepts when it doesn't fully separate template from data (this is what "ยกเว้นข้อมูลที่
+กรอกเอง" - except self-entered data - meant in practice: never touch dynamic data by construction, not by detection).
+
+Because nearly everything in this app re-renders via fresh `innerHTML` throughout normal use, the SAME debounced
+`MutationObserver` that already drives `applyAria()` (`document.body`, `childList`+`subtree`) also re-runs
+`translatePage()` on whatever just changed, whenever `currentLang === 'en'` - this is what makes newly-created Thai
+nodes (a freshly re-rendered table, a modal that just opened) get caught the moment they appear, with no need to hook
+every individual `render*()` call site by hand.
+
+**Two kinds of string need a different fix, not the dictionary:**
+- **Composite strings** that mix a translatable word with dynamic data in the same text node - `renderPager()`'s
+  "5 รายการต่อหน้า · 1–10 จากทั้งหมด 23 รายการ" line, for instance - can never exactly match a dictionary key once the
+  numbers are filled in. `renderPager()` picks its own words directly off `currentLang === 'en' ? ... : ...` instead of
+  relying on the overlay; any other composite string added later should follow the same pattern rather than trying to
+  force it through `I18N_EN`.
+- **Thai month names inside `fmtDate()`-style output** ("24 ก.ย. 2569") hit the same problem constantly (dates appear
+  everywhere), so they get their own substring pass, `translateMonths()` / `MONTH_SUBSTR_EN`, applied after the
+  whole-node dictionary check - safe as a substring replace specifically because Thai month abbreviations/names are
+  long, punctuation-bearing, unlikely tokens. Buddhist-era year numbers are left as-is in both languages - that's a
+  calendar-system choice, not a language one, outside this feature's scope. Single-CHARACTER Thai tokens (the
+  ปฏิทิน's own day-of-week headers, "จ"/"อ"/"พ"...) are deliberately NOT in the dictionary or given a substring pass -
+  a bare one-character match is too collision-prone (a user's avatar-initial letter could coincidentally BE one of
+  them) - `CAL_DOW`/the month-grid's day row pick `CAL_DOW_EN`/an English array directly off `currentLang` instead,
+  the same targeted pattern as the pager.
+
+**Known gaps, not yet covered**: the long explanatory `<p class="panel-note">` paragraphs on most list pages (translated
+selectively would be a lot of prose for comparatively little functional value - flag any of these to Claude directly
+if they matter to you and they can be added), and anything not yet noticed in normal use. The dictionary is designed to
+grow incrementally - adding a missed phrase is a one-line addition to `I18N_EN`, never a structural change. The printed
+handover/Action Plan PDFs (`#printArea`) are explicitly excluded from `translatePage()` and always print in Thai
+regardless of the on-screen language, since the document must keep matching `docs/handover-template.docx` exactly (see
+"Printing"). The two `"แผนดำเนินการ (Action Plan)"` labels found during this work (a nav tooltip and a page title) had
+their redundant English half removed, since a real language toggle makes a permanently-bilingual label just show the
+same name twice depending on which language is active.
+
 ## Data model (short)
 `pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse` (goods, `kind:'good'`) or `pm_serviceWarehouse` (services, `kind:'service'`, `svcId` instead of
 `whId` - see "Service warehouse" below); plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered,
