@@ -668,6 +668,7 @@
               <button class="btn" id="projectsCreateBtn" type="button">+ เพิ่มโครงการ</button>
               <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
               <button class="btn outline" type="button" id="projectsColumnsBtn">คอลัมน์</button>
+              <button class="btn outline" type="button" id="projectsAddSampleBtn" style="display:none;">+ เพิ่มข้อมูลตัวอย่าง (5 โครงการ)</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -1446,7 +1447,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.2';
+const APP_VERSION = '1.21.3';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2297,6 +2298,7 @@ function renderJobs(kind){
   const sale = kind === 'sale', k = sale ? 'sales' : 'projects';
   const isAdmin = currentUserRole === 'admin';
   document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
+  if (!sale) $('projectsAddSampleBtn').style.display = isAdmin ? '' : 'none';
   const q = $(k + 'Search').value.trim().toLowerCase();
   const sf = $(k + 'StatusFilter').value;
   // งวดงาน filter (โครงการ only): options are rebuilt from however many installments the biggest currently-visible project has,
@@ -2977,6 +2979,80 @@ function renderProjectColumnsModal(){
 }
 $('projectsColumnsBtn').addEventListener('click', () => { renderProjectColumnsModal(); openModal('projectColumnsModal'); });
 $('projectColumnsCloseBtn').addEventListener('click', () => closeModal('projectColumnsModal'));
+
+// One-click canned sample set for โครงการ (admin only, same visibility toggle as warehouseAddSampleBtn): 5 realistic projects with
+// every field filled in, an Action Plan with every step already done, and one installment short of the last (ready to hand over
+// that final one via "ส่งงาน"). Each also gets real pm_photos rows for both sets - not just the photoCounts a project row reads -
+// so the "รูปภาพ" page has something real to open/print, not an empty shell behind a ticked checkbox. Reuses the first existing
+// company for the letterhead if there is one (else makes a throwaway sample one); its own sample customer is always created fresh.
+// Everything here is tagged sample:true, so #deleteSampleDataBtn (which now also sweeps pm_photos - see SAMPLE_DATA_COLS) cleans
+// all of it up in one go, photos included, rather than leaving them as orphaned rows once their project is gone.
+const PROJECT_SAMPLE_DEFS = [
+  ['ติดตั้งระบบกล้องวงจรปิดอาคารสำนักงาน', 'CCTV-DOME-2MP', 'Hikvision', 'กล้องวงจรปิดโดม 2MP', 'CCTV', 10, 4],
+  ['ปรับปรุงเครือข่ายโรงงานผลิต', 'SW-24P-GB', 'Cisco', 'สวิตช์เครือข่าย 24 พอร์ต Gigabit PoE+', 'Switch', 6, 4],
+  ['ติดตั้งระบบควบคุมประตูอัตโนมัติ', 'ACC-DOOR-01', 'ZKTeco', 'เครื่องควบคุมประตู Access Control', 'Access Control', 4, 3],
+  ['ติดตั้งระบบ Wi-Fi โรงพยาบาล', 'FAP-231F', 'Fortinet', 'FortiAP 231F Wi-Fi 6', 'Access Point', 8, 5],
+  ['วางระบบไฟฟ้าสำรอง UPS ห้อง Server', 'UPS-3KVA', 'APC', 'Smart-UPS 3000VA Rack', 'UPS', 2, 3],
+];
+const PROJECT_SAMPLE_PLAN_STEPS = ['สำรวจหน้างานและวางแผนติดตั้ง', 'จัดซื้อและตรวจรับอุปกรณ์', 'ติดตั้งอุปกรณ์หน้างาน', 'เดินสายและเชื่อมต่อระบบ', 'ทดสอบระบบและส่งมอบงาน'];
+const SAMPLE_PHOTO_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+$('projectsAddSampleBtn').addEventListener('click', () => {
+  const names = new Set(PROJECT_SAMPLE_DEFS.map(d => `[ตัวอย่าง] ${d[0]}`));
+  if (data.projects.some(p => names.has(p.name))){ toast('มีข้อมูลตัวอย่างชุดนี้อยู่แล้ว'); return; }
+  confirmAction('เพิ่มข้อมูลตัวอย่างโครงการ 5 รายการ (แผนดำเนินการครบ รูปภาพครบ พร้อมส่งมอบงานงวดสุดท้าย) ใช่หรือไม่?', async () => {
+    setSync('saving');
+    try{
+      const now = new Date().toISOString();
+      const dayOffset = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+      const custRef = await db.collection(COL.customers).add({
+        name:'[ตัวอย่าง] บริษัท ตัวอย่างลูกค้า จำกัด', type:'private', taxId:'0105569000111',
+        address:'99 ถนนตัวอย่าง แขวงตัวอย่าง เขตตัวอย่าง กรุงเทพฯ 10110', contactName:'คุณตัวอย่าง ทดสอบระบบ', contactPhone:'081-234-5678',
+        sample:true, createdBy: currentUserUid, createdAt: now
+      });
+      let companyId = data.companies[0] && data.companies[0].id;
+      if (!companyId){
+        const coRef = await db.collection(COL.companies).add({
+          name:'[ตัวอย่าง] บริษัท ผู้รับเหมาตัวอย่าง จำกัด', address:'1 ถนนตัวอย่าง กรุงเทพฯ 10110', phone:'02-000-0000',
+          taxId:'0105569000222', logoBase64:'', sample:true
+        });
+        companyId = coRef.id;
+      }
+      let photoCount = 0;
+      for (let i = 0; i < PROJECT_SAMPLE_DEFS.length; i++){
+        const [name, part, brand, itemName, type, qty, total] = PROJECT_SAMPLE_DEFS[i];
+        const delivered = total - 1;
+        const deliveries = Array.from({ length: delivered }, (_, k) => ({
+          no: k + 1, total, date: dayOffset(-90 + k * 20), note: `ส่งมอบงวดที่ ${k + 1}`,
+          by: currentUserUid, byName: currentUserName || currentUserEmail || '', at: now
+        }));
+        const plan = PROJECT_SAMPLE_PLAN_STEPS.map((title, si) => ({
+          title, owner: PLAN_OWNERS[si % PLAN_OWNERS.length], start: dayOffset(-100 + si * 15), end: dayOffset(-90 + si * 15), done: true, subs: []
+        }));
+        const serials = Array.from({ length: qty }, (_, k) => `SN-${part}-${String(k + 1).padStart(3, '0')}`);
+        const projRef = db.collection(COL.projects).doc();
+        await projRef.set({
+          jobType:'project', docNo:`PJ-SAMPLE-${i + 1}`, name:`[ตัวอย่าง] ${name}`,
+          customerId: custRef.id, customerName:'[ตัวอย่าง] บริษัท ตัวอย่างลูกค้า จำกัด', companyId,
+          contractNo:`CT-2569-00${i + 1}`, poNo:`PO-2569-10${i + 1}`, startDate: dayOffset(-100), endDate: dayOffset(-10),
+          installLocation:'สถานที่ติดตั้งตัวอย่าง', warrantyMonths:12, notes:'ข้อมูลตัวอย่างสำหรับทดสอบระบบ',
+          items:[{ rid:'r' + i, kind:'good', whId:'', part, brand, name: itemName, type, serials, qty, status:'done' }],
+          plan, installmentTotal: total, installmentNo: delivered, deliveries,
+          photoCounts:{ equipment:1, install:1 }, sample:true, createdBy: currentUserUid, createdAt: now
+        });
+        for (const set of ['equipment', 'install']){
+          await db.collection(COL.photos).add({
+            projectId: projRef.id, ownerId: currentUserUid, set, name:`ตัวอย่าง-${set}.png`, size:100, type:'image/png', data: SAMPLE_PHOTO_PNG,
+            equipBrand: brand, equipName: itemName, equipSerial: serials[0] || '', sample:true, createdBy: currentUserUid, createdAt: now
+          });
+          photoCount++;
+        }
+      }
+      logAudit('เพิ่มข้อมูลตัวอย่างโครงการ', 'ตัวอย่างโครงการ', `5 รายการ + รูปภาพ ${photoCount} รูป`);
+      toast('เพิ่มข้อมูลตัวอย่างโครงการแล้ว 5 รายการ');
+      setSync('ok');
+    }catch(err){ setSync('error'); toast(err && err.message ? err.message : 'เพิ่มไม่สำเร็จ'); }
+  }, 'เพิ่มข้อมูลตัวอย่างโครงการ');
+});
 
 // ซื้อขาย list: same per-browser column-picker pattern as โครงการ above (see PROJECT_COLUMNS). "สร้างโดย" starts OFF; everything else ON.
 const SALES_COLUMNS = [
@@ -5080,13 +5156,14 @@ $('trashBulkPurgeBtn').addEventListener('click', () => {
 $('trashRefreshBtn').addEventListener('click', loadTrash);
 $('trashTypeFilter').addEventListener('change', renderTrash);
 
-// Sample data (see "Sample data" in CLAUDE.md): every doc the fixture generators write carries `sample: true`, across five collections,
+// Sample data (see "Sample data" in CLAUDE.md): every doc the fixture generators write carries `sample: true`, across six collections,
 // whether it's currently live or already sitting in the Trash (deletedAt doesn't matter here - this hard-deletes either way, unlike a
-// normal Trash purge which only ever acts on already-soft-deleted rows). Audit-log rows written while seeding are immutable by rule and
-// are deliberately left alone.
-const SAMPLE_DATA_COLS = ['pm_companies', 'pm_customers', 'pm_warehouse', 'pm_projects', 'pm_pendingRoles'];
+// normal Trash purge which only ever acts on already-soft-deleted rows). pm_photos has no Trash concept of its own (it's never soft-
+// deleted), but is included here too so a sample project's own handover photos (see projectsAddSampleBtn) don't outlive the project
+// itself as orphaned rows. Audit-log rows written while seeding are immutable by rule and are deliberately left alone.
+const SAMPLE_DATA_COLS = ['pm_companies', 'pm_customers', 'pm_warehouse', 'pm_projects', 'pm_pendingRoles', 'pm_photos'];
 $('deleteSampleDataBtn').addEventListener('click', () => {
-  confirmAction('ลบข้อมูลตัวอย่างทั้งหมดถาวร (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ ที่มีแท็ก "ตัวอย่าง" ทั้งในและนอกถังขยะ) กู้คืนไม่ได้ ใช่หรือไม่?', async () => {
+  confirmAction('ลบข้อมูลตัวอย่างทั้งหมดถาวร (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ/รูปภาพ ที่มีแท็ก "ตัวอย่าง" ทั้งในและนอกถังขยะ) กู้คืนไม่ได้ ใช่หรือไม่?', async () => {
     setSync('saving');
     try{
       let total = 0;

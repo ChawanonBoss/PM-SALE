@@ -178,11 +178,12 @@ page's right margin - it only reads as right-aligned once every line in the bloc
 
 ## Sample data
 Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`). `#deleteSampleDataBtn` on the (admin-only) Trash page
-hard-deletes every `sample: true` doc across `SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_projects`, `pm_pendingRoles`) in one go,
-whether that row is currently live or already sitting in the Trash - it queries each collection directly (`where('sample','==',true)`), not through the
-Trash's own `deletedAt` listing, so a soft-deleted sample row is caught too. No rules change was needed: admin already has unconditional delete on all five of
-those collections. Real, non-sample rows are matched by the same tag and are never touched. Audit-log rows written while seeding still cannot be deleted
-(rules) - this button doesn't try to.
+hard-deletes every `sample: true` doc across `SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_projects`, `pm_pendingRoles`, `pm_photos`) in
+one go, whether that row is currently live or already sitting in the Trash - it queries each collection directly (`where('sample','==',true)`), not through the
+Trash's own `deletedAt` listing, so a soft-deleted sample row is caught too. `pm_photos` has no Trash concept of its own but is swept the same way, so a sample
+project's own handover photos (see `#projectsAddSampleBtn` below) never outlive it as orphaned rows. No rules change was needed: admin already has unconditional
+delete on all six of those collections. Real, non-sample rows are matched by the same tag and are never touched. Audit-log rows written while seeding still
+cannot be deleted (rules) - this button doesn't try to.
 
 `#warehouseAddSampleBtn` on the โกดังสินค้า page (admin-only, same visibility toggle pattern as `#catalogUploadBtn`) is a matching one-click **add**: a fixed
 `SAMPLE_WAREHOUSE_SET` of 5 real-looking items (3 CCTV, 2 Switch; every field filled in, including a full set of unique serials sized to each item's own
@@ -191,3 +192,13 @@ deletable one at a time through the page's own normal "ลบ" -> Trash flow. Gu
 five `part` codes first) since, unlike the bulk generators in `tests/fixtures/`, this one is meant to be clicked from the live production site by an
 admin, not just seeded once for a test run. Written directly with `history: []` and `sample: true` as extra keys beyond `pm_warehouse`'s non-admin
 `hasOnly()` create rule - safe only because the button itself is admin-only, since `pmIsAdmin()` bypasses that key restriction entirely.
+
+`#projectsAddSampleBtn` on the โครงการ page (same admin-only pattern) is the same idea for โครงการ specifically: 5 real-looking projects
+(`PROJECT_SAMPLE_DEFS`), each with every field filled in, one linked-looking (but unlinked - `whId:''`, so it never touches real warehouse stock)
+equipment line already `status:'done'`, a 5-step Action Plan (`PROJECT_SAMPLE_PLAN_STEPS`) with every step `done:true`, and installments one short of
+the total (`installmentNo = installmentTotal - 1`, `deliveries[]` filled to match) so the โครงการ list's own "งวดงาน" column reads "รอส่งงวดที่ N" for
+the LAST installment - ready to hand over via "ส่งงาน". Each project also gets two real `pm_photos` rows (one per set, tagged `equipBrand`/`equipName`/
+`equipSerial` from its own item line) so its "รูปภาพ" page has something real to open and print, not just a ticked checkbox with nothing behind it -
+`photoCounts` is set to match. Reuses the first existing company for the letterhead if there is one, else makes a throwaway sample one; its own sample
+customer is always created fresh. Everything (customer, company if made, 5 projects, 10 photos) is `sample: true`, so `#deleteSampleDataBtn` cleans all
+of it up together. Guards against duplicating the set the same way `#warehouseAddSampleBtn` does (checks project names first).
