@@ -170,8 +170,12 @@ file-attach button, per-row remove buttons) with no separate per-field wiring, r
 It also shows/hides `#prjViewActions`, hides/shows the "บันทึกรายการ" submit button, and swaps "ยกเลิก" for "ปิด" and the title between
 "รายละเอียด..." and "แก้ไข.../เพิ่ม...". Clicking **แก้ไข** inside the view (`#prjViewEditBtn`) just calls `setProjectViewMode(false)` on the *same*
 already-open modal - editing happens in place, so there's never a second modal stacked on top of the first. Clicking **รูปภาพ**
-(`#prjViewPhotosBtn`) closes this modal and calls `openPhotosPage()` as before; **พิมพ์ PDF** (`#prjViewPrintBtn`) calls `printProject()` directly
-without closing anything. `openProjectForm()` itself always resets to `setProjectViewMode(false)` before opening, so every OTHER existing entry
+(`#prjViewPhotosBtn`) closes this modal and calls `openPhotosPage(id, {fromView:true})`; **พิมพ์ PDF** (`#prjViewPrintBtn`) calls `printProject()`
+directly without closing anything. The `{fromView:true}` flag (`photosBackToView`) is what makes the photo page's own "← กลับ" button reopen the
+same read-only view modal instead of dropping back onto the bare list - without it, going รายการ -> รูปภาพ -> กลับ used to land on the plain
+ซื้อขาย/โครงการ list, forcing the row to be clicked all over again to get back to where you were. The other two callers of `openPhotosPage()`
+(a brand-new sale's save routing straight there, and Action Plan's "รูปภาพ →") pass no `opts`, so "กลับ" still behaves exactly as before for them
+- only a รูปภาพ click that came from inside the view modal gets this shortcut back into it. `openProjectForm()` itself always resets to `setProjectViewMode(false)` before opening, so every OTHER existing entry
 point into the same modal (the dashboard's job click, Action Plan's own "แก้ไข", the warranty page's/serial page's/company page's links into a
 project) is untouched and still opens straight into the normal editable form - only a row click on the ซื้อขาย/โครงการ list itself goes through
 `openProjectView()` first.

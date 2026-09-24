@@ -82,11 +82,13 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
 
     page.click('#photosBackBtn'); page.wait_for_timeout(400)
     assert page.evaluate("currentTab") == 'projects'
+    # "รูปภาพ" was opened from the read-only view modal, so "← กลับ" reopens that same modal instead of dropping bare onto the list
+    assert page.is_visible('#projectModal') and page.evaluate("projectViewMode") is True
     chks = page.locator('tr:has-text("โครงการทดสอบรูป") td[data-col="workstatus"] input')
     assert [chks.nth(i).is_checked() for i in range(chks.count())] == [False, True, True], "plan not done, but both photo sets now show saved"
 
-    # go back in and delete the equipment photo -> status column reflects it going back to unchecked
-    page.click('tr:has-text("โครงการทดสอบรูป")'); page.click('#prjViewPhotosBtn'); page.wait_for_timeout(300)
+    # go back in (the view modal is already open from "กลับ" above) and delete the equipment photo -> status column reflects it going back to unchecked
+    page.click('#prjViewPhotosBtn'); page.wait_for_timeout(300)
     page.click('#photosEquipGrid .delete-btn'); page.wait_for_timeout(200)
     page.click('#confirmModalOkBtn')   # the app's own confirmAction() modal, not a native confirm()
     page.wait_for_timeout(500)
@@ -94,6 +96,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     page.click('#photosBackBtn'); page.wait_for_timeout(400)
     chks = page.locator('tr:has-text("โครงการทดสอบรูป") td[data-col="workstatus"] input')
     assert [chks.nth(i).is_checked() for i in range(chks.count())] == [False, False, True]
+    page.click('#projectCancelBtn'); page.wait_for_timeout(200)   # done looking - close the reopened view modal before moving to another tab
 
     # ---- ซื้อขาย: only the equipment set was chosen at creation, so the install panel is hidden ----
     goto_tab(page, 'sales'); page.wait_for_timeout(300)
@@ -105,6 +108,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     assert 'ยังไม่มีรายการสินค้า' in page.inner_text('#photosEquipHint')
     page.click('#photosBackBtn'); page.wait_for_timeout(300)
     assert page.evaluate("currentTab") == 'sales'
+    page.click('#projectCancelBtn'); page.wait_for_timeout(200)   # close the reopened view modal before moving on
 
     # ---- create form: photo-set checkboxes only show for a sale, default checked, and route to the photo page after a NEW save ----
     page.click('#salesCreateBtn'); page.wait_for_timeout(200)

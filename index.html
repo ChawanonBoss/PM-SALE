@@ -1461,7 +1461,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.5';
+const APP_VERSION = '1.21.6';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2472,7 +2472,7 @@ function setProjectViewMode(on){
 }
 $('prjViewEditBtn').addEventListener('click', () => setProjectViewMode(false));
 $('prjViewPrintBtn').addEventListener('click', () => editingProjectId && printProject(editingProjectId));
-$('prjViewPhotosBtn').addEventListener('click', () => { if (!editingProjectId) return; const id = editingProjectId; closeModal('projectModal'); openPhotosPage(id); });
+$('prjViewPhotosBtn').addEventListener('click', () => { if (!editingProjectId) return; const id = editingProjectId; closeModal('projectModal'); openPhotosPage(id, { fromView: true }); });
 // Labels follow the job type: sale = order date only + delivery place; project = signing date to end date + installation place
 function applyJobType(){
   const sale = $('prjJobType').value === 'sale';
@@ -4263,9 +4263,15 @@ function deleteProjectFile(id){
 const PHOTO_MAX_BYTES = 900 * 1024;   // base64 stays under Firestore's 1MB document limit, mirroring the pm_files cap
 let photosProjectId = null;
 let projectPhotos = [];   // both sets, for whichever record is currently open
-function openPhotosPage(id){ photosProjectId = id; showTab('photos'); }
+let photosBackToView = false;   // "←กลับ" reopens the read-only view modal instead of landing bare on the list, when รูปภาพ was opened from there
+function openPhotosPage(id, opts){ photosProjectId = id; photosBackToView = !!(opts && opts.fromView); showTab('photos'); }
 function getPhotosRecord(){ return data.projects.find(x => x.id === photosProjectId); }
-$('photosBackBtn').addEventListener('click', () => { const rec = getPhotosRecord(); showTab(rec && rec.jobType === 'sale' ? 'sales' : 'projects'); });
+$('photosBackBtn').addEventListener('click', () => {
+  const rec = getPhotosRecord(), fromView = photosBackToView;
+  photosBackToView = false;
+  showTab(rec && rec.jobType === 'sale' ? 'sales' : 'projects');
+  if (fromView && rec) openProjectView(rec.id);
+});
 function photoSetsFor(rec){
   if (!rec) return ['equipment', 'install'];
   if (rec.jobType !== 'sale') return ['equipment', 'install'];   // a โครงการ always has both sets available

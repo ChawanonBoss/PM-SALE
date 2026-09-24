@@ -45,6 +45,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert page.locator('#photosEquipGrid .photo-item').count() == 1 and page.locator('#photosInstallGrid .photo-item').count() == 1
     assert added[0]['items'][0]['brand'] in page.inner_text('#photosEquipGrid')
     page.click('#photosBackBtn'); page.wait_for_timeout(300)
+    page.click('#projectCancelBtn'); page.wait_for_timeout(200)   # "กลับ" reopened the read-only view modal (opened from there) - close it before continuing
 
     # clicking again does not duplicate the set
     page.click('#projectsAddSampleBtn'); page.wait_for_timeout(200)
