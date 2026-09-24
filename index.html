@@ -808,7 +808,7 @@
         <div class="cal-topbar">
           <div class="cal-brand">
             <button class="cal-mark" type="button" id="calJumpBtn" title="เลือกวันที่" aria-label="เลือกวันที่"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
-            <input type="date" id="calJumpDate" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
+            <input type="month" id="calJumpDate" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             <div class="cal-title"><span id="calMonthName">-</span> <span class="cal-title-year" id="calYearName"></span></div>
           </div>
           <button class="cal-pill-btn" type="button" id="calTodayBtn">วันนี้</button>
@@ -888,19 +888,19 @@
               </select>
               <button class="btn" id="projectsCreateBtn" type="button">+ เพิ่มโครงการ</button>
               <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
-              <button class="btn outline" type="button" id="projectsColumnsBtn">คอลัมน์</button>
               <button class="btn outline" type="button" id="projectsAddSampleBtn" style="display:none;">+ เพิ่มข้อมูลตัวอย่าง (5 โครงการ)</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan · ตัวกรอง "งวดงาน" อ้างอิงจากงวดที่ยังไม่ได้ส่ง (หรืองวดสุดท้ายถ้าส่งครบแล้ว) ของแต่ละโครงการ · ช่อง "สถานะงาน" ติ๊กเองไม่ได้ ระบบติ๊กให้เมื่อบันทึกแผนดำเนินงาน/รูปภาพจริงเท่านั้น · กด "คอลัมน์" เพื่อเลือกว่าจะแสดงคอลัมน์ไหนบ้าง (มีผลเฉพาะเบราว์เซอร์นี้)</p>
+          <p class="panel-note"><b>โครงการ</b> — สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan · ตัวกรอง "งวดงาน" อ้างอิงจากงวดที่ยังไม่ได้ส่ง (หรืองวดสุดท้ายถ้าส่งครบแล้ว) ของแต่ละโครงการ · ช่อง "สถานะงาน" ติ๊กเองไม่ได้ ระบบติ๊กให้เมื่อบันทึกแผนดำเนินงาน/รูปภาพจริงเท่านั้น · กด ⚙ ที่หัวตารางเพื่อเลือกว่าจะแสดงคอลัมน์ไหนบ้าง (มีผลเฉพาะเบราว์เซอร์นี้)</p>
           <div class="table-scroll"><table class="m-cards" id="projectsTable">
             <thead>
               <tr>
                 <th rowspan="2">เลขที่เอกสาร</th><th rowspan="2" data-col="inst">งวดงาน</th><th rowspan="2">ชื่อโครงการ</th><th rowspan="2" data-col="customer">ลูกค้า</th>
                 <th rowspan="2" data-col="contract">เลขที่สัญญา</th><th rowspan="2" data-col="period">ระยะเวลา</th><th rowspan="2" data-col="items">รายการ</th><th rowspan="2" data-col="status">สถานะ</th>
                 <th colspan="3" data-col="workstatus">สถานะงาน</th>
-                <th rowspan="2" class="creator-col" data-col="creator">สร้างโดย</th><th rowspan="2"></th>
+                <th rowspan="2" class="creator-col" data-col="creator">สร้างโดย</th>
+                <th rowspan="2" style="text-align:right;"><button class="icon-btn" type="button" id="projectsColumnsBtn" title="เลือกคอลัมน์ที่แสดง" aria-label="เลือกคอลัมน์ที่แสดง">⚙</button></th>
               </tr>
               <tr>
                 <th data-col="workstatus">แผนการดำเนินงาน</th><th data-col="workstatus">รูปภาพอุปกรณ์</th><th data-col="workstatus">รูปภาพงานติดตั้ง</th>
@@ -1723,7 +1723,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.4';
+const APP_VERSION = '1.23.5';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2919,7 +2919,7 @@ function renderCalendar(){
   $('calMonthName').textContent = MONTH_TH_FULL[calRefDate.getMonth()];
   $('calYearName').textContent = calRefDate.getFullYear() + 543;
   document.querySelectorAll('.cal-switch-item').forEach(b => b.classList.toggle('active', b.dataset.view === calView));
-  $('calJumpDate').value = calYMD(calRefDate);
+  $('calJumpDate').value = calYMD(calRefDate).slice(0, 7);   // <input type="month"> takes "YYYY-MM", no day
   renderCalCatList();
   renderCalUpNext();
   const byDate = calGroupByDate(calFilteredEvents());
@@ -2937,7 +2937,7 @@ $('calTodayBtn').addEventListener('click', () => { calRefDate = new Date(); rend
 $('calPrevBtn').addEventListener('click', () => calNav(-1));
 $('calNextBtn').addEventListener('click', () => calNav(1));
 $('calJumpBtn').addEventListener('click', () => { if ($('calJumpDate').showPicker) $('calJumpDate').showPicker(); else $('calJumpDate').focus(); });
-$('calJumpDate').addEventListener('change', () => { if ($('calJumpDate').value) calGoToDate($('calJumpDate').value); });
+$('calJumpDate').addEventListener('change', () => { if ($('calJumpDate').value) calGoToDate($('calJumpDate').value + '-01'); });   // "YYYY-MM" -> the 1st of that month
 document.querySelectorAll('.cal-switch-item').forEach(btn => btn.addEventListener('click', () => { calView = btn.dataset.view; renderCalendar(); }));
 $('calSearchInput').addEventListener('input', e => { calSearchTerm = e.target.value; renderCalendar(); });
 $('calCatList').addEventListener('change', e => {

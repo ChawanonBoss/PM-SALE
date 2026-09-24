@@ -143,11 +143,14 @@ day's chips vertically; **วัน (day)** - a single large-format agenda list 
 `MONTH_TH_FULL` (full Thai month names) rather than the abbreviated `MONTH_TH` used everywhere else in the app (`fmtDate()`
 etc.), since this page's own header was specifically asked to spell the month out in full.
 
-**Jumping to an arbitrary date**: the calendar mark (`#calJumpBtn`, top-left) opens a native `<input type="date" id="calJumpDate">`
+**Jumping to an arbitrary date**: the calendar mark (`#calJumpBtn`, top-left) opens a native `<input type="month" id="calJumpDate">`
 (`showPicker()`, sized to 1x1px and hidden - it's a real form control, just not one meant to be seen directly) rather than a
 persistent mini-month grid in the sidebar - the sidebar's own mini-calendar was removed and "ปฏิทินของฉัน" moved up to take
 its place, per the user's own call that a small always-visible grid wasn't worth the space next to a one-click native picker
-that already handles jumping years back or forward faster than paging a mini-grid month by month.
+that already handles jumping years back or forward faster than paging a mini-grid month by month. `type="month"` (not `date`,
+the original choice) was asked for specifically so the picker itself only ever offers month+year, no day - its `value` is
+`"YYYY-MM"`, so `calGoToDate()` gets `+'-01'` appended (jump to the 1st of that month) and `renderCalendar()` fills the
+control back from `calRefDate` via `.slice(0,7)` rather than the full `calYMD()` string.
 
 **นัดหมาย (appointment) is the fifth category, and the one real thing this page lets you create.** Unlike the other four, it
 has an actual time-of-day and its own Firestore collection, `pm_appointments` (`title`, `date`, `time`, `customerId`/
@@ -275,11 +278,13 @@ one has actually been saved - there is no way to tick them by hand, only by real
 the 2-row `<thead>` grid so the mobile card view still labels each cell correctly. Both lists have their own picker, independent localStorage key, and
 independent column set - they are NOT the same list of toggles:
 - **โครงการ** (`#projectsTable`): 3 sub-columns ("แผนการดำเนินงาน" / "รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง") reading `(p.plan||[]).length>0` and
-  `p.photoCounts.equipment`/`.install > 0`. `#projectsColumnsBtn` (a toolbar button, in the filter-bar) opens `#projectColumnsModal`, backed by
-  `PROJECT_COLUMNS` / `projectColumnPrefs` (localStorage `pm-sale-project-columns`).
-- **ซื้อขาย** (`#salesTable`): only 2 sub-columns ("รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง" - a sale has no plan, so no first column). Its column-picker
-  trigger lives inside the table header itself instead (the rightmost `<th>`, a small `⚙` icon button, `#salesColumnsBtn`) rather than the toolbar, opening
-  `#salesColumnsModal`, backed by its own `SALES_COLUMNS` / `salesColumnPrefs` (localStorage `pm-sale-sales-columns`).
+  `p.photoCounts.equipment`/`.install > 0`. `#projectsColumnsBtn` opens `#projectColumnsModal`, backed by `PROJECT_COLUMNS` / `projectColumnPrefs`
+  (localStorage `pm-sale-project-columns`).
+- **ซื้อขาย** (`#salesTable`): only 2 sub-columns ("รูปภาพอุปกรณ์" / "รูปภาพงานติดตั้ง" - a sale has no plan, so no first column). Backed by its own
+  `SALES_COLUMNS` / `salesColumnPrefs` (localStorage `pm-sale-sales-columns`), opened by `#salesColumnsBtn`.
+- Both column-picker triggers live the same way now (moved off a toolbar text button, to match): the rightmost `<th>` of their own table header,
+  a small `⚙` icon button (`#projectsColumnsBtn` / `#salesColumnsBtn`) rather than a labelled button in the filter-bar - โครงการ's used to be the
+  odd one out with a "คอลัมน์" text button in the filter-bar, moved here so both lists behave identically.
 - A sale only ever offers whichever photo set(s) it chose on its own create form (`photoSetsFor(rec)`), so for a sale row, a set that was never chosen
   renders as a **blank `<td>`, not an unchecked checkbox** (`photoChk()` inside `renderJobs`) - the column has nothing to say about a set that record
   never had in the first place. A โครงการ always has both sets, so this never actually blanks out for a project.
