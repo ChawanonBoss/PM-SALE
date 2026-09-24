@@ -414,10 +414,15 @@
      a deliberately separate "warm editorial" design - the user later asked for the whole app to share one look instead), so
      .cal-* rules below just reuse var(--paper)/var(--card)/var(--shadow-*)/etc. Two extra hue-only tokens (--cal-blue,
      --cal-plum) cover this page's own two categories that don't already have a shared semantic colour (โครงการ, นัดหมาย). ====== */
+  /* .cal-root scrolls INTERNALLY (its own height:100% + overflow-y:auto) instead of relying on the shared .content scroll
+     container - that made .cal-topbar's position:sticky ambiguous about which ancestor it should stick against (it worked
+     in some viewports/tests but not reliably for the user in a real browser). Giving the calendar its own unambiguous
+     scrolling box makes "stick to my own top" unambiguous too. */
   .cal-root{ --cal-blue:#6F8299; --cal-blue-tint:rgba(111,130,153,0.16); --cal-blue-ink:#4D5F74;
     --cal-plum:#96536A; --cal-plum-tint:rgba(150,83,106,0.16); --cal-plum-ink:#733E50;
-    background:var(--paper); margin:-32px -36px; padding:0 0 40px; color:var(--ink); }
-  @media (max-width:760px){ .cal-root{ margin:-20px -16px; } }
+    background:var(--paper); margin:-32px -36px; padding:0 0 40px; color:var(--ink);
+    height:calc(100% + 64px); overflow-y:auto; overflow-x:hidden; }
+  @media (max-width:760px){ .cal-root{ margin:-20px -16px; height:calc(100% + 40px); } }
   .cal-topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:18px 32px; background:var(--paper); box-shadow:0 6px 16px rgba(var(--sh-lo),0.18); }
   .cal-brand{ display:flex; align-items:center; gap:10px; margin-right:6px; }
   .cal-mark{ width:34px; height:34px; border-radius:12px; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
@@ -1714,7 +1719,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.1';
+const APP_VERSION = '1.23.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {

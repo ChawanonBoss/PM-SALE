@@ -97,6 +97,16 @@ it briefly shipped with a translucent `rgba(...,0.92)` + `backdrop-filter:blur()
 brief) which let scrolled-away content underneath show through as a blurred, overlapping mess once the page had enough rows
 to scroll - a real regression caught from a screenshot, not something a computed-style test would have flagged.
 
+**`.cal-root` scrolls itself** (`height:calc(100% + 64px)` - the `+64px` exactly cancels `.content`'s own 32px top+bottom
+padding so the box still coincides with `.content`'s edges rather than overflowing it; `+40px` in the `max-width:760px`
+version, matching `.content`'s smaller 20px mobile padding; `overflow-y:auto` on `.cal-root` itself) instead of relying on
+the shared `.content` scroll container the rest of the app uses. `position:sticky` needs an unambiguous nearest *scrolling*
+ancestor to stick against, and depending on it also being `.content`'s job for every other tab made that ambiguous enough
+that the sticky topbar worked in some viewports/checks (`scrollTop` assigned via JS) but not for the user's own real
+mouse-wheel scroll in an actual browser - giving the calendar its own dedicated scroll box removed the ambiguity outright.
+Verify a scroll-locked header like this with a real `page.mouse.wheel()` in a test, not just a JS-assigned `scrollTop` -
+they can disagree on which element sticky treats as the scrolling ancestor.
+
 Four of five event categories are derived, read-only, from records the app already has (`buildCalendarEvents()`):
 - **ซื้อขาย** - a sale's own `startDate` ("สั่งซื้อ").
 - **โครงการ** - a project's `startDate` ("เซ็นสัญญา") and `endDate` ("สิ้นสุดสัญญา").
