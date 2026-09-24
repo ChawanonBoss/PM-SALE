@@ -156,6 +156,26 @@ own disabled state, in case delete is ever triggered another way. A disabled `.i
 row-action button disabled elsewhere) now actually looks disabled - `.icon-btn:disabled` (greyed text/background, `cursor:not-allowed`) was missing
 entirely before this, so a disabled row-action button looked completely identical to a clickable one.
 
+## โครงการ/ซื้อขาย lists: click-a-row to view, edit-in-place
+Clicking anywhere on a job row (`tr.job-row`, everywhere except inside its own `.row-actions` - guarded by `event.target.closest('.row-actions')`
+in the row's own `onclick`, since the action buttons that remain must still work on their own) opens `#projectModal` in a new **read-only "view"
+mode** (`openProjectView(id, kind)` -> `openProjectForm()` then `setProjectViewMode(true)`) instead of jumping straight to the editable form - the
+same fields the edit form shows, just disabled. This replaced three of the row's own buttons (รูปภาพ/แก้ไข/พิมพ์ PDF), which now live inside the
+modal itself, top-right next to the title (`#prjViewActions`), so a row only keeps the buttons that don't fit that pattern: ซื้อขาย keeps
+`closeJobButton(p)` (ปิดงาน) + ลบ; โครงการ keeps แผนงาน, ส่งงาน (if it has installments) + ลบ.
+
+`setProjectViewMode(on)` toggles a single `<fieldset id="prjFormFieldset">` (wrapping everything in `#projectForm` except the footer's
+ยกเลิก/บันทึกรายการ) disabled or not - this disables every input/select/button inside in one shot (item-row selects, +เพิ่มสินค้า/+เพิ่มบริการ, the
+file-attach button, per-row remove buttons) with no separate per-field wiring, rather than a CSS-only look that would still let clicks through.
+It also shows/hides `#prjViewActions`, hides/shows the "บันทึกรายการ" submit button, and swaps "ยกเลิก" for "ปิด" and the title between
+"รายละเอียด..." and "แก้ไข.../เพิ่ม...". Clicking **แก้ไข** inside the view (`#prjViewEditBtn`) just calls `setProjectViewMode(false)` on the *same*
+already-open modal - editing happens in place, so there's never a second modal stacked on top of the first. Clicking **รูปภาพ**
+(`#prjViewPhotosBtn`) closes this modal and calls `openPhotosPage()` as before; **พิมพ์ PDF** (`#prjViewPrintBtn`) calls `printProject()` directly
+without closing anything. `openProjectForm()` itself always resets to `setProjectViewMode(false)` before opening, so every OTHER existing entry
+point into the same modal (the dashboard's job click, Action Plan's own "แก้ไข", the warranty page's/serial page's/company page's links into a
+project) is untouched and still opens straight into the normal editable form - only a row click on the ซื้อขาย/โครงการ list itself goes through
+`openProjectView()` first.
+
 ## Catalog: หมวดสินค้า
 `#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather
 than the plain text+`<datalist>` input it used to be - adding a new category is now an explicit, visible action instead of only discoverable by typing past

@@ -34,7 +34,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
 
     # ---- โครงการ: opens with both sets, uploads to each, checkbox status updates on the list, delete works ----
     page.evaluate("showTab('projects')"); page.wait_for_timeout(300)
-    page.click('tr:has-text("โครงการทดสอบรูป") .icon-btn:has-text("รูปภาพ")'); page.wait_for_timeout(300)
+    page.click('tr:has-text("โครงการทดสอบรูป")'); page.click('#prjViewPhotosBtn'); page.wait_for_timeout(300)
     assert page.evaluate("currentTab") == 'photos'
     assert 'โครงการ' in page.inner_text('#photosMeta') and 'PJ1' in page.inner_text('#photosMeta')
     assert page.is_visible('#photosEquipPanel') and page.is_visible('#photosInstallPanel')
@@ -86,7 +86,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     assert [chks.nth(i).is_checked() for i in range(chks.count())] == [False, True, True], "plan not done, but both photo sets now show saved"
 
     # go back in and delete the equipment photo -> status column reflects it going back to unchecked
-    page.click('tr:has-text("โครงการทดสอบรูป") .icon-btn:has-text("รูปภาพ")'); page.wait_for_timeout(300)
+    page.click('tr:has-text("โครงการทดสอบรูป")'); page.click('#prjViewPhotosBtn'); page.wait_for_timeout(300)
     page.click('#photosEquipGrid .delete-btn'); page.wait_for_timeout(200)
     page.click('#confirmModalOkBtn')   # the app's own confirmAction() modal, not a native confirm()
     page.wait_for_timeout(500)
@@ -97,7 +97,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
 
     # ---- ซื้อขาย: only the equipment set was chosen at creation, so the install panel is hidden ----
     goto_tab(page, 'sales'); page.wait_for_timeout(300)
-    page.click('tr:has-text("ขายทดสอบรูป") .icon-btn:has-text("รูปภาพ")'); page.wait_for_timeout(300)
+    page.click('tr:has-text("ขายทดสอบรูป")'); page.click('#prjViewPhotosBtn'); page.wait_for_timeout(300)
     assert 'ซื้อขาย' in page.inner_text('#photosMeta') and 'SO1' in page.inner_text('#photosMeta')
     assert page.is_visible('#photosEquipPanel') and not page.is_visible('#photosInstallPanel')
     # s1 has no items at all - nothing to pick, so the add button is disabled outright rather than dead-ending on a forced empty choice

@@ -41,7 +41,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert f'รอส่งงวดที่ {total0}' in row.inner_text()
 
     # the "รูปภาพ" page shows real photos, not just a ticked checkbox with nothing behind it
-    row.locator('.icon-btn:has-text("รูปภาพ")').click(); page.wait_for_timeout(400)
+    row.click(); page.click('#prjViewPhotosBtn'); page.wait_for_timeout(400)
     assert page.locator('#photosEquipGrid .photo-item').count() == 1 and page.locator('#photosInstallGrid .photo-item').count() == 1
     assert added[0]['items'][0]['brand'] in page.inner_text('#photosEquipGrid')
     page.click('#photosBackBtn'); page.wait_for_timeout(300)

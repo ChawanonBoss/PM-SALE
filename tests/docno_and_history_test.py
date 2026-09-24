@@ -96,11 +96,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert page.evaluate("data.projects.find(p => p.name === 'โครงการใหม่').docNo") == f"PJ{YMD}-001"
     assert page.evaluate(f"(async () => (await db.collection('pm_counters').doc('SO{YMD}').get()).data().n)()") == 2
     # editing keeps the number and locks the type
-    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายใหม่ 1") button:has-text("แก้ไข")')
+    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายใหม่ 1")'); page.click('#prjViewEditBtn')
     assert page.inner_text('#prjDocNo') == f"SO{YMD}-001" and page.evaluate("document.getElementById('prjJobType').disabled") is True
     page.keyboard.press('Escape')
     # a legacy item without a number gets one on save, dated by its creation day (2026-02-03), prefix by type
-    page.click('#salesBody tr:has-text("ขายเก่า") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายเก่า")'); page.click('#prjViewEditBtn')
     assert 'จะรันให้อัตโนมัติ' in page.inner_text('#prjDocNo') and page.evaluate("document.getElementById('prjJobType').disabled") is False
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)
     assert page.evaluate("data.projects.find(p => p.name === 'ขายเก่า').docNo") == "SO20260203-001"

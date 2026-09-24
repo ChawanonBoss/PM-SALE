@@ -105,6 +105,7 @@
   .icon-btn:disabled, .icon-btn.delete-btn:disabled, .icon-btn.pdf-btn:disabled{ color:var(--ink-soft); background:var(--paper-dim); border-color:var(--line); opacity:.6; cursor:not-allowed; }
   .icon-btn:disabled:hover{ border-color:var(--line); color:var(--ink-soft); }
   .row-actions{ display:flex; gap:6px; justify-content:flex-end; }
+  tr.job-row{ cursor:pointer; }
 
   /* ---- Gate ---- */
   .gate{ max-width:400px; margin:64px auto; text-align:center; }
@@ -1035,9 +1036,19 @@
 <!-- Project form modal -->
 <div class="modal-overlay" id="projectModal" style="display:none;">
   <div class="modal wide">
-    <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:4px;">เพิ่มโครงการ</h3>
-    <p style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;">เลขที่เอกสาร: <span class="docno" id="prjDocNo">-</span></p>
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap;">
+      <div>
+        <h3 class="serif" id="projectModalTitle" style="font-size:19px; margin-bottom:4px;">เพิ่มโครงการ</h3>
+        <p style="font-size:13px; color:var(--ink-soft); margin-bottom:16px;">เลขที่เอกสาร: <span class="docno" id="prjDocNo">-</span></p>
+      </div>
+      <div id="prjViewActions" style="display:none; gap:8px; flex-wrap:wrap;">
+        <button class="btn outline" type="button" id="prjViewPhotosBtn">รูปภาพ</button>
+        <button class="btn outline" type="button" id="prjViewEditBtn">แก้ไข</button>
+        <button class="btn outline pdf-btn" type="button" id="prjViewPrintBtn">พิมพ์ PDF</button>
+      </div>
+    </div>
     <form id="projectForm">
+      <fieldset id="prjFormFieldset" style="border:none; margin:0; padding:0;">
       <div class="form-grid">
         <input type="hidden" id="prjJobType" value="project">
         <div class="field"><label id="prjNameLabel">ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
@@ -1088,6 +1099,7 @@
         </div>
       </div>
       <p class="panel-note" style="margin:10px 0 0;">เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เปลี่ยนเป็น "เลือกแล้ว" เพื่อ<b>ล็อคของ</b>: ถ้ารายการนี้เคยบันทึกไว้แล้ว ระบบตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง<b>ทันที</b> ไม่ต้องรอกดบันทึกทั้งฟอร์ม (รายการที่เพิ่งสร้างใหม่ยังไม่เคยบันทึก จะตัดตอนกดบันทึกครั้งแรกตามปกติ) และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้ทันทีเช่นกัน</p>
+      </fieldset>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกรายการ</button>
@@ -1449,7 +1461,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.4';
+const APP_VERSION = '1.21.5';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2348,7 +2360,7 @@ function renderJobs(kind){
     const workCells = (sale ? '' : wchk((p.plan || []).length > 0, 'แผนการดำเนินงาน'))
       + photoChk('equipment', p.photoCounts && p.photoCounts.equipment, 'รูปภาพอุปกรณ์') + photoChk('install', p.photoCounts && p.photoCounts.install, 'รูปภาพงานติดตั้ง');
     return `
-    <tr>
+    <tr class="job-row" onclick="if(!event.target.closest('.row-actions')) openProjectView('${p.id}')">
       <td>${p.docNo ? `<span class="docno">${escapeHtml(p.docNo)}</span>` : '<span class="cell-sub">-</span>'}</td>
       ${instCell}
       <td><b>${escapeHtml(p.name)}</b>${p.notes ? `<div class="cell-sub">${escapeHtml(p.notes)}</div>` : ''}</td>
@@ -2359,12 +2371,8 @@ function renderJobs(kind){
       ${workCells}
       <td class="cell-sub creator-col" data-col="creator">${isAdmin ? escapeHtml(getUserDisplayName(p.createdBy)) : ''}</td>
       <td><div class="row-actions">
-        <button class="icon-btn" onclick="openPhotosPage('${p.id}')">รูปภาพ</button>
-        ${sale ? closeJobButton(p) : ''}
-        ${sale ? '' : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
+        ${sale ? closeJobButton(p) : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
         ${!sale && Number(p.installmentTotal) > 0 ? `<button class="icon-btn" onclick="openDeliveryModal('${p.id}')">ส่งงาน</button>` : ''}
-        <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
-        <button class="icon-btn" onclick="openProjectForm('${p.id}')">แก้ไข</button>
         <button class="icon-btn delete-btn" ${p.closedAt ? 'disabled title="รายการนี้ปิดงานแล้ว ลบไม่ได้"' : ''} onclick="deleteEntity('projects','${p.id}')">ลบ</button>
       </div></td>
     </tr>`;
@@ -2376,6 +2384,7 @@ function renderSales(){ renderJobs('sale'); }
 ['salesSearch', 'salesStatusFilter'].forEach(id => $(id).addEventListener('input', renderSales));
 
 let editingProjectId = null;
+let projectViewMode = false;
 let editingItems = [];
 let editingOrigItems = [];   // the lines as last saved, to work out what to take out of / put back into the warehouse
 const MAX_ITEM_SERIAL_BOXES = 20;
@@ -2438,9 +2447,32 @@ function openProjectForm(id, kind){
   editingItems = p && (p.items || []).length ? p.items.map(toItemRow) : [blankItem()];
   applyJobType();
   renderItemRows();
+  setProjectViewMode(false);   // callers that want the read-only view call openProjectView() next, which flips this back on
   openModal('projectModal');
   loadProjectFiles(p);
 }
+// Read-only "view" opened by clicking a row in the ซื้อขาย/โครงการ list: same modal/fields as the edit form, but disabled, with
+// รูปภาพ/แก้ไข/พิมพ์ PDF moved up next to the title instead of living as separate row buttons - "แก้ไข" flips the same modal into the
+// normal editable form in place (no second modal stacked on top), and "รูปภาพ" hands off to the photo page directly.
+function openProjectView(id, kind){
+  openProjectForm(id, kind);
+  setProjectViewMode(true);
+}
+function setProjectViewMode(on){
+  projectViewMode = on;
+  $('prjFormFieldset').disabled = on;
+  $('prjViewActions').style.display = on ? 'flex' : 'none';
+  $('projectSaveBtn').style.display = on ? 'none' : '';
+  $('projectCancelBtn').textContent = on ? 'ปิด' : 'ยกเลิก';
+  if (on){
+    const p = editingProjectId ? data.projects.find(x => x.id === editingProjectId) : null;
+    const jobWord = (p ? isSale(p) : $('prjJobType').value === 'sale') ? 'การซื้อขาย' : 'โครงการ';
+    $('projectModalTitle').textContent = 'รายละเอียด' + jobWord;
+  }
+}
+$('prjViewEditBtn').addEventListener('click', () => setProjectViewMode(false));
+$('prjViewPrintBtn').addEventListener('click', () => editingProjectId && printProject(editingProjectId));
+$('prjViewPhotosBtn').addEventListener('click', () => { if (!editingProjectId) return; const id = editingProjectId; closeModal('projectModal'); openPhotosPage(id); });
 // Labels follow the job type: sale = order date only + delivery place; project = signing date to end date + installation place
 function applyJobType(){
   const sale = $('prjJobType').value === 'sale';

@@ -108,7 +108,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
 
     # ---------------- mark a line as "เลือกแล้ว" -> on an ALREADY-SAVED job this locks the warehouse right away, before
     # the whole form is ever saved ("ล็อคของ") ----------------
-    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์")'); page.click('#prjViewEditBtn')
     page.select_option(f"{R(1,8)} select", 'done'); page.wait_for_timeout(150)
     assert page.is_visible('#confirmModal'), "asks right away, not deferred to the end-of-form save"
     msg = page.inner_text('#confirmModalMsg'); print(msg)
@@ -135,7 +135,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert '3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")') and 'SN 3/3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")')
 
     # ---------------- finish the second line the same way -> sale reads 'ดำเนินการแล้ว' ----------------
-    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายสวิตช์")'); page.click('#prjViewEditBtn')
     page.select_option(f"{R(2,8)} select", 'done'); page.wait_for_timeout(150)
     page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     page.click('#projectCancelBtn')   # nothing else changed - already applied live
@@ -145,7 +145,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert page.evaluate("projectStatus(data.projects.find(p => p.name === 'ขายสวิตช์'))") == 'ended'
 
     # ---------------- revert to pending -> stock and serials are put back immediately, still on an already-saved job ----------------
-    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์")'); page.click('#prjViewEditBtn')
     page.select_option(f"{R(1,8)} select", 'pending'); page.wait_for_timeout(150)
     assert page.is_visible('#confirmModal') and 'คืนเข้า 2 ชิ้น' in page.inner_text('#confirmModalMsg')
     assert page.is_disabled(f"{R(1,7)} input"), "still locked while the confirm is up"
@@ -155,7 +155,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.click('#projectCancelBtn')   # already applied live - nothing else to save
 
     # ---------------- deleting a done line also puts its stock back immediately ----------------
-    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์")'); page.click('#prjViewEditBtn')
     page.click(f"{R(2,9)} button"); page.wait_for_timeout(150)                                                       # line 2 (RB4011, done) removed
     assert page.is_visible('#confirmModal') and 'คืนเข้า 1 ชิ้น' in page.inner_text('#confirmModalMsg')
     page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
@@ -164,7 +164,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
 
     # ---------------- not enough stock: the immediate lock fails right away and nothing is saved ----------------
     page.evaluate("db.collection('pm_warehouse').doc('w2').update({quantity: 0})"); page.wait_for_timeout(200)
-    page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
+    page.click('#salesBody tr:has-text("ขายสวิตช์")'); page.click('#prjViewEditBtn')
     page.click('#prjAddItemBtn'); page.select_option(f"{R(2,2)} select", 'w2'); page.select_option(f"{R(2,8)} select", 'done'); page.wait_for_timeout(150)
     page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert 'ไม่พอ' in page.inner_text('#toast') and page.is_visible('#projectModal'), page.inner_text('#toast')
@@ -196,7 +196,7 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     goto_tab(page, 'projects')
 
     # legacy project opens; old lines become plain-text lines and survive a save
-    page.click('#projectsBody tr:has-text("โครงการเก่า") button:has-text("แก้ไข")')
+    page.click('#projectsBody tr:has-text("โครงการเก่า")'); page.click('#prjViewEditBtn')
     assert page.input_value('#prjJobType') == 'project'
     assert 'กล้อง CCTV' in page.inner_text(R(1, 4)) and 'ติดตั้ง — ชั้น 2' in page.inner_text(R(2, 4))
     page.click('#projectSaveBtn'); page.wait_for_timeout(400)

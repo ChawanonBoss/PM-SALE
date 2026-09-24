@@ -83,7 +83,7 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     assert len(closing) == 1 and closing[0]['name'] == 'signed.pdf' and closing[0]['ownerId'] == 'admin1'
 
     # ...but it never shows up in (or counts toward) the general "ไฟล์แนบ" list on the edit form
-    page.click('#salesBody tr:has-text("ขายพร้อมปิดงาน") button:has-text("แก้ไข")'); page.wait_for_timeout(400)
+    page.click('#salesBody tr:has-text("ขายพร้อมปิดงาน")'); page.click('#prjViewEditBtn'); page.wait_for_timeout(400)
     assert 'signed.pdf' not in page.inner_text('#prjFilesList')
     assert page.inner_text('#prjFilesCount').strip() == ''
     page.click('#projectCancelBtn')
