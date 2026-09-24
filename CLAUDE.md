@@ -150,7 +150,9 @@ previous one first, since `pm_files` rows can't be updated in place - `allow upd
 the project doc; no new Firestore rules were needed for either write (`pm_files` create has no `hasOnly()` on keys, and the `pm_projects` update rule
 has no field restriction). `projectStatus()`/`statusLabelFor()` treat a closed sale as `'ended'` unconditionally (regardless of its item lines' own
 done/pending state) with the label overridden to "ปิดงานแล้ว" instead of the normal "ดำเนินการแล้ว" for that status - this is what actually shows the
-closed state in the ซื้อขาย list's own "สถานะ" column, not a separate badge element.
+closed state in the ซื้อขาย list's own "สถานะ" column, not a separate badge element. Once closed, "ลบ" is disabled too (with the same explanatory
+`title`) so a closed sale can never be soft-deleted - `deleteEntity()` itself also refuses (`type === 'projects' && x.closedAt`), matching the button's
+own disabled state, in case delete is ever triggered another way.
 
 ## Catalog: หมวดสินค้า
 `#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather

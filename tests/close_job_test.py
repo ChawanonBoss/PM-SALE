@@ -65,6 +65,13 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     btn1 = page.locator('#salesBody tr:has-text("ขายพร้อมปิดงาน") button:has-text("ปิดงานแล้ว")')
     assert btn1.count() == 1 and btn1.is_disabled()
 
+    # a closed sale can no longer be deleted - the "ลบ" button is disabled, and deleteEntity() itself refuses too
+    del_btn = page.locator('#salesBody tr:has-text("ขายพร้อมปิดงาน") button:has-text("ลบ")')
+    assert del_btn.is_disabled() and 'ปิดงานแล้ว' in (del_btn.get_attribute('title') or '')
+    page.evaluate("deleteEntity('projects', 's1')"); page.wait_for_timeout(200)
+    assert 'ลบไม่ได้' in page.inner_text('#toast') and not page.is_visible('#confirmModal')
+    assert page.evaluate("!data.projects.find(p => p.id === 's1').deletedAt")
+
     # the signed document is a real pm_files row (role:'closing'), scoped to this job, exactly one of them
     closing = page.evaluate("""async () => {
       const snap = await db.collection('pm_files').where('projectId', '==', 's1').where('role', '==', 'closing').get();

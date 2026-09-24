@@ -1444,7 +1444,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.0';
+const APP_VERSION = '1.21.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2359,7 +2359,7 @@ function renderJobs(kind){
         ${!sale && Number(p.installmentTotal) > 0 ? `<button class="icon-btn" onclick="openDeliveryModal('${p.id}')">ส่งงาน</button>` : ''}
         <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
         <button class="icon-btn" onclick="openProjectForm('${p.id}')">แก้ไข</button>
-        <button class="icon-btn delete-btn" onclick="deleteEntity('projects','${p.id}')">ลบ</button>
+        <button class="icon-btn delete-btn" ${p.closedAt ? 'disabled title="รายการนี้ปิดงานแล้ว ลบไม่ได้"' : ''} onclick="deleteEntity('projects','${p.id}')">ลบ</button>
       </div></td>
     </tr>`;
   }).join('') : `<tr><td colspan="${cols}" class="empty-row">${sale ? 'ยังไม่มีรายการซื้อขาย' : 'ยังไม่มีโครงการ'}</td></tr>`;
@@ -3660,6 +3660,7 @@ function entityName(type, x){ return x.name || '-'; }
 function deleteEntity(type, id){
   const x = data[type].find(r => r.id === id);
   if (!x) return;
+  if (type === 'projects' && x.closedAt){ toast('รายการนี้ปิดงานแล้ว ลบไม่ได้'); return; }   // see closeJobButton() - matches the disabled "ลบ" button
   confirmAction(`ต้องการลบ${ENTITY_LABEL[type]} "${x.name}" ใช่หรือไม่? (ย้ายไปถังขยะ ผู้ดูแลระบบกู้คืนได้)`, async () => {
     setSync('saving');
     try{
