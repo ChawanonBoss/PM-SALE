@@ -423,9 +423,11 @@
     .ho-t tr{ break-inside:avoid; }
     .ho-items th{ background:#1F3A5F; color:#fff; font-weight:700; text-align:center; border-color:#1F3A5F; }
     .ho-items thead{ display:table-header-group; }
+    .ho-items td, .ho-items th{ font-size:12pt; }
     .ho-items td{ text-align:center; }
+    .ho-items td:nth-child(2), .ho-items td:nth-child(3){ text-align:left; }   /* รหัสสินค้า/ยี่ห้อ, รายละเอียด - left-aligned; # / รหัสอุปกรณ์ / จำนวน stay centered */
     .ho-items tbody tr:nth-child(even) td{ background:#F8FAFC; }
-    .ho-items td .sub{ font-size:12pt; color:#595959; }
+    .ho-items td .sub{ font-size:10pt; color:#595959; }
     .ho-cb{ display:flex; gap:3mm; padding-left:5mm; margin:0.3mm 0; }
     .ho-cb .bx{ font-family:'Segoe UI Symbol','DejaVu Sans',sans-serif; font-size:15pt; line-height:1.15; }
     .ho-remark{ margin:2.5mm 0 0 5mm; font-weight:700; color:#1F3A5F; }
@@ -1447,7 +1449,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.3';
+const APP_VERSION = '1.21.4';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2948,7 +2950,7 @@ function buildProjectPrintHtml(p){
       ${cb('ครบถ้วนถูกต้อง รับมอบงานทั้งหมดตามรายการข้างต้น')}${cb('รับมอบงานแบบมีเงื่อนไข โดยต้องแก้ไขตามหมายเหตุด้านล่าง')}${cb('ไม่รับมอบงาน เนื่องจากไม่เป็นไปตามข้อกำหนด')}
       <div class="ho-remark">หมายเหตุ / ข้อเสนอแนะ</div><div class="ho-lines">${p.notes ? escapeHtml(p.notes) : ''}</div></div>
     <div class="ho-block"><div class="ho-sec"><span class="n">4.</span>เอกสารแนบท้ายตามสัญญา</div>
-      ${cb('คู่มือการใช้งานอุปกรณ์ของโครงการ (ถ้ามี)')}${cb('เอกสารแสดงรายละเอียดของงานติดตั้ง (ถ้ามี)')}${cb('เอกสารอื่น ๆ โปรดระบุ ' + dots + dots + dots)}
+      ${cb('คู่มือการใช้งานอุปกรณ์ของโครงการ (ถ้ามี)')}${cb('เอกสารแสดงรูปภาพของรายการอุปกรณ์ (ถ้ามี)')}${cb('เอกสารแสดงรายละเอียดของงานติดตั้ง (ถ้ามี)')}${cb('เอกสารอื่น ๆ โปรดระบุ ' + dots + dots + dots)}
       <div class="ho-remark">หมายเหตุ / ข้อเสนอแนะ</div><div class="ho-lines"></div></div>
     <div class="ho-block"><div class="ho-sec"><span class="n">5.</span>ลงนามรับรอง</div>
       <div class="ho-sign-lead">คู่สัญญาได้อ่านและเข้าใจข้อความในเอกสารฉบับนี้โดยตลอดแล้ว จึงลงลายมือชื่อไว้เป็นหลักฐาน</div>

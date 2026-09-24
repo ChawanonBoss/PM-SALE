@@ -176,6 +176,15 @@ top-level `co.phone` reference blows up `buildProjectPrintHtml()` for that case 
 `justify-content:space-between` regardless, but a shorter line left unstyled would sit at the LEFT edge of that block's own (content-sized) box, not the
 page's right margin - it only reads as right-aligned once every line in the block shares the same `text-align:right`.
 
+The items table (`.ho-items`, goods and services both) prints smaller than the rest of the document - 12pt main text / 10pt sub-text (the `.sub`
+parenthetical line under a name), down from the document-wide 14pt/12pt that `.ho-t td, .ho-t th` still sets for every other table (section 1's
+"ข้อมูลทั่วไป" info table included) - the items rows were the tightest-packed part of the page and the user asked specifically to shrink only
+those. `.ho-items` cells are centered by default but `td:nth-child(2)` (รหัสสินค้า/ยี่ห้อ) and `td:nth-child(3)` (รายละเอียด) are left-aligned instead,
+since a code and a free-text description read better ragged-left than centered; the remaining columns (#, รหัสอุปกรณ์/serial, จำนวน) stay centered.
+Section 4's checklist gained a fourth line, "เอกสารแสดงรูปภาพของรายการอุปกรณ์ (ถ้ามี)", inserted right after "คู่มือการใช้งานอุปกรณ์ของโครงการ (ถ้ามี)"
+and before "เอกสารแสดงรายละเอียดของงานติดตั้ง (ถ้ามี)" - the handover photos feature above already produces a per-project photo set, so the printed
+checklist should offer to check it off alongside the other attachments.
+
 ## Sample data
 Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`). `#deleteSampleDataBtn` on the (admin-only) Trash page
 hard-deletes every `sample: true` doc across `SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_projects`, `pm_pendingRoles`, `pm_photos`) in

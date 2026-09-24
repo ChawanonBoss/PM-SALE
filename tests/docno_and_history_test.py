@@ -114,6 +114,9 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # letterhead: ที่อยู่บริษัท is its own right-aligned line; เบอร์โทร and เลขประจำตัวผู้เสียภาษี share the next line together
     # (matches เอกสารส่งมอบงานแบบใหม่.docx) - address is never joined onto that line with " / "
     assert hp.count('class="addr"') == 2 and '<div class="addr">x</div>' in hp and 'โทร. 1' in hp and 'เลขประจำตัวผู้เสียภาษี 1' in hp and 'x / เลขประจำตัวผู้เสียภาษี' not in hp
+    # section 4 gained a photo-attachment line, right after the equipment manual
+    i_manual = hp.find('คู่มือการใช้งานอุปกรณ์'); i_photo = hp.find('เอกสารแสดงรูปภาพของรายการอุปกรณ์'); i_install = hp.find('เอกสารแสดงรายละเอียดของงานติดตั้ง')
+    assert -1 < i_manual < i_photo < i_install, (i_manual, i_photo, i_install)
     page.click('.nav-item[data-tab="dashboard"]')
     assert f"PJ{YMD}-001" in page.inner_text('#dashCols')
     page.click('.nav-item[data-tab="actionplan"]')
