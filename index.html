@@ -665,7 +665,7 @@
       <button class="nav-item" data-tab="actionplan">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4v16"/><rect x="6" y="4" width="9" height="4" rx="1"/><rect x="10" y="10" width="11" height="4" rx="1"/><rect x="7" y="16" width="8" height="4" rx="1"/></svg>
         <span class="nav-count-badge" id="planNavBadge" style="display:none;"></span>
-        <span class="nav-tooltip">แผนดำเนินการ (Action Plan)</span>
+        <span class="nav-tooltip">แผนดำเนินการ</span>
       </button>
       <button class="nav-item" data-group="group2">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
@@ -700,6 +700,10 @@
         <button id="themeToggleBtn" class="rail-menu-item" type="button">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></svg>
           <span id="themeToggleLabel">โหมดมืด</span>
+        </button>
+        <button id="langToggleBtn" class="rail-menu-item" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          <span id="langToggleLabel">English</span>
         </button>
         <button id="signOutBtn" class="rail-menu-item rail-menu-danger" type="button">ออกจากระบบ</button>
         <div class="rail-menu-version" id="railMenuVersion"></div>
@@ -1409,7 +1413,7 @@
         <div class="field full" id="apptVisitField"><label>สถานที่นัดพบ</label><input type="text" id="apptLocation" placeholder="เช่น สำนักงานลูกค้า ชั้น 5"></div>
         <div class="field full" id="apptOnlineField" style="display:none;"><label>ลิงก์ประชุม</label><input type="text" id="apptLink" placeholder="ลิงก์ Google Meet หรือ Microsoft Teams"></div>
         <div class="field" id="apptMeetingIdField" style="display:none;"><label>เลขประชุม</label><input type="text" id="apptMeetingId"></div>
-        <div class="field" id="apptPasscodeField" style="display:none;"><label>รหัสผ่าน</label><input type="text" id="apptPasscode"></div>
+        <div class="field" id="apptPasscodeField" style="display:none;"><label>รหัสผ่านห้องประชุม</label><input type="text" id="apptPasscode"></div>
       </div>
       <div class="modal-actions">
         <button class="btn danger" type="button" id="apptDeleteBtn" style="display:none; margin-right:auto;">ลบ</button>
@@ -1821,6 +1825,183 @@ $('themeToggleBtn').addEventListener('click', () => {
 applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
 $('railMenuVersion').textContent = 'Version ' + APP_VERSION;
 
+/* ====== Language (English overlay) ======
+   The app's real content is - and stays - Thai (every hardcoded string in the HTML and in every render*() function).
+   Rather than rewriting every one of those call sites to route through a translation-key helper (a much larger, far
+   riskier refactor of a 5000+ line file, and one that would make every future patch touch two things instead of one),
+   English mode works as a dictionary-driven OVERLAY: I18N_EN maps an exact Thai phrase to its English translation;
+   translatePage() walks the live DOM (text nodes + placeholder/title/aria-label attributes) and swaps any EXACT match,
+   remembering the original Thai on the node itself (node.__pmTh) so switching back to Thai is a plain restore, not a
+   second dictionary or a full reload. Because matching is exact-string (not substring), a customer's/project's own
+   typed name is only ever at risk if it happens to be identical to a UI phrase like "บันทึก" - the same accepted
+   trade-off any dictionary-overlay i18n approach makes when it doesn't fully separate template from data.
+   Coverage: navigation, dashboard, ปฏิทิน, ซื้อขาย/โครงการ, Action Plan, รูปภาพ, warehouse/service warehouse/catalog,
+   customers/companies, users/audit/trash, every modal's field labels and buttons, common toasts/statuses, and the
+   sign-in/approval gates. Long explanatory <p class="panel-note"> paragraphs and the printed PDF documents are not
+   translated (the PDF must keep matching docs/handover-template.docx regardless of on-screen language - see "Printing").
+   Because content keeps re-rendering via innerHTML throughout the app, the same MutationObserver already driving
+   applyAria() below also re-runs translatePage() on whatever just changed, so newly-created Thai nodes get caught the
+   moment they appear rather than only on the initial pass. */
+const I18N_EN = {
+  // Nav / rail
+  'แดชบอร์ด':'Dashboard', 'ปฏิทิน':'Calendar', 'ซื้อขาย/โครงการ':'Sales/Projects', 'แผนดำเนินการ':'Action Plan',
+  'คลังและอุปกรณ์':'Warehouse & Equipment', 'ลูกค้าและบริษัท':'Customers & Companies', 'ตั้งค่า':'Settings', 'เมนู':'Menu',
+  'ซิงก์แล้ว':'Synced', 'กำลังบันทึก...':'Saving...', 'ผิดพลาด':'Error',
+  'โหมดมืด':'Dark mode', 'โหมดสว่าง':'Light mode', 'English':'ไทย', 'ออกจากระบบ':'Sign out',
+  // Sign-in / approval gate
+  'เข้าสู่ระบบ':'Sign in', 'PM-SALE ระบบบริหารจัดการโครงการ':'PM-SALE project management system',
+  'อีเมล':'Email', 'ชื่อ':'Name', 'ชื่อของคุณ':'Your name', 'รหัสผ่าน':'Password', 'อย่างน้อย 6 ตัวอักษร':'At least 6 characters',
+  'ยังไม่มีบัญชี?':"Don't have an account?", 'สร้างบัญชีใหม่':'Create an account', 'ลืมรหัสผ่าน?':'Forgot password?',
+  'รอผู้ดูแลระบบอนุมัติ':'Waiting for admin approval', 'บัญชีนี้ไม่ได้รับอนุญาต':'This account is not authorized',
+  'บัญชีของคุณถูกสร้างแล้ว แต่ยังใช้งานไม่ได้จนกว่าผู้ดูแลระบบจะอนุมัติ':"Your account has been created, but can't be used until an admin approves it.",
+  'ตรวจสอบสถานะอีกครั้ง':'Check status again',
+  // Common actions / buttons
+  'บันทึก':'Save', 'บันทึกรายการ':'Save', 'ยกเลิก':'Cancel', 'ปิด':'Close', 'แก้ไข':'Edit', 'ลบ':'Delete', 'ลบถาวร':'Delete permanently',
+  'กู้คืน':'Restore', 'เคลียร์':'Clear', 'ค้นหา...':'Search...', 'ส่งออก Excel':'Export Excel', 'คอลัมน์':'Columns',
+  'เลือกคอลัมน์ที่จะแสดง':'Choose columns to show', 'เสร็จสิ้น':'Done', 'รีเฟรช':'Refresh',
+  'พิมพ์ PDF':'Print PDF', 'รูปภาพ':'Photos', 'แผนงาน':'Plan', 'ส่งงาน':'Deliver', 'ปิดงาน':'Close job', 'ปิดงานแล้ว':'Job closed',
+  'ยืนยัน':'Confirm', 'ตกลง':'OK', 'เลือกไฟล์':'Choose file', 'ไม่ระบุ':'Not specified', '— ไม่ระบุ —':'— Not specified —',
+  'ทั้งหมด':'All', 'ทุกสถานะ':'All statuses', 'ทุกประเภท':'All types',
+  // Statuses / badges
+  'รอดำเนินการ':'Pending', 'กำลังดำเนินการ':'In progress', 'ดำเนินการแล้ว':'Done', 'สิ้นสุดสัญญาโครงการ':'Contract ended',
+  'ยังไม่ดำเนินการ':'Not started', 'ใกล้ครบกำหนด':'Due soon', 'เลยกำหนด':'Overdue',
+  'ในประกัน':'Under warranty', 'ใกล้หมดประกัน':'Warranty ending soon', 'หมดประกัน':'Warranty expired', 'ไม่มีประกัน':'No warranty',
+  'ผู้ใช้งานทั่วไป':'User', 'ผู้ดูแลระบบ':'Admin', 'ไม่มีรายการ':'No records',
+  // Dashboard
+  'สรุปสถานะซื้อขาย/โครงการทั้งหมด':'Overview of all sales/projects', 'แสดงเฉพาะ':'Show only', 'วันนี้':'Today',
+  'ซื้อขาย':'Sale', 'โครงการ':'Project', 'ซื้อขายทั้งหมด':'All sales', 'โครงการทั้งหมด':'All projects',
+  'ซื้อขาย / โครงการทั้งหมด':'All sales / projects', 'ทุกสถานะ':'All statuses',
+  'สัดส่วนสถานะ':'Status breakdown', 'สัดส่วนสถานะซื้อขาย':'Sales status breakdown', 'สัดส่วนสถานะโครงการ':'Project status breakdown',
+  'แนวโน้มรายเดือน':'Monthly trend', 'จำนวนรายการที่เริ่มในแต่ละเดือน ย้อนหลัง 6 เดือน':'Number of records started per month, last 6 months',
+  'ทุกสถานะ':'All statuses', 'ยังไม่มีรายการที่ดำเนินการ':'No items started yet', 'ดำเนินการแล้วบางรายการ':'Some items done',
+  'ดำเนินการครบทุกรายการ':'All items done', 'ยังไม่ถึงวันเริ่ม หรือยังไม่มีแผน':'Not started yet, or no plan',
+  'อยู่ในช่วงสัญญาและมีแผนแล้ว':'Within contract period and planned', 'เลยวันสิ้นสุดแล้ว':'Past the end date',
+  'เลยวันสิ้นสุด / ซื้อขายดำเนินการครบ':'Past end date / sale fully done',
+  // ปฏิทิน (Calendar)
+  'วันที่สำคัญของซื้อขาย/โครงการทั้งหมด - วันสั่งซื้อ/เซ็นสัญญา สิ้นสุดสัญญา ส่งงาน ประกัน และแผนดำเนินการ':'All important sales/project dates - order/signing dates, contract end, deliveries, warranty, and Action Plan',
+  'วัน':'Day', 'สัปดาห์':'Week', 'เดือน':'Month', 'ค้นหารายการ...':'Search records...', '+ รายการใหม่':'+ New',
+  'ปฏิทินของฉัน':'My calendars', 'ถัดไป':'Up next', 'นัดหมาย':'Appointment', 'ส่งงาน/ประกัน':'Delivery/Warranty',
+  'นัดหมายใหม่':'New appointment', 'แก้ไขนัดหมาย':'Edit appointment', 'หัวข้อนัดหมาย *':'Appointment title *',
+  'วันที่ *':'Date *', 'เวลา * (24 ชม.)':'Time * (24h)', 'บริษัท / ลูกค้า':'Company / Customer',
+  'รูปแบบการนัดหมาย':'Appointment type', 'เข้าพบลูกค้า':'In-person visit', 'ออนไลน์':'Online',
+  'สถานที่นัดพบ':'Meeting location', 'ลิงก์ประชุม':'Meeting link', 'เลขประชุม':'Meeting ID', 'รหัสผ่านห้องประชุม':'Meeting passcode',
+  'เลือกวันที่':'Pick a date', 'ไม่มีรายการในวันนี้':'No records today',
+  // ซื้อขาย/โครงการ list
+  'บันทึกรายการซื้อขาย เลือกสินค้าจากโกดัง ตัดสต็อกเมื่อส่งของ และพิมพ์เอกสารส่งมอบงานเป็น PDF':'Record sales, pick stock from the warehouse, deduct on delivery, and print the handover document as a PDF',
+  'บันทึกโครงการ เลือกอุปกรณ์จากโกดัง ส่งข้อมูลไปที่ Action Plan แบ่งงวดส่งงาน และพิมพ์เอกสารส่งมอบงานเป็น PDF':'Record projects, pick equipment from the warehouse, feed the Action Plan, split into delivery installments, and print the handover document as a PDF',
+  '+ เพิ่มการซื้อขาย':'+ Add sale', '+ เพิ่มโครงการ':'+ Add project', 'เลขที่เอกสาร':'Document no.', 'ชื่องาน':'Job name',
+  'ชื่อโครงการ':'Project name', 'ลูกค้า':'Customer', 'เลขที่ PO':'PO no.', 'วันที่สั่งซื้อ':'Order date', 'รายการ':'Items',
+  'สถานะ':'Status', 'สถานะงาน':'Work status', 'สร้างโดย':'Created by', 'รูปภาพอุปกรณ์':'Equipment photos',
+  'รูปภาพงานติดตั้ง':'Installation photos', 'งวดงาน':'Installment', 'เลขที่สัญญา':'Contract no.', 'ระยะเวลา':'Period',
+  'แผนการดำเนินงาน':'Work plan', 'ยังไม่มีรายการซื้อขาย':'No sales yet', 'ยังไม่มีโครงการ':'No projects yet',
+  // Project/sale form
+  'เพิ่มโครงการ':'Add project', 'แก้ไขโครงการ':'Edit project', 'รายละเอียดโครงการ':'Project details',
+  'เพิ่มการซื้อขาย':'Add sale', 'แก้ไขการซื้อขาย':'Edit sale', 'รายละเอียดการซื้อขาย':'Sale details',
+  'ชื่อโครงการ *':'Project name *', 'ชื่องาน *':'Job name *', 'หน่วยงาน / ลูกค้า *':'Organization / Customer *',
+  'จำนวนงวดงานทั้งหมด':'Total installments', 'วันที่เซ็นสัญญา *':'Signing date *', 'วันที่สั่งซื้อ *':'Order date *',
+  'วันที่สิ้นสุด *':'End date *', 'บริษัทของเรา (หัวกระดาษ PDF)':'Our company (PDF letterhead)', 'สถานที่ติดตั้ง':'Installation site',
+  'สถานที่ส่งสินค้า':'Delivery site', 'การรับประกัน (เดือน)':'Warranty (months)', 'หมายเหตุ':'Note',
+  'รายละเอียดของงาน':'Work details', 'สินค้า':'Goods', 'บริการ':'Services', '+ เพิ่มสินค้า':'+ Add item', '+ เพิ่มบริการ':'+ Add service',
+  'ยี่ห้อ':'Brand', 'ประเภท':'Type', 'รหัสอุปกรณ์':'Serial no.', 'จำนวน':'Qty', 'เลือกแล้ว':'Reserved',
+  'ไฟล์แนบ':'Attachments', '+ แนบไฟล์':'+ Attach file', 'บันทึกรูปภาพชุดใด (เลือกได้มากกว่า 1)':'Which photo sets to record (multiple allowed)',
+  // Action Plan
+  'ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์':'Work steps, owners, and a week-by-week chart',
+  '← กลับไปรายการโครงการ':'← Back to project list', 'ข้อมูลโครงการ':'Project info', 'แก้ไขแผนดำเนินการ':'Edit action plan',
+  'รูปภาพ →':'Photos →', 'ผู้รับผิดชอบ':'Owner', 'เริ่มต้น':'Start', 'สิ้นสุด':'End', 'ความคืบหน้า':'Progress',
+  // รูปภาพ (Handover photos)
+  'รูปภาพการส่งมอบงาน':'Handover photos', 'แนบรูปภาพอุปกรณ์และรูปภาพงานติดตั้ง':'Attach equipment and installation photos',
+  '+ เพิ่มรูปภาพ':'+ Add photo', 'ไม่ระบุอุปกรณ์':'Unspecified equipment',
+  // Equipment & warranty
+  'อุปกรณ์และการรับประกัน':'Equipment & Warranty', 'สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ':'Installation site and warranty period of each project',
+  'การรับประกันและสถานที่ติดตั้ง':'Warranty & installation site', 'ทุกประเภทงาน':'All job types', 'ทุกสถานะรับประกัน':'All warranty statuses',
+  'สถานที่ติดตั้ง / ส่งสินค้า':'Installation / delivery site', 'เริ่มรับประกัน':'Warranty start',
+  // Warehouse
+  'โกดังสินค้า':'Warehouse', 'รายการอุปกรณ์ในคลังและ Serial Number':'Stock items and serial numbers',
+  '+ เพิ่มอุปกรณ์':'+ Add item', 'ทุกยี่ห้อ':'All brands', 'เรียงตามชื่อ':'Sort by name', 'ชื่ออุปกรณ์':'Item name',
+  'จำนวนอุปกรณ์':'Quantity', '+ เพิ่มข้อมูลตัวอย่าง (5 รายการ)':'+ Add sample data (5 items)',
+  // Service warehouse
+  'โกดังบริการ':'Service Warehouse', 'รายการบริการที่เลือกใช้ในการซื้อขาย/โครงการได้':'Service items selectable on a sale/project',
+  'ทุกซัพพลายเออร์':'All suppliers', 'ซัพพลายเออร์':'Supplier', 'ประเภทงาน':'Job type', 'ชื่อบริการ':'Service name',
+  'รายละเอียดบริการ':'Service details', 'เพิ่มบริการ':'Add service', 'แก้ไขบริการ':'Edit service',
+  // Catalog
+  'Catalog สินค้า':'Product Catalog', 'ไฟล์ PDF Catalog ของสินค้า ดูออนไลน์และดาวน์โหลดได้':'Product catalog PDFs - view online or download',
+  '+ อัปโหลด Catalog (PDF)':'+ Upload Catalog (PDF)', 'หมวดสินค้า':'Category',
+  // Customers / companies
+  'รายชื่อลูกค้า':'Customer List', 'ข้อมูลหน่วยงานและผู้ติดต่อ':'Organization and contact details',
+  '+ เพิ่มลูกค้า':'+ Add customer', 'หน่วยงานรัฐ':'Government', 'บริษัทเอกชน':'Private company',
+  'ชื่อบริษัท':'Company name', 'ที่อยู่':'Address', 'ผู้ติดต่อ':'Contact person', 'เบอร์ติดต่อ':'Phone', 'เลขที่ผู้เสียภาษี':'Tax ID',
+  'ข้อมูลบริษัท':'Company Info', 'โลโก้และที่อยู่สำหรับหัวกระดาษเอกสาร':'Logo and address for the document letterhead',
+  'ข้อมูลบริษัทของเรา':'Our Company Info', '+ เพิ่มบริษัท':'+ Add company',
+  // Users / audit / trash
+  'ผู้ใช้งาน':'Users', 'จัดการผู้ใช้งานและสิทธิ์':'Manage users and permissions', 'เพิ่มผู้ใช้งาน':'Add user',
+  'สิทธิ์การใช้งาน':'Role', 'บันทึกผู้ใช้งาน':'Save user', 'ผู้ใช้งานทั้งหมด':'All users', '+ เพิ่มผู้ใช้งาน':'+ Add user',
+  'ประวัติของระบบ':'System History', 'บันทึกการแก้ไขและข้อผิดพลาด':'Edit log and errors', 'การแก้ไข':'Edits',
+  'ข้อผิดพลาดระบบ':'System errors', 'ประวัติการแก้ไข':'Edit history', 'ทุกการกระทำ':'All actions',
+  'เวลา':'Time', 'ผู้ทำรายการ':'By', 'การกระทำ':'Action', 'รายละเอียด':'Details', 'ข้อความ':'Message', 'หน้า':'Page',
+  'ถังขยะ':'Trash', 'กู้คืนหรือลบถาวร':'Restore or delete permanently', 'ลบข้อมูลตัวอย่างทั้งหมด':'Delete all sample data',
+  'ลบโดย':'Deleted by', 'วันที่ลบ':'Deleted on', 'เลือกทั้งหมด (ทุกหน้าที่ตรงกับตัวกรอง)':'Select all (every page matching the filter)',
+  'ลูกค้า/โกดัง/ซื้อขาย-โครงการ':'customers/warehouse/sales-projects',
+  // Common toasts / confirms
+  'บันทึกแล้ว':'Saved', 'บันทึกไม่สำเร็จ':'Save failed', 'ลบไม่สำเร็จ':'Delete failed', 'กรุณากรอกข้อมูลให้ครบถ้วน':'Please fill in all required fields',
+  'ต้องการลบรายการนี้ใช่หรือไม่?':'Delete this record?',
+};
+let currentLang = 'th';
+// Thai month names appear constantly INSIDE otherwise-dynamic strings (fmtDate() -> "24 ก.ย. 2569", never matchable as a whole
+// phrase against I18N_EN), so they get their own substring pass rather than needing every possible date to be a dictionary
+// entry. Buddhist-era year numbers are left as-is - that's a calendar-system choice, not a language one, and out of scope here.
+const MONTH_SUBSTR_EN = { 'มกราคม':'January','กุมภาพันธ์':'February','มีนาคม':'March','เมษายน':'April','พฤษภาคม':'May','มิถุนายน':'June',
+  'กรกฎาคม':'July','สิงหาคม':'August','กันยายน':'September','ตุลาคม':'October','พฤศจิกายน':'November','ธันวาคม':'December',
+  'ม.ค.':'Jan','ก.พ.':'Feb','มี.ค.':'Mar','เม.ย.':'Apr','พ.ค.':'May','มิ.ย.':'Jun','ก.ค.':'Jul','ส.ค.':'Aug','ก.ย.':'Sep','ต.ค.':'Oct','พ.ย.':'Nov','ธ.ค.':'Dec' };
+const MONTH_SUBSTR_RE = new RegExp(Object.keys(MONTH_SUBSTR_EN).sort((a, b) => b.length - a.length).map(k => k.replace(/[.]/g, '\\.')).join('|'), 'g');
+function translateMonths(s){ return s.replace(MONTH_SUBSTR_RE, m => MONTH_SUBSTR_EN[m] || m); }
+function translatePage(root){
+  root = root || document.body;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const nodes = []; let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  nodes.forEach(node => {
+    if (node.parentElement && node.parentElement.closest('#printArea')) return;   // printed documents keep their own fixed language
+    if (currentLang === 'en'){
+      if (node.__pmTh === undefined) node.__pmTh = node.nodeValue;
+      const trimmed = node.__pmTh.trim();
+      const en = trimmed && I18N_EN[trimmed];
+      node.nodeValue = translateMonths(en ? node.__pmTh.replace(trimmed, en) : node.__pmTh);
+    } else if (node.__pmTh !== undefined){
+      node.nodeValue = node.__pmTh;
+    }
+  });
+  const attrNodes = root.querySelectorAll ? root.querySelectorAll('[placeholder],[title],[aria-label]') : [];
+  (root.matches && root.matches('[placeholder],[title],[aria-label]') ? [root, ...attrNodes] : attrNodes).forEach(el => {
+    ['placeholder','title','aria-label'].forEach(attr => {
+      if (!el.hasAttribute(attr)) return;
+      const key = '__pmTh_' + attr;
+      if (currentLang === 'en'){
+        if (el[key] === undefined) el[key] = el.getAttribute(attr);
+        const trimmed = el[key].trim();
+        const en = trimmed && I18N_EN[trimmed];
+        if (en) el.setAttribute(attr, en);
+      } else if (el[key] !== undefined){
+        el.setAttribute(attr, el[key]);
+      }
+    });
+  });
+}
+function applyLanguage(lang){
+  currentLang = lang;
+  $('langToggleLabel').textContent = lang === 'en' ? 'ไทย' : 'English';
+  translatePage(document.body);
+}
+$('langToggleBtn').addEventListener('click', () => {
+  const next = currentLang === 'en' ? 'th' : 'en';
+  try{ localStorage.setItem('pm-sale-lang', next); }catch(e){}
+  applyLanguage(next);
+});
+{
+  let savedLang = 'th';
+  try{ savedLang = localStorage.getItem('pm-sale-lang') === 'en' ? 'en' : 'th'; }catch(e){}
+  applyLanguage(savedLang);
+}
+
 /* ====== Sidebar / nav ====== */
 $('railMenuBtn').addEventListener('click', e => {
   e.stopPropagation();
@@ -1911,7 +2092,7 @@ const TITLES = {
   calendar:['ปฏิทิน','วันที่สำคัญของซื้อขาย/โครงการทั้งหมด - วันสั่งซื้อ/เซ็นสัญญา สิ้นสุดสัญญา ส่งงาน ประกัน และแผนดำเนินการ'],
   sales:['ซื้อขาย','บันทึกรายการซื้อขาย เลือกสินค้าจากโกดัง ตัดสต็อกเมื่อส่งของ และพิมพ์เอกสารส่งมอบงานเป็น PDF'],
   projects:['โครงการ','บันทึกโครงการ เลือกอุปกรณ์จากโกดัง ส่งข้อมูลไปที่ Action Plan แบ่งงวดส่งงาน และพิมพ์เอกสารส่งมอบงานเป็น PDF'],
-  actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
+  actionplan:['แผนดำเนินการ','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
   equipment:['อุปกรณ์และการรับประกัน','สถานที่ติดตั้งและระยะเวลารับประกันของแต่ละโครงการ'],
   warehouse:['โกดังสินค้า','รายการอุปกรณ์ในคลังและ Serial Number'],
   serviceWarehouse:['โกดังบริการ','รายการบริการที่เลือกใช้ในการซื้อขาย/โครงการได้'],
@@ -1988,15 +2169,19 @@ function renderPager(key, total, pages){
   const first = Math.max(1, Math.min(st.page - 2, pages - 4)), last = Math.min(pages, first + 4);   // a window of up to 5 page numbers around the current page
   const nums = [];
   for (let n = first; n <= last; n++) nums.push(`<button type="button" class="page-btn ${n === st.page ? 'active' : ''}" onclick="setPage('${key}', ${n})">${n}</button>`);
+  // Built with an inline currentLang check (rather than left to translatePage()'s dictionary overlay) because this line mixes
+  // translatable words with page numbers in one string - "X รายการต่อหน้า · Y จากทั้งหมด Z" never matches a dictionary entry
+  // exactly once the numbers are filled in, so the overlay could never have translated it.
+  const en = currentLang === 'en';
   el.innerHTML = `
-    <div class="pager-size">แสดง
+    <div class="pager-size">${en ? 'Show' : 'แสดง'}
       <select onchange="setPageSize('${key}', this.value)">${PAGE_SIZES.map(n => `<option value="${n}" ${n === st.size ? 'selected' : ''}>${n}</option>`).join('')}</select>
-      รายการต่อหน้า · ${fmtNum(from)}–${fmtNum(to)} จากทั้งหมด ${fmtNum(total)} รายการ
+      ${en ? `per page · ${fmtNum(from)}–${fmtNum(to)} of ${fmtNum(total)}` : `รายการต่อหน้า · ${fmtNum(from)}–${fmtNum(to)} จากทั้งหมด ${fmtNum(total)} รายการ`}
     </div>
     <div class="pager-pages">
-      <button type="button" class="page-btn" title="หน้าก่อนหน้า" ${st.page <= 1 ? 'disabled' : ''} onclick="setPage('${key}', ${st.page - 1})">‹</button>
+      <button type="button" class="page-btn" title="${en ? 'Previous page' : 'หน้าก่อนหน้า'}" ${st.page <= 1 ? 'disabled' : ''} onclick="setPage('${key}', ${st.page - 1})">‹</button>
       ${nums.join('')}
-      <button type="button" class="page-btn" title="หน้าถัดไป" ${st.page >= pages ? 'disabled' : ''} onclick="setPage('${key}', ${st.page + 1})">›</button>
+      <button type="button" class="page-btn" title="${en ? 'Next page' : 'หน้าถัดไป'}" ${st.page >= pages ? 'disabled' : ''} onclick="setPage('${key}', ${st.page + 1})">›</button>
     </div>`;
 }
 function setPage(key, n){ pagerState[key].page = Math.max(1, n); PAGER_UI[key].render(); }
@@ -2078,7 +2263,11 @@ function applyAria(root){
   });
 }
 let ariaQueued = false;
-new MutationObserver(() => { if (ariaQueued) return; ariaQueued = true; requestAnimationFrame(() => { ariaQueued = false; applyAria(); }); }).observe(document.body, { childList: true, subtree: true });
+new MutationObserver(() => {
+  if (ariaQueued) return;
+  ariaQueued = true;
+  requestAnimationFrame(() => { ariaQueued = false; if (currentLang === 'en') translatePage(document.body); applyAria(); });
+}).observe(document.body, { childList: true, subtree: true });
 applyAria();
 
 function onAnyUpdate(){
@@ -2630,7 +2819,11 @@ let calRefDate = new Date();
 let calView = 'month';   // 'day' | 'week' | 'month'
 let calActiveCats = new Set(Object.keys(CAL_CATS));
 let calSearchTerm = '';
-const CAL_DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];   // Date#getDay() order (Sunday-first)
+const CAL_DOW_TH = ['อา','จ','อ','พ','พฤ','ศ','ส'];   // Date#getDay() order (Sunday-first)
+const CAL_DOW_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+// Single Thai characters ('จ','อ','พ'...) are too collision-prone for the dictionary-overlay in translatePage() (e.g. a user's
+// avatar-initial letter could coincidentally BE one of them), so day-of-week labels are picked directly by currentLang instead.
+const CAL_DOW = new Proxy(CAL_DOW_TH, { get: (t, p) => (currentLang === 'en' ? CAL_DOW_EN : t)[p] });
 function calYMD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function calParseYMD(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
 function calAddDays(d, n){ const x = new Date(d); x.setDate(x.getDate() + n); return x; }
@@ -2706,7 +2899,8 @@ function renderCalWeek(byDate){
 function renderCalMonth(byDate){
   const y = calRefDate.getFullYear(), m = calRefDate.getMonth(), today = todayStr();
   const gridStart = calAddDays(new Date(y, m, 1), -((new Date(y, m, 1).getDay() + 6) % 7));
-  const dowRow = '<div class="cal-month-dow">' + ['จ','อ','พ','พฤ','ศ','ส','อา'].map(x => `<span>${x}</span>`).join('') + '</div>';
+  const dowMonFirst = currentLang === 'en' ? ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] : ['จ','อ','พ','พฤ','ศ','ส','อา'];
+  const dowRow = '<div class="cal-month-dow">' + dowMonFirst.map(x => `<span>${x}</span>`).join('') + '</div>';
   const grid = Array.from({ length: 42 }, (_, i) => calAddDays(gridStart, i)).map(d => {
     const ymd = calYMD(d), evs = byDate[ymd] || [], otherMonth = d.getMonth() !== m, isToday = ymd === today;
     const shown = evs.slice(0, 3), more = evs.length > 3 ? `<div class="cal-month-more">+${evs.length - 3} เพิ่มเติม</div>` : '';
