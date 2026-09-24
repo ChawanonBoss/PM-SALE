@@ -1468,7 +1468,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.7';
+const APP_VERSION = '1.21.8';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1554,6 +1554,7 @@ let justLoggedInViaForm = false;
 const data = { projects:[], customers:[], companies:[], warehouse:[], serviceWarehouse:[], catalogs:[], users:[], pending:[], audit:[], errors:[] };
 let unsubscribers = [];
 let loaded = {};
+let loadingWatchdog = null;   // see attachRealtimeListeners() - forces the "กำลังโหลดข้อมูล..." block to clear even if one collection's first snapshot never arrives
 
 /* ====== Theme ====== */
 function applyTheme(theme){
@@ -1940,6 +1941,7 @@ function detachListeners(){
   unsubscribers = [];
   Object.keys(data).forEach(k => data[k] = []);
   loaded = {};
+  clearTimeout(loadingWatchdog);
 }
 
 let approvalUnsub = null;
@@ -2104,9 +2106,22 @@ function attachRealtimeListeners(){
     unsubscribers.push(db.collection(COL.audit).orderBy('timestamp','desc').limit(300).onSnapshot(s => { data.audit = raw(s); onAnyUpdate(); }, () => {}));
     unsubscribers.push(db.collection(COL.errors).orderBy('timestamp','desc').limit(200).onSnapshot(s => { data.errors = raw(s); onAnyUpdate(); }, () => {}));
   }
+  // Watchdog: every tab already renders progressively as each collection's first snapshot arrives (onAnyUpdate() runs on every single one),
+  // so a slow/dropped connection to just ONE of the six gate collections used to leave "กำลังโหลดข้อมูล..." showing forever even though the
+  // app underneath was already fully usable with what had loaded. If the gate hasn't cleared itself on its own within 8s, force it closed anyway.
+  clearTimeout(loadingWatchdog);
+  loadingWatchdog = setTimeout(() => {
+    const stuck = ['projects','customers','companies','warehouse','serviceWarehouse','users'].filter(k => !loaded[k]);
+    if (!stuck.length) return;
+    console.warn('loading watchdog: still waiting on', stuck);
+    $('loadingOverlay').style.display = 'none';
+    $('sidebar').classList.remove('loading-lock');
+    setSync('ok');
+  }, 8000);
 }
 function checkAllLoaded(){
   if (['projects','customers','companies','warehouse','serviceWarehouse','users'].every(k => loaded[k])){
+    clearTimeout(loadingWatchdog);
     $('loadingOverlay').style.display = 'none';
     $('sidebar').classList.remove('loading-lock');
     setSync('ok');

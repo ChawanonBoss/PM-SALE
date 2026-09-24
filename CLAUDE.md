@@ -225,6 +225,17 @@ Section 4's checklist gained a fourth line, "เอกสารแสดงร�
 and before "เอกสารแสดงรายละเอียดของงานติดตั้ง (ถ้ามี)" - the handover photos feature above already produces a per-project photo set, so the printed
 checklist should offer to check it off alongside the other attachments.
 
+## Loading gate: watchdog
+`#loadingOverlay` ("กำลังโหลดข้อมูล...") only clears once `checkAllLoaded()` sees all six of `projects`/`customers`/`companies`/`warehouse`/
+`serviceWarehouse`/`users` report their first `onSnapshot` back - but every tab already renders progressively off whatever has arrived so far
+(`onAnyUpdate()` re-renders on every single one of those snapshots, not just the last). If a connection to just one of the six stalls or drops
+(flaky network, a backgrounded/throttled tab, one bad listener), the app underneath was already fully usable while this plain block element -
+it isn't a fixed/blocking overlay, just sits inline above the tab panels in `.content` - kept showing forever, which read as the page being stuck
+loading even though everything below it worked. `attachRealtimeListeners()` now also arms an 8s `loadingWatchdog` timeout that force-clears the
+overlay (and logs which key(s) never reported, via `console.warn`) if `checkAllLoaded()` hasn't already done it naturally; `checkAllLoaded()` and
+`detachListeners()` (called on every fresh sign-in and on sign-out) both clear that timer so it never fires after a normal load or leaks into the
+next session.
+
 ## Sample data
 Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`). `#deleteSampleDataBtn` on the (admin-only) Trash page
 hard-deletes every `sample: true` doc across `SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_projects`, `pm_pendingRoles`, `pm_photos`) in
