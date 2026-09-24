@@ -28,14 +28,16 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     assert page.locator('#projectsBody tr:has-text("โครงการทดสอบ") button:has-text("ปิดงาน")').count() == 0
 
     goto_tab(page, 'sales'); page.wait_for_timeout(300)
-    # s2 has no photos yet: the button is disabled with an explanatory tooltip, not hidden
+    # s2 has no photos yet: the button is disabled with an explanatory tooltip (and grey styling), not hidden
     btn2 = page.locator('#salesBody tr:has-text("ขายยังไม่มีรูป") button:has-text("ปิดงาน")')
     assert btn2.count() == 1 and btn2.is_disabled()
     assert 'รูปภาพ' in (btn2.get_attribute('title') or '')
+    assert btn2.evaluate("b => getComputedStyle(b).cursor") == 'not-allowed', "greyed out via .icon-btn:disabled, not left looking clickable"
 
-    # s1 has photos saved: the button is enabled
+    # s1 has photos saved: the button is enabled and NOT styled as disabled
     btn1 = page.locator('#salesBody tr:has-text("ขายพร้อมปิดงาน") button:has-text("ปิดงาน")')
     assert btn1.count() == 1 and not btn1.is_disabled()
+    assert btn1.evaluate("b => getComputedStyle(b).cursor") != 'not-allowed'
     btn1.click(); page.wait_for_timeout(200)
     assert page.is_visible('#closeJobModal')
     assert 'ขายพร้อมปิดงาน' in page.inner_text('#closeJobSub')
@@ -65,9 +67,10 @@ with new_page(viewport={"width": 1400, "height": 900}) as (page, errors):
     btn1 = page.locator('#salesBody tr:has-text("ขายพร้อมปิดงาน") button:has-text("ปิดงานแล้ว")')
     assert btn1.count() == 1 and btn1.is_disabled()
 
-    # a closed sale can no longer be deleted - the "ลบ" button is disabled, and deleteEntity() itself refuses too
+    # a closed sale can no longer be deleted - the "ลบ" button is disabled (greyed out) and deleteEntity() itself refuses too
     del_btn = page.locator('#salesBody tr:has-text("ขายพร้อมปิดงาน") button:has-text("ลบ")')
     assert del_btn.is_disabled() and 'ปิดงานแล้ว' in (del_btn.get_attribute('title') or '')
+    assert del_btn.evaluate("b => getComputedStyle(b).cursor") == 'not-allowed'
     page.evaluate("deleteEntity('projects', 's1')"); page.wait_for_timeout(200)
     assert 'ลบไม่ได้' in page.inner_text('#toast') and not page.is_visible('#confirmModal')
     assert page.evaluate("!data.projects.find(p => p.id === 's1').deletedAt")

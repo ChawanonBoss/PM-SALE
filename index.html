@@ -102,6 +102,8 @@
   .icon-btn.delete-btn{ color:var(--danger); border-color:var(--danger-soft); background:var(--danger-soft); }
   .icon-btn.delete-btn:hover{ border-color:var(--danger); }
   .icon-btn.pdf-btn{ color:var(--accent); background:var(--accent-soft); border-color:transparent; }
+  .icon-btn:disabled, .icon-btn.delete-btn:disabled, .icon-btn.pdf-btn:disabled{ color:var(--ink-soft); background:var(--paper-dim); border-color:var(--line); opacity:.6; cursor:not-allowed; }
+  .icon-btn:disabled:hover{ border-color:var(--line); color:var(--ink-soft); }
   .row-actions{ display:flex; gap:6px; justify-content:flex-end; }
 
   /* ---- Gate ---- */
@@ -1444,7 +1446,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.1';
+const APP_VERSION = '1.21.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {

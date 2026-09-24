@@ -152,7 +152,9 @@ has no field restriction). `projectStatus()`/`statusLabelFor()` treat a closed s
 done/pending state) with the label overridden to "ปิดงานแล้ว" instead of the normal "ดำเนินการแล้ว" for that status - this is what actually shows the
 closed state in the ซื้อขาย list's own "สถานะ" column, not a separate badge element. Once closed, "ลบ" is disabled too (with the same explanatory
 `title`) so a closed sale can never be soft-deleted - `deleteEntity()` itself also refuses (`type === 'projects' && x.closedAt`), matching the button's
-own disabled state, in case delete is ever triggered another way.
+own disabled state, in case delete is ever triggered another way. A disabled `.icon-btn` (this button while ineligible, "ลบ" once closed, or any other
+row-action button disabled elsewhere) now actually looks disabled - `.icon-btn:disabled` (greyed text/background, `cursor:not-allowed`) was missing
+entirely before this, so a disabled row-action button looked completely identical to a clickable one.
 
 ## Catalog: หมวดสินค้า
 `#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather
