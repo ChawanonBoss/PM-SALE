@@ -1082,7 +1082,7 @@
           <span class="cell-sub" id="prjFilesHint"></span>
         </div>
       </div>
-      <p class="panel-note" style="margin:10px 0 0;">เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เมื่อเปลี่ยนเป็น "ดำเนินการแล้ว" แล้วกดบันทึก ระบบจะ<b>ตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง</b> และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้</p>
+      <p class="panel-note" style="margin:10px 0 0;">เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เปลี่ยนเป็น "เลือกแล้ว" เพื่อ<b>ล็อคของ</b>: ถ้ารายการนี้เคยบันทึกไว้แล้ว ระบบตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง<b>ทันที</b> ไม่ต้องรอกดบันทึกทั้งฟอร์ม (รายการที่เพิ่งสร้างใหม่ยังไม่เคยบันทึก จะตัดตอนกดบันทึกครั้งแรกตามปกติ) และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้ทันทีเช่นกัน</p>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
         <button class="btn" type="submit" id="projectSaveBtn">บันทึกรายการ</button>
@@ -1127,6 +1127,27 @@
       <button class="btn outline" type="button" id="dlvCancelBtn">ยกเลิก</button>
       <button class="btn outline" type="button" id="dlvSavePrintBtn">บันทึกและพิมพ์ PDF</button>
       <button class="btn" type="button" id="dlvSaveBtn">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Close a sale ("ปิดงาน" - ซื้อขาย only): records the closing date and the signed handover document -->
+<div class="modal-overlay" id="closeJobModal" style="display:none;">
+  <div class="modal" style="max-width:460px;">
+    <h3 class="serif" style="font-size:19px; margin-bottom:2px;">ปิดงาน</h3>
+    <p id="closeJobSub" style="font-size:13px; color:var(--ink-soft); margin-bottom:14px;"></p>
+    <div class="form-grid">
+      <div class="field full"><label>วันที่ปิดงาน *</label>
+        <div class="date-edit-wrap"><input type="date" id="closeJobDate" required><span class="date-display placeholder" id="closeJobDateText">dd/mm/yyyy</span></div></div>
+      <div class="field full"><label>เอกสารส่งมอบงานที่มีลายเซ็นแล้ว *</label>
+        <div id="closeJobFileInfo" class="cell-sub" style="margin-bottom:8px;">ยังไม่ได้แนบไฟล์</div>
+        <button class="btn outline" type="button" id="closeJobFileBtn">เลือกไฟล์</button>
+        <input type="file" id="closeJobFileInput" accept="application/pdf,.pdf,image/*" style="display:none;">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn outline" type="button" id="closeJobCancelBtn">ยกเลิก</button>
+      <button class="btn" type="button" id="closeJobSaveBtn">ยืนยันปิดงาน</button>
     </div>
   </div>
 </div>
@@ -1423,7 +1444,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.20.6';
+const APP_VERSION = '1.21.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2112,9 +2133,11 @@ function projectDateStatus(p){
   return 'active';
 }
 // Project: inside its contract dates but nothing entered in its Action Plan yet is still "รอดำเนินการ".
-// Sale: follows its equipment lines (none done -> pending, some done -> in progress, all done -> done).
+// Sale: follows its equipment lines (none done -> pending, some done -> in progress, all done -> done) - unless it's been
+// formally "ปิดงาน"-ed (see closeJobButton), which always reads as ended/done regardless of the item lines' own state.
 function projectStatus(p){
   if (isSale(p)){
+    if (p.closedAt) return 'ended';
     const its = p.items || [];
     const done = its.filter(i => i.status === 'done').length;
     if (!its.length || done === 0) return 'pending';
@@ -2123,7 +2146,10 @@ function projectStatus(p){
   const st = projectDateStatus(p);
   return st === 'active' && !(p.plan || []).length ? 'pending' : st;
 }
-const statusLabelFor = (p, st) => (isSale(p) ? SALE_STATUS_LABEL : STATUS_LABEL)[st];
+const statusLabelFor = (p, st) => {
+  if (isSale(p) && st === 'ended' && p.closedAt) return 'ปิดงานแล้ว';
+  return (isSale(p) ? SALE_STATUS_LABEL : STATUS_LABEL)[st];
+};
 const WARRANTY_LABEL = { none:'ไม่มีประกัน', ok:'ในประกัน', soon:'ใกล้หมดประกัน', expired:'หมดประกัน' };
 function warrantyStatus(expiry, months){
   if (!months || !expiry) return 'none';
@@ -2328,6 +2354,7 @@ function renderJobs(kind){
       <td class="cell-sub creator-col" data-col="creator">${isAdmin ? escapeHtml(getUserDisplayName(p.createdBy)) : ''}</td>
       <td><div class="row-actions">
         <button class="icon-btn" onclick="openPhotosPage('${p.id}')">รูปภาพ</button>
+        ${sale ? closeJobButton(p) : ''}
         ${sale ? '' : `<button class="icon-btn" onclick="openActionPlan('${p.id}')">แผนงาน</button>`}
         ${!sale && Number(p.installmentTotal) > 0 ? `<button class="icon-btn" onclick="openDeliveryModal('${p.id}')">ส่งงาน</button>` : ''}
         <button class="icon-btn pdf-btn" onclick="printProject('${p.id}')">พิมพ์ PDF</button>
@@ -2487,7 +2514,7 @@ function renderItemRows(){
       <td><input type="number" min="1" step="1" value="${it.qty}" ${locked ? 'disabled' : ''} onchange="setItemQty(${i}, this.value)"></td>
       <td><select onchange="setItemStatus(${i}, this.value)">
         <option value="pending" ${it.status !== 'done' ? 'selected' : ''}>รอดำเนินการ</option>
-        <option value="done" ${it.status === 'done' ? 'selected' : ''}>ดำเนินการแล้ว</option>
+        <option value="done" ${it.status === 'done' ? 'selected' : ''}>เลือกแล้ว</option>
       </select></td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
     </tr>`;
@@ -2530,6 +2557,17 @@ function pickItemService(i, svcId){
   it.qty = 1;
   renderItemRows();
 }
+// The one place that turns the in-memory editingItems rows into the shape saved on the project doc's items[] - used both by the
+// whole-form "บันทึกรายการ" submit and by the live per-row lock/unlock below (which writes this same full snapshot on every
+// toggle, not just a single row, so a brand-new not-yet-saved row is included too and nothing goes stale between toggles).
+function buildItemsFromEditing(){
+  return editingItems.filter(r => r.whId || r.svcId || (r.name || '').trim()).map(r => {
+    const qty = Math.max(1, Math.floor(Number(r.qty) || 1));
+    const service = r.kind === 'service';
+    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: r.status === 'done' ? 'done' : 'pending' };
+    return service ? { ...base, svcId: r.svcId || '' } : { ...base, whId: r.whId, serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean) };
+  });
+}
 function setItemQty(i, v){ editingItems[i].qty = Math.max(1, Math.floor(Number(v) || 1)); renderItemRows(); }
 function setItemSerial(i, k, v){
   const it = editingItems[i];
@@ -2537,8 +2575,45 @@ function setItemSerial(i, k, v){
   it.serials[k] = v;
   renderItemRows();
 }
-function setItemStatus(i, st){ editingItems[i].status = st; renderItemRows(); }
+// A goods line's status only locks/unlocks the warehouse LIVE (see lockOrUnlockItem below) when editing a job that has already
+// been saved at least once (editingProjectId set) - a brand-new job has no id/docNo yet for the warehouse's own history entry to
+// point at, so it still waits for its first save like before. A service line has no whId/stock to touch either way.
+function setItemStatus(i, st){
+  const it = editingItems[i];
+  const to = st === 'done' ? 'done' : 'pending';
+  if (it.status === to) return;
+  if (editingProjectId && it.kind !== 'service' && it.whId){ lockOrUnlockItem(i, to); return; }
+  it.status = to;
+  renderItemRows();
+}
 function removeItemRow(i){
+  const it = editingItems[i];
+  if (editingProjectId && it.kind !== 'service' && it.whId && it.status === 'done'){
+    const label = [it.part, it.brand, it.name].filter(Boolean).join(' ');
+    const serials = it.serials.filter(Boolean);
+    const effects = new Map([[it.whId, { qty: -it.qty, remove: new Set(), restore: new Set(serials), label }]]);
+    confirmAction('ลบแถวนี้จะคืนสต็อกเข้าโกดังทันที:\n' + describeEffects(effects), async () => {
+      setSync('saving');
+      const idx = editingItems.indexOf(it);
+      try{
+        if (idx !== -1) editingItems.splice(idx, 1);   // remove first so the snapshot below reflects the row really being gone
+        const itemsSnapshot = buildItemsFromEditing();
+        await applyLiveItemChangeTx(effects, itemsSnapshot, warehouseHistoryBase());
+        const orig = editingOrigItems.find(r => r.rid === it.rid);
+        if (orig) orig.status = 'pending';
+        const p = data.projects.find(x => x.id === editingProjectId);
+        if (p) p.items = itemsSnapshot;   // keep the in-memory record in step until the live listener refreshes it anyway
+        logAudit('คืนสต็อกโกดัง (ลบแถว)', label, describeEffects(effects));
+        toast('คืนสต็อกและลบแถวแล้ว');
+        setSync('ok');
+      }catch(err){
+        if (idx !== -1) editingItems.splice(idx, 0, it);   // the write failed - put the row back where it was
+        setSync('error'); toast(err && err.message ? err.message : 'ทำรายการไม่สำเร็จ');
+      }
+      renderItemRows();
+    }, 'ยืนยันคืนสต็อกและลบแถว');
+    return;
+  }
   editingItems.splice(i, 1);   // both tables show their own "ยังไม่มีรายการ..." placeholder when empty, so no auto-refill is needed
   renderItemRows();
 }
@@ -2581,6 +2656,83 @@ function describeEffects(effects){
     return `• ${e.label} — ${parts.join(' · ')}`;
   }).join('\n');
 }
+// Applies one {qty, remove, restore, label} effect (stockEffects()'s own shape) to an already-read warehouse doc snapshot,
+// returning the write patch (or null if there was nothing to apply and the item is simply gone) - throws if the warehouse item
+// no longer exists, doesn't have enough quantity, or is missing a serial being taken out. Shared by the end-of-form batch save
+// (commitProject) and the live per-row lock/unlock below, so there is exactly one place that knows how to turn an effect into a
+// warehouse write.
+function warehouseEffectPatch(snap, e, historyBase){
+  if (!snap.exists || snap.data().deletedAt){
+    if (e.qty > 0 || e.remove.size) throw new Error(`ไม่พบ ${e.label} ในโกดัง`);
+    return null;   // only a put-back and the warehouse item is gone: nothing to put back into
+  }
+  const w = snap.data(), cur = Array.isArray(w.serials) ? w.serials : [];
+  for (const sn of e.remove) if (!cur.includes(sn)) throw new Error(`Serial ${sn} ของ ${e.label} ไม่อยู่ในโกดังแล้ว`);
+  const newQty = (Number(w.quantity) || 0) - e.qty;
+  if (newQty < 0) throw new Error(`จำนวน ${e.label} ในโกดังไม่พอ (คงเหลือ ${Number(w.quantity) || 0}, ต้องใช้ ${e.qty})`);
+  const serials = [...cur.filter(sn => !e.remove.has(sn)), ...[...e.restore].filter(sn => !cur.includes(sn))];
+  const entries = [];
+  if (e.qty > 0 || e.remove.size) entries.push({ ...historyBase, type:'out', qty: e.qty > 0 ? e.qty : e.remove.size, serials: [...e.remove] });
+  if (e.qty < 0 || e.restore.size) entries.push({ ...historyBase, type:'return', qty: e.qty < 0 ? -e.qty : e.restore.size, serials: [...e.restore] });
+  return { quantity: newQty, serials, history: [...(Array.isArray(w.history) ? w.history : []), ...entries].slice(-500) };
+}
+// One transaction that (a) applies a Map<whId, effect> to the real warehouse docs (see warehouseEffectPatch) and (b) overwrites
+// the project doc's own items[] with the given snapshot - so the warehouse and the project's own saved items[] never go out of
+// step between one live toggle and the next (a brand-new not-yet-saved row is included in the snapshot too, since it comes
+// straight from buildItemsFromEditing() rather than a per-row patch).
+async function applyLiveItemChangeTx(effects, itemsSnapshot, historyBase){
+  await db.runTransaction(async tx => {
+    const snaps = new Map();
+    for (const whId of effects.keys()) snaps.set(whId, await tx.get(db.collection(COL.warehouse).doc(whId)));
+    effects.forEach((e, whId) => {
+      const patch = warehouseEffectPatch(snaps.get(whId), e, historyBase);
+      if (patch) tx.update(db.collection(COL.warehouse).doc(whId), patch);
+    });
+    tx.update(db.collection(COL.projects).doc(editingProjectId), { items: itemsSnapshot });
+  });
+}
+function warehouseHistoryBase(){
+  const p = data.projects.find(x => x.id === editingProjectId);
+  return { at: new Date().toISOString(), projectId: editingProjectId, docNo: p && p.docNo || '', projectName: p && p.name || '', jobType: p && p.jobType || '', by: currentUserUid, byName: currentUserName || currentUserEmail || '' };
+}
+// "ล็อคของ": on an already-saved job, flipping a goods line's status hits the warehouse AND the project doc's own items[] right
+// away instead of waiting for "บันทึกรายการ", so two people editing at once can't both grab the same units. `editingOrigItems`
+// is updated to match once the write succeeds, so the whole-form save's own stockEffects() diff sees this row as already applied
+// and does not touch it again.
+async function lockOrUnlockItem(i, to){
+  const it = editingItems[i];
+  const w = data.warehouse.find(x => x.id === it.whId);
+  if (!w){ toast('ไม่พบอุปกรณ์นี้ในโกดังแล้ว'); renderItemRows(); return; }
+  const label = [it.part, it.brand, it.name].filter(Boolean).join(' ');
+  const qty = it.qty, serials = it.serials.filter(Boolean);
+  const effects = new Map([[it.whId, to === 'done'
+    ? { qty, remove: new Set(serials), restore: new Set(), label }
+    : { qty: -qty, remove: new Set(), restore: new Set(serials), label }]]);
+  const msg = (to === 'done'
+    ? 'เลือกรายการนี้จะตัดสต็อกออกจากโกดังทันที (ล็อคของ) ไม่ต้องรอกดบันทึกทั้งฟอร์ม:\n'
+    : 'ยกเลิกการเลือกนี้จะคืนสต็อกเข้าโกดังทันที:\n') + describeEffects(effects);
+  renderItemRows();   // reverts the <select> back to its real (still-unchanged) value while the confirm dialog decides
+  confirmAction(msg, async () => {
+    setSync('saving');
+    const from = it.status;
+    try{
+      it.status = to;   // flip first so the snapshot below already reflects it
+      const itemsSnapshot = buildItemsFromEditing();
+      await applyLiveItemChangeTx(effects, itemsSnapshot, warehouseHistoryBase());
+      const orig = editingOrigItems.find(r => r.rid === it.rid);
+      if (orig) orig.status = to; else editingOrigItems.push({ ...it });
+      const p = data.projects.find(x => x.id === editingProjectId);
+      if (p) p.items = itemsSnapshot;   // keep the in-memory record in step until the live listener refreshes it anyway
+      logAudit(to === 'done' ? 'ตัดสต็อกโกดัง (เลือกแล้ว)' : 'คืนสต็อกโกดัง (ยกเลิกเลือก)', label, describeEffects(effects));
+      toast(to === 'done' ? 'ตัดสต็อกแล้ว' : 'คืนสต็อกแล้ว');
+      setSync('ok');
+    }catch(err){
+      it.status = from;   // the write failed - undo the optimistic local flip
+      setSync('error'); toast(err && err.message ? err.message : 'ทำรายการไม่สำเร็จ');
+    }
+    renderItemRows();
+  }, to === 'done' ? 'ยืนยันตัดสต็อกทันที' : 'ยืนยันคืนสต็อก');
+}
 // Document numbers: SO<YYYYMMDD>-<NNN> for a sale, PJ<YYYYMMDD>-<NNN> for a project; the sequence restarts every day.
 // The counter lives in pm_counters/<SO20260921> and is bumped inside the SAME transaction that creates the document, so two people
 // saving at once can't get the same number. If that collection's rules aren't published (permission-denied) the save falls back to
@@ -2616,26 +2768,13 @@ async function commitProject(ref, doc, isNew, effects, ctx){
       counterN = Math.max(localDocSeqMax(ctx.numberKey), stored) + 1;
       docNo = `${ctx.numberKey}-${fmtDocSeq(counterN)}`;
     }
-    // ---- stock ----
+    // ---- stock (see warehouseEffectPatch - same helper the live per-row lock/unlock uses) ----
     const updates = [];
-    const at = new Date().toISOString();
+    // withdrawal history lives on the warehouse item itself: which sale/project took (or returned) how many, with which serials
+    const historyBase = { at: new Date().toISOString(), projectId: ref.id, docNo, projectName: doc.name, jobType: doc.jobType, by: currentUserUid, byName: currentUserName || currentUserEmail || '' };
     effects.forEach((e, whId) => {
-      const snap = snaps.get(whId);
-      if (!snap.exists || snap.data().deletedAt){
-        if (e.qty > 0 || e.remove.size) throw new Error(`ไม่พบ ${e.label} ในโกดัง`);
-        return;   // only a put-back and the warehouse item is gone: nothing to put back into
-      }
-      const w = snap.data(), cur = Array.isArray(w.serials) ? w.serials : [];
-      for (const sn of e.remove) if (!cur.includes(sn)) throw new Error(`Serial ${sn} ของ ${e.label} ไม่อยู่ในโกดังแล้ว`);
-      const newQty = (Number(w.quantity) || 0) - e.qty;
-      if (newQty < 0) throw new Error(`จำนวน ${e.label} ในโกดังไม่พอ (คงเหลือ ${Number(w.quantity) || 0}, ต้องใช้ ${e.qty})`);
-      const serials = [...cur.filter(sn => !e.remove.has(sn)), ...[...e.restore].filter(sn => !cur.includes(sn))];
-      // withdrawal history lives on the warehouse item itself: which sale/project took (or returned) how many, with which serials
-      const base = { at, projectId: ref.id, docNo, projectName: doc.name, jobType: doc.jobType, by: currentUserUid, byName: currentUserName || currentUserEmail || '' };
-      const entries = [];
-      if (e.qty > 0 || e.remove.size) entries.push({ ...base, type:'out', qty: e.qty > 0 ? e.qty : e.remove.size, serials: [...e.remove] });
-      if (e.qty < 0 || e.restore.size) entries.push({ ...base, type:'return', qty: e.qty < 0 ? -e.qty : e.restore.size, serials: [...e.restore] });
-      updates.push([db.collection(COL.warehouse).doc(whId), { quantity: newQty, serials, history: [...(Array.isArray(w.history) ? w.history : []), ...entries].slice(-500) }]);
+      const patch = warehouseEffectPatch(snaps.get(whId), e, historyBase);
+      if (patch) updates.push([db.collection(COL.warehouse).doc(whId), patch]);
     });
     // ---- writes ----
     updates.forEach(([wref, patch]) => tx.update(wref, patch));
@@ -2665,13 +2804,7 @@ $('projectForm').addEventListener('submit', async e => {
   const customer = data.customers.find(c => c.id === customerId);
   if (!customer){ toast('กรุณาเลือกลูกค้า'); return; }
   // lines: untouched empty ones are dropped silently
-  const filled = editingItems.filter(r => r.whId || r.svcId || (r.name || '').trim());
-  const items = filled.map(r => {
-    const qty = Math.max(1, Math.floor(Number(r.qty) || 1));
-    const service = r.kind === 'service';
-    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: r.status === 'done' ? 'done' : 'pending' };
-    return service ? { ...base, svcId: r.svcId || '' } : { ...base, whId: r.whId, serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean) };
-  });
+  const items = buildItemsFromEditing();
   const seen = new Set();
   for (const r of items){
     for (const sn of (r.serials || [])){
@@ -2923,6 +3056,70 @@ async function saveDelivery(thenPrint){
 $('dlvCancelBtn').addEventListener('click', () => closeModal('deliveryModal'));
 $('dlvSaveBtn').addEventListener('click', () => saveDelivery(false));
 $('dlvSavePrintBtn').addEventListener('click', () => saveDelivery(true));
+
+/* ---- "ปิดงาน" (ซื้อขาย only): records a closing date + the signed handover document, once the sale has photos saved.
+   The signed document is its own pm_files row (role:'closing') rather than one of the general 8 "ไฟล์แนบ" - loadProjectFiles()
+   filters those out of that list/count, and there is always at most one per job (a re-close deletes the old one first, since
+   pm_files rows can't be updated in place). ---- */
+const CLOSING_DOC_MAX_BYTES = 650 * 1024;   // same cap as the general "ไฟล์แนบ" (FILE_MAX_BYTES)
+let closingJobId = null;
+let closingDocFile = null;   // the File chosen in the modal, not yet uploaded
+function closeJobButton(p){
+  if (p.closedAt) return `<button class="icon-btn" disabled title="ปิดงานแล้วเมื่อ ${escapeHtml(fmtDate(p.closedAt))}">ปิดงานแล้ว</button>`;
+  const hasPhotos = Number(p.photoCounts && p.photoCounts.equipment) > 0 || Number(p.photoCounts && p.photoCounts.install) > 0;
+  return `<button class="icon-btn" ${hasPhotos ? '' : 'disabled title="ต้องแนบรูปภาพก่อนจึงจะปิดงานได้"'} onclick="openCloseJobModal('${p.id}')">ปิดงาน</button>`;
+}
+function syncCloseJobDateText(){
+  const v = $('closeJobDate').value;
+  $('closeJobDateText').textContent = dateText(v);
+  $('closeJobDateText').classList.toggle('placeholder', !v);
+}
+['input', 'change'].forEach(evt => $('closeJobDate').addEventListener(evt, syncCloseJobDateText));
+function openCloseJobModal(id){
+  const p = data.projects.find(x => x.id === id);
+  if (!p || !isSale(p) || p.closedAt) return;
+  closingJobId = id; closingDocFile = null;
+  $('closeJobSub').textContent = `${p.docNo ? p.docNo + ' · ' : ''}${p.name}`;
+  $('closeJobDate').value = todayStr(); syncCloseJobDateText();
+  $('closeJobFileInfo').textContent = 'ยังไม่ได้แนบไฟล์';
+  $('closeJobFileInput').value = '';
+  openModal('closeJobModal');
+}
+$('closeJobFileBtn').addEventListener('click', () => $('closeJobFileInput').click());
+$('closeJobFileInput').addEventListener('change', e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  if (f.size > CLOSING_DOC_MAX_BYTES){ toast(`ไฟล์ใหญ่เกิน ${fmtBytes(CLOSING_DOC_MAX_BYTES)}`); return; }
+  closingDocFile = f;
+  $('closeJobFileInfo').textContent = `${f.name} · ${fmtBytes(f.size)}`;
+});
+$('closeJobCancelBtn').addEventListener('click', () => closeModal('closeJobModal'));
+$('closeJobSaveBtn').addEventListener('click', async () => {
+  const p = data.projects.find(x => x.id === closingJobId);
+  if (!p) return;
+  if (!$('closeJobDate').value){ toast('กรุณาเลือกวันที่ปิดงาน'); return; }
+  if (!closingDocFile){ toast('กรุณาแนบเอกสารส่งมอบงานที่มีลายเซ็นแล้ว'); return; }
+  $('closeJobSaveBtn').disabled = true;
+  setSync('saving');
+  try{
+    const old = await db.collection(COL.files).where('projectId', '==', p.id).where('role', '==', 'closing').get();
+    for (const d of old.docs) await db.collection(COL.files).doc(d.id).delete();
+    await db.collection(COL.files).add({
+      projectId: p.id, ownerId: p.createdBy, role: 'closing', name: closingDocFile.name, size: closingDocFile.size,
+      type: closingDocFile.type || 'application/octet-stream', data: await readAsBase64(closingDocFile),
+      createdBy: currentUserUid, createdAt: new Date().toISOString()
+    });
+    const closedAt = $('closeJobDate').value;
+    await db.collection(COL.projects).doc(p.id).update({ closedAt, closedBy: currentUserUid });
+    Object.assign(p, { closedAt, closedBy: currentUserUid });
+    logAudit('ปิดงาน', p.docNo || p.name, `วันที่ปิดงาน ${fmtDate(closedAt)} · ${closingDocFile.name}`);
+    setSync('ok'); closeModal('closeJobModal'); toast('ปิดงานแล้ว');
+  }catch(err){
+    setSync('error');
+    toast(err && /permission|insufficient/i.test(err.message || '') ? 'ปิดงานไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของไฟล์แนบ' : (err.message || 'ปิดงานไม่สำเร็จ'));
+  }
+  $('closeJobSaveBtn').disabled = false;
+});
 
 function printProject(id){
   const p = data.projects.find(x => x.id === id);
@@ -3885,7 +4082,8 @@ async function loadProjectFiles(p){
     if (currentUserRole !== 'admin') q = q.where('ownerId', '==', currentUserUid);   // must match the rule: a non-admin only sees files of their own projects
     const snap = await q.get();
     if (editingProjectId !== p.id) return;   // the form was closed / switched meanwhile
-    projectFiles = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+    // the "ปิดงาน" signed document lives in this same collection (role:'closing') but is never one of the general 8 "ไฟล์แนบ"
+    projectFiles = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(f => f.role !== 'closing').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
     renderProjectFiles();
   }catch(err){
     list.textContent = /permission|insufficient/i.test(err.message || '') ? 'ยังใช้งานไฟล์แนบไม่ได้: ต้องเผยแพร่กฎ Firestore ชุดใหม่ (pm_files) ที่ Firebase Console' : 'โหลดไฟล์แนบไม่สำเร็จ';

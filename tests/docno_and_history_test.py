@@ -141,8 +141,11 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     hist = page.inner_text('#serialHistoryBody'); print(hist.replace('\n', ' | '))
     assert 'เบิกออก' in hist and f"SO{YMD}-001" in hist and 'ขายใหม่ 1' in hist and 'S2, S3' in hist and 'Admin One' in hist
     page.click('#serialHistoryBody a'); assert page.is_visible('#projectModal') and page.input_value('#prjName') == 'ขายใหม่ 1'
-    # revert -> a 'return' entry appears
-    page.select_option(f"{R(1,8)} select", 'pending'); page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
+    # revert -> a 'return' entry appears (an already-saved job locks/unlocks the warehouse live, before any "บันทึกรายการ" click)
+    page.select_option(f"{R(1,8)} select", 'pending'); page.wait_for_timeout(150)
+    assert page.is_visible('#confirmModal')
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
+    page.click('#projectCancelBtn')
     page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)')
     hist = page.inner_text('#serialHistoryBody')
     assert 'คืนเข้าโกดัง' in hist and 'เบิกออก' in hist and page.locator('#serialHistoryBody tr').count() == 2

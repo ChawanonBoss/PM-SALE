@@ -106,54 +106,74 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert W('w1') == {'quantity': 5, 'serials': ['S1', 'S2', 'S3', 'S4', 'S5']} and W('w2')['quantity'] == 2, "pending lines must not touch the warehouse"
     assert 'ขายสวิตช์' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")') and 'รอดำเนินการ' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')
 
-    # ---------------- mark a line as done -> confirm -> stock and serials come out of the warehouse ----------------
+    # ---------------- mark a line as "เลือกแล้ว" -> on an ALREADY-SAVED job this locks the warehouse right away, before
+    # the whole form is ever saved ("ล็อคของ") ----------------
     page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
-    page.select_option(f"{R(1,8)} select", 'done')
-    assert page.is_disabled(f"{R(1,7)} input") and page.is_disabled(f"{R(1,2)} select"), "a done line is locked"
-    assert 'S2' in page.inner_text(R(1, 6)) and 'S4' in page.inner_text(R(1, 6))
-    page.click('#projectSaveBtn'); page.wait_for_timeout(200)
-    assert page.is_visible('#confirmModal'); msg = page.inner_text('#confirmModalMsg'); print(msg)
-    assert 'ตัดออก 2 ชิ้น' in msg and 'ตัด SN: S2, S4' in msg and 'Catalyst' in msg
+    page.select_option(f"{R(1,8)} select", 'done'); page.wait_for_timeout(150)
+    assert page.is_visible('#confirmModal'), "asks right away, not deferred to the end-of-form save"
+    msg = page.inner_text('#confirmModalMsg'); print(msg)
+    assert 'ล็อคของ' in msg and 'ตัดออก 2 ชิ้น' in msg and 'ตัด SN: S2, S4' in msg and 'Catalyst' in msg
+    assert page.input_value(f"{R(1,8)} select") == 'pending', "the dropdown reverts to its real value while the confirm is up"
     page.click('#confirmModalCancelBtn'); page.wait_for_timeout(100)
     assert W('w1')['quantity'] == 5, "cancelling the confirmation changes nothing"
-    page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
+    assert P()['items'][0]['status'] == 'pending'
+
+    page.select_option(f"{R(1,8)} select", 'done'); page.wait_for_timeout(150)
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert W('w1') == {'quantity': 3, 'serials': ['S1', 'S3', 'S5']}, W('w1')
+    # the project doc's own items[] is already updated too - no "บันทึกรายการ" click was needed for this to be real
     assert P()['items'][0]['status'] == 'done' and P()['items'][0]['serials'] == ['S2', 'S4']
+    assert page.is_disabled(f"{R(1,7)} input") and page.is_disabled(f"{R(1,2)} select"), "a done line is locked"
+    assert 'S2' in page.inner_text(R(1, 6)) and 'S4' in page.inner_text(R(1, 6))
+
+    # saving the rest of the form now shows no stock-effects confirm at all - it was already applied live
+    page.click('#projectSaveBtn'); page.wait_for_timeout(400)
+    assert not page.is_visible('#confirmModal'), "the live lock already applied - nothing left for the end-of-form save to confirm"
+    goto_tab(page, 'sales')
     assert 'กำลังดำเนินการ' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')                             # 1 of 2 lines done
     goto_tab(page, 'warehouse')
     assert '3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")') and 'SN 3/3' in page.inner_text('#warehouseBody tr:has-text("Catalyst")')
 
-    # ---------------- finish the second line -> sale is 'ดำเนินการแล้ว' ----------------
+    # ---------------- finish the second line the same way -> sale reads 'ดำเนินการแล้ว' ----------------
     goto_tab(page, 'sales'); page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
-    page.select_option(f"{R(2,8)} select", 'done'); page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
-    assert W('w2')['quantity'] == 1 and 'ดำเนินการแล้ว' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')
+    page.select_option(f"{R(2,8)} select", 'done'); page.wait_for_timeout(150)
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
+    page.click('#projectCancelBtn')   # nothing else changed - already applied live
+    assert W('w2')['quantity'] == 1
+    goto_tab(page, 'sales')
+    assert 'ดำเนินการแล้ว' in page.inner_text('#salesBody tr:has-text("ขายสวิตช์")')
     assert page.evaluate("projectStatus(data.projects.find(p => p.name === 'ขายสวิตช์'))") == 'ended'
 
-    # ---------------- revert to pending -> stock and serials are put back ----------------
+    # ---------------- revert to pending -> stock and serials are put back immediately, still on an already-saved job ----------------
     page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
-    page.select_option(f"{R(1,8)} select", 'pending')
+    page.select_option(f"{R(1,8)} select", 'pending'); page.wait_for_timeout(150)
+    assert page.is_visible('#confirmModal') and 'คืนเข้า 2 ชิ้น' in page.inner_text('#confirmModalMsg')
+    assert page.is_disabled(f"{R(1,7)} input"), "still locked while the confirm is up"
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert not page.is_disabled(f"{R(1,7)} input")
-    page.click('#projectSaveBtn'); assert 'คืนเข้า 2 ชิ้น' in page.inner_text('#confirmModalMsg'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert sorted(W('w1')['serials']) == ['S1', 'S2', 'S3', 'S4', 'S5'] and W('w1')['quantity'] == 5
+    page.click('#projectCancelBtn')   # already applied live - nothing else to save
 
-    # ---------------- deleting a done line also puts its stock back ----------------
+    # ---------------- deleting a done line also puts its stock back immediately ----------------
     page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
-    page.click(f"{R(2,9)} button")                                                                                  # line 2 (RB4011, done) removed
-    page.click('#projectSaveBtn'); assert 'คืนเข้า 1 ชิ้น' in page.inner_text('#confirmModalMsg'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
+    page.click(f"{R(2,9)} button"); page.wait_for_timeout(150)                                                       # line 2 (RB4011, done) removed
+    assert page.is_visible('#confirmModal') and 'คืนเข้า 1 ชิ้น' in page.inner_text('#confirmModalMsg')
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert W('w2')['quantity'] == 2 and len(P()['items']) == 1
+    page.click('#projectCancelBtn')
 
-    # ---------------- not enough stock: nothing is saved ----------------
+    # ---------------- not enough stock: the immediate lock fails right away and nothing is saved ----------------
     page.evaluate("db.collection('pm_warehouse').doc('w2').update({quantity: 0})"); page.wait_for_timeout(200)
     page.click('#salesBody tr:has-text("ขายสวิตช์") button:has-text("แก้ไข")')
-    page.click('#prjAddItemBtn'); page.select_option(f"{R(2,2)} select", 'w2'); page.select_option(f"{R(2,8)} select", 'done')
-    page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
+    page.click('#prjAddItemBtn'); page.select_option(f"{R(2,2)} select", 'w2'); page.select_option(f"{R(2,8)} select", 'done'); page.wait_for_timeout(150)
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert 'ไม่พอ' in page.inner_text('#toast') and page.is_visible('#projectModal'), page.inner_text('#toast')
+    assert page.input_value(f"{R(2,8)} select") == 'pending', "the failed lock reverts the dropdown back to pending"
     assert len(P()['items']) == 1 and W('w2')['quantity'] == 0
     page.keyboard.press('Escape')
-    audit = page.evaluate("1")  # audit rows are written fire-and-forget; checked below via the collection
     acts = page.evaluate("db.collection('pm_auditLog').get().then(s => s.docs.map(d => d.data().action))")
     print(sorted(set(acts)))
-    assert 'ตัดสต็อกโกดัง' in acts and 'คืนสต็อกโกดัง' in acts and 'สร้างรายการซื้อขาย' in acts
+    assert any('ตัดสต็อกโกดัง' in a for a in acts) and any('คืนสต็อกโกดัง' in a for a in acts) and 'สร้างรายการซื้อขาย' in acts
 
     # ---------------- a PROJECT: two dates, plan, legacy lines ----------------
     goto_tab(page, 'projects'); page.click('#projectsCreateBtn')

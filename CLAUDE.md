@@ -13,9 +13,11 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 `pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse` (goods, `kind:'good'`) or `pm_serviceWarehouse` (services, `kind:'service'`, `svcId` instead of
 `whId` - see "Service warehouse" below); plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered,
 printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog; the โครงการ list's own "งวดงาน" column/filter reads `currentInstallmentStage()` - the next undelivered
-installment, or the last one once everything is in - not `installmentNo` directly), `pm_customers`, `pm_companies`, `pm_warehouse` (quantity, serials[], history[] capped
-500), `pm_serviceWarehouse` (same shape minus quantity/serials/history - services aren't stocked),
-`pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB each, 8 per project), `pm_photos` (handover photos, base64 <=900 KB each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved),
+installment, or the last one once everything is in - not `installmentNo` directly; `closedAt`/`closedBy`, ซื้อขาย only - see "ปิดงาน" below), `pm_customers`, `pm_companies`,
+`pm_warehouse` (quantity, serials[], history[] capped 500), `pm_serviceWarehouse` (same shape minus quantity/serials/history - services aren't stocked),
+`pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB
+each, 8 per project - a `role:'closing'` one is the ปิดงาน signed document instead, exactly one per job, not one of the 8), `pm_photos` (handover photos, base64 <=900 KB
+each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved),
 `pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
 
 ## Menus
@@ -118,6 +120,37 @@ service line is automatically invisible to the warehouse stock-deduction transac
 one-for-one, reading from `data.serviceWarehouse` instead of `data.warehouse`. `toItemRow()` carries `kind`/`svcId` through and had one existing bug fixed while
 this was added: it used to blank out `type` for any line with no `whId` (meant for old freeform/unlinked goods lines), which would have wrongly blanked a
 service line's ประเภทงาน too since a service never has a `whId` either - the condition is now `(it.whId || service)`.
+
+## Item status: live warehouse lock ("เลือกแล้ว")
+Flipping a **goods** line's status between "รอดำเนินการ" and "เลือกแล้ว" (the option used to read "ดำเนินการแล้ว" - renamed since the act of
+picking it now genuinely reserves the stock, not just marks work done) hits `pm_warehouse` immediately when editing a job that has already been
+saved at least once (`editingProjectId` set) - not deferred to "บันทึกรายการ" like everything else on the form, so two people editing different jobs
+at once can't both grab the same units. A brand-new, never-saved job still waits for its first save (there's no id/docNo yet for the warehouse's own
+history entry to point at), and a **service** line is untouched either way (no `whId`, nothing to lock) - `setItemStatus()` only routes into
+`lockOrUnlockItem()` when `editingProjectId && it.kind !== 'service' && it.whId`.
+
+`lockOrUnlockItem(i, to)` re-renders the row **before** opening its own `confirmAction()` (not the end-of-form one) - this snaps the `<select>` back
+to its real, unchanged value for as long as the dialog is up, so cancelling needs no separate revert step. On confirm, one transaction (a) applies the
+effect to the warehouse via `warehouseEffectPatch()` - the same per-item math `commitProject()` uses, extracted so there is exactly one place that
+turns an effect into a warehouse write - and (b) overwrites the project doc's own `items[]` with a **full fresh snapshot** from
+`buildItemsFromEditing()` (not a single-field patch), so a row that's brand new to this editing session (just added, never saved) is captured too, and
+nothing between one live toggle and the next can go stale. `editingOrigItems` is updated to match afterward, so the whole-form save's own
+`stockEffects()` diff sees the row as already applied and never touches it a second time - saving the rest of the form after a live toggle shows no
+stock-effects confirm at all. Deleting a **locked** (`status:'done'`) goods row (`removeItemRow()`) goes through the same live give-back-then-write
+path before splicing it out, for the same reason. A failed transaction (not enough stock, a serial already gone) reverts the row's status locally and
+toasts the error; nothing was written.
+
+## ซื้อขาย: ปิดงาน
+`closeJobButton(p)` - ซื้อขาย row-actions only, never on โครงการ - reads "ปิดงาน" until `p.closedAt` is set (then "ปิดงานแล้ว", permanently disabled) and
+is otherwise disabled with an explanatory `title` until the job has at least one saved photo (`p.photoCounts.equipment`/`.install > 0`). Clicking it
+opens `#closeJobModal`: an editable date (`#closeJobDate`, defaults to today, backdatable - a job can be closed for a date in the past) and a required
+single-file upload, the signed handover document. That file is its own `pm_files` row with `role:'closing'` rather than one of the general 8 "ไฟล์แนบ" -
+`loadProjectFiles()` filters `role === 'closing'` out of that list/count entirely, and there is always at most one per job (re-closing deletes the
+previous one first, since `pm_files` rows can't be updated in place - `allow update: if false`). Saving writes that file plus `closedAt`/`closedBy` on
+the project doc; no new Firestore rules were needed for either write (`pm_files` create has no `hasOnly()` on keys, and the `pm_projects` update rule
+has no field restriction). `projectStatus()`/`statusLabelFor()` treat a closed sale as `'ended'` unconditionally (regardless of its item lines' own
+done/pending state) with the label overridden to "ปิดงานแล้ว" instead of the normal "ดำเนินการแล้ว" for that status - this is what actually shows the
+closed state in the ซื้อขาย list's own "สถานะ" column, not a separate badge element.
 
 ## Catalog: หมวดสินค้า
 `#catCategory` in the upload/edit form is an addable-select (`catCategorySel`, same `makeAddableSelect()` "+" pattern as โกดังสินค้า's ยี่ห้อ/ประเภท) rather

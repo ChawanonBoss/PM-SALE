@@ -17,7 +17,7 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `trash_selection_test.py` | Trash checkboxes: some / all rows, type filter, bulk restore, bulk permanent delete (catalog pieces go too) |
 | `mobile_cards_and_counters_test.py` | phone card layout, unlinked equipment lines in the edit form, admin keeps `pm_counters` in step |
 | `po_excel_attachments_test.py` | PO number, งวดงานที่, Excel export, project attachments, accessible names, no built-in sample catalogs |
-| `projects_stock_test.py` | separate ซื้อขาย / โครงการ menus and forms, stock deduction & return, handover PDF markup |
+| `projects_stock_test.py` | separate ซื้อขาย / โครงการ menus and forms, stock deduction & return, handover PDF markup, and on an already-saved job the item status select ("เลือกแล้ว") locks/unlocks the warehouse immediately (confirm dialog right away, dropdown reverts while it's up, no double-confirm at the end-of-form save, deleting a locked line gives stock back live too, a failed lock reverts and touches nothing) |
 | `installments_test.py` | project installments: total in the form, the "ส่งงาน" dialog (e.g. 3/4), history, PDF shows 3/4, Excel column |
 | `menu_installment_filter_test.py` | โครงการ list: งวดงาน is column 2, its filter dropdown options/reset, and matching by current stage |
 | `docno_and_history_test.py` | SO/PJ document numbers, warehouse withdrawal history |
@@ -31,6 +31,7 @@ python tests/run_all.py approval   # only files whose name contains "approval"
 | `delete_sample_data_test.py` | Trash page's "ลบข้อมูลตัวอย่างทั้งหมด" button hard-deletes every `sample: true` row across all 5 affected collections, including ones already sitting in the Trash, while real (non-sample) rows in the same collections are left alone |
 | `catalog_category_test.py` | Catalog upload/edit form's หมวดสินค้า field is an addable-select (existing value pre-selected on edit, options seeded from both catalogs and warehouse types, "+" adds and saves a brand-new one) |
 | `warehouse_sample_data_test.py` | โกดังสินค้า's admin-only "+ เพิ่มข้อมูลตัวอย่าง" button creates exactly the canned 3 CCTV + 2 Switch set with every field filled in and unique serials, refuses to duplicate itself on a second click, each item is deletable individually via Trash like normal, and the rest are swept up by "ลบข้อมูลตัวอย่างทั้งหมด" |
+| `close_job_test.py` | ซื้อขาย-only "ปิดงาน" button: disabled with a tooltip until the job has a saved photo, never appears at all on a โครงการ row, its modal's date defaults to today but is backdatable, requires the signed document before it will confirm, the saved file is its own `pm_files` row (`role:'closing'`) excluded from the general "ไฟล์แนบ" list/count, and closing flips the ซื้อขาย list's own สถานะ badge to "ปิดงานแล้ว" and disables the button for good |
 
 `fixtures/` holds the sample generators. The same files were used to seed the live site with `[ตัวอย่าง]` rows (`sample: true`).
 
