@@ -917,7 +917,7 @@
         <div id="planListView">
           <div class="panel">
             <div class="panel-head">
-              <h3>แผนดำเนินการรายโครงการ <span class="count-pill" id="planListCount"></span></h3>
+              <h3>แผนดำเนินงานโครงการ <span class="count-pill" id="planListCount"></span></h3>
               <div class="filter-bar">
                 <input type="text" id="planListSearch" class="filter-control" placeholder="ค้นหาโครงการ, ลูกค้า, เลขที่สัญญา" style="width:250px;">
                 <select id="planListStatus" class="filter-control">
@@ -1723,7 +1723,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.6';
+const APP_VERSION = '1.23.7';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1845,6 +1845,7 @@ $('railMenuVersion').textContent = 'Version ' + APP_VERSION;
 const I18N_EN = {
   // Nav / rail
   'แดชบอร์ด':'Dashboard', 'ปฏิทิน':'Calendar', 'ซื้อขาย/โครงการ':'Sales/Projects', 'แผนดำเนินการ':'Action Plan',
+  'แผนดำเนินงานโครงการ':'Action Plan',
   'คลังและอุปกรณ์':'Warehouse & Equipment', 'ลูกค้าและบริษัท':'Customers & Companies', 'ตั้งค่า':'Settings', 'เมนู':'Menu',
   'ซิงก์แล้ว':'Synced', 'กำลังบันทึก...':'Saving...', 'ผิดพลาด':'Error',
   'โหมดมืด':'Dark mode', 'โหมดสว่าง':'Light mode', 'English':'ไทย', 'ออกจากระบบ':'Sign out',
