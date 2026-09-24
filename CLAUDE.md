@@ -11,37 +11,46 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 
 ## Design system: Neumorphism (Soft UI)
 The whole app UI (not the printed PDF documents - see below) runs on a Neumorphism/Soft UI design system: every surface is "molded"
-from one cool-grey base colour (`--paper`/`--card`, both `#E0E5EC` light / `#2B2F36` dark - deliberately the SAME colour, per the
-system's own anti-pattern rule "never a separate white/card colour"), and shadows do all the work borders used to do. All the physics
-lives in `:root` as reusable tokens: `--shadow-ext`/`-hover`/`-sm` (raised/"extruded" - the resting state for buttons, cards, panels,
-popovers) and `--shadow-inset`/`-deep`/`-sm` (pressed/"carved" - wells for inputs, icon circles, the Gantt's scroll frame, and the
-`:active`/`.active` state of anything that reads as "currently pressed or selected"). The shadow colour itself is two more tokens,
-`--sh-hi`/`--sh-lo` (RGB triples, not full colours, so `rgba(var(--sh-lo),0.6)` composes cleanly) - dark mode only needs to override
-those two plus the base paper/ink colours, and every `--shadow-*` token recomputes automatically since CSS custom properties resolve
-at use time, not at definition time. `--line` changed from a solid hex to a soft translucent `rgba(163,177,198,0.35)` - kept only for
-things that still want a plain divider (table row separators, the Gantt's grid lines, a couple of `border-bottom` dividers in popovers)
-rather than a full shadow treatment, since those already relied on `var(--line)` throughout the file and recolour themselves for free.
-`--paper-dim` is NOT identical to `--paper` (a deliberate deviation from "same colour" for anything that must stay opaque against
-scrolled content behind it - the Gantt's sticky frozen columns/header row, the sidebar strip, `.docno` chips) - it's a few percent
-darker, still visibly "the same material," but solid enough that position:sticky cells don't let scrolled-past content show through
-a translucent fill.
+from one base colour (`--paper`/`--card`, both the same value - per the system's own anti-pattern rule "never a separate white/card
+colour"), and shadows do all the work borders used to do. All the physics lives in `:root` as reusable tokens: `--shadow-ext`/
+`-hover`/`-sm` (raised/"extruded" - the resting state for buttons, cards, panels, popovers) and `--shadow-inset`/`-deep`/`-sm`
+(pressed/"carved" - wells for inputs, icon circles, the Gantt's scroll frame, and the `:active`/`.active` state of anything that
+reads as "currently pressed or selected"). The shadow colour itself is two more tokens, `--sh-hi`/`--sh-lo` (RGB triples, not full
+colours, so `rgba(var(--sh-lo),0.6)` composes cleanly) - dark mode only needs to override those two plus the base paper/ink colours,
+and every `--shadow-*` token recomputes automatically since CSS custom properties resolve at use time, not at definition time.
+`--line` is a soft translucent tint of `--ink-soft` - kept only for things that still want a plain divider (table row separators,
+the Gantt's grid lines, a couple of `border-bottom` dividers in popovers) rather than a full shadow treatment, since those already
+relied on `var(--line)` throughout the file and recolour themselves for free. `--paper-dim` is NOT identical to `--paper` (a
+deliberate deviation from "same colour" for anything that must stay opaque against scrolled content behind it - the Gantt's sticky
+frozen columns/header row, the sidebar strip, `.docno` chips) - it's a few percent darker, still visibly "the same material," but
+solid enough that position:sticky cells don't let scrolled-past content show through a translucent fill.
 
-Fonts follow the system's pair (`Plus Jakarta Sans` for `--font-display`/headings, `DM Sans` for `--font-body`) but BOTH stacks fall
-back to `Noto Sans Thai` (`'Plus Jakarta Sans','Noto Sans Thai',sans-serif`) - neither Latin font has Thai glyphs at all, and since
-nearly every string in this app is Thai, the fallback does essentially all the actual rendering work; only Latin letters/digits
-(doc numbers, part codes) actually show the new typeface. `.btn` (primary actions) takes the system's `rounded-2xl` (16px) spec
-literally and is filled solid `--accent` (`#6C63FF`); small inline pills that were already fully round before this (`.icon-btn`,
-`.badge`, `.filter-control`, `.page-btn`, `.subtab-item`) kept their `rounded-full` shape, read as the system's own "Inner Elements:
-12px or rounded-full" token rather than the primary-button token. Status colours (`--sun`/`--ok`/`--danger`/`--gray` and their
-`-soft` tints, `.badge.*`) keep their original semantic meaning (pending/active/ended/warning/danger) but were re-picked to sit
-naturally against the cooler base - since every badge/status rule already read from these variables rather than hard-coded hex,
-recolouring the tokens re-skinned all of them with no per-rule edits needed at all.
+**Palette history**: this started as a cool-grey palette (`#E0E5EC`/`#3D4852`/violet accent) taken from a Neumorphism moodboard.
+The user later shared a separate warm-editorial design brief for the ปฏิทิน (Calendar) page (ivory canvas, terracotta accent,
+sage/dusty-blue/amber categories) and then asked for that SAME warm palette across the whole app, with the Neumorphism shadow
+system staying everywhere including the calendar - so the tokens were repainted warm (`--paper:#EFE7D9`, `--ink:#1A1714`,
+`--ink-soft:#8B8178`, `--accent:#C4623D` terracotta, `--sun:#CF9749` amber, `--ok:#7A8A6F` sage, `--danger:#AE4438`) rather than
+literally reusing the calendar's own near-white `#faf7f2` - a base that light leaves too little headroom between its highlight and
+shadow tints for the dual-shadow effect to read clearly, so it was deepened slightly while keeping the same warm hue. Dark mode
+follows the same logic with a warm-espresso base (`#241C15`) instead of the earlier cool-slate one.
 
-**Deliberately left outside this system** (asked for "the whole web UI," but a few things aren't really "UI" in that sense, or
-actively work against dual soft shadows):
-- **The printed handover document / Action Plan PDF** (`@media print`, every `.pr-*`/`.ho-*` rule) - untouched. It's a formal business
-  document measured against `docs/handover-template.docx` (TH Sarabun New, navy/gold), not a screen surface, and Chromium's print
-  engine doesn't render soft box-shadows the same way anyway.
+**Fonts**: `Chillax` (Latin letters + numbers) paired with `RSU` (Thai) - both local font files under `fonts/` (the user's own,
+loaded via `@font-face`, not a font pairing Claude picked), replacing the Google-Fonts pairs used earlier in the session. Every
+font-family list puts Chillax first (`'Chillax','RSU',sans-serif`) - it has no Thai glyphs at all, so Thai text (nearly everything
+in this app) falls straight through to RSU per-codepoint, while Chillax wins for the Latin/numeric text it does cover (doc numbers,
+part codes, English labels). `Noto Sans Thai`/`Sarabun` are still loaded from Google Fonts, but ONLY as the printed handover
+document's own fallback fonts (see "Printing" below) - the on-screen app no longer uses either. `.btn` (primary actions) takes the
+system's `rounded-2xl` (16px) spec literally and is filled solid `--accent`; small inline pills that were already fully round
+before this (`.icon-btn`, `.badge`, `.filter-control`, `.page-btn`, `.subtab-item`) kept their `rounded-full` shape, read as the
+system's own "Inner Elements: 12px or rounded-full" token rather than the primary-button token. Status colours (`--sun`/`--ok`/
+`--danger`/`--gray` and their `-soft` tints, `.badge.*`) keep their original semantic meaning (pending/active/ended/warning/danger)
+- since every badge/status rule already reads from these variables rather than hard-coded hex, repainting the tokens re-skinned
+all of them with no per-rule edits needed at all.
+
+**Deliberately left outside this system**:
+- **The printed handover document / Action Plan PDF** (`@media print`, every `.pr-*`/`.ho-*` rule) - untouched, including its own
+  font-family list. It's a formal business document measured against `docs/handover-template.docx` (TH Sarabun New, navy/gold),
+  not a screen surface, and Chromium's print engine doesn't render soft box-shadows the same way anyway.
 - **Dense data tables** (`td`/`th`, list rows) - rows stay flat with a thin `var(--line)` divider inside one outer `--shadow-ext`/
   `--shadow-inset` panel/frame, rather than every row or cell getting its own dual shadow - real neumorphism examples nest a "flat"
   content region inside one raised/carved container rather than stacking shadows per row, and doing the latter here (hundreds of
@@ -49,9 +58,9 @@ actively work against dual soft shadows):
 - **The Gantt's per-task bar colours** (`PLAN_COLORS`) and the PDF viewer's own page canvas (`.pdf-page` stays literal white) -
   categorical/functional colours unrelated to the neutral chrome; recolouring a chart palette or making a rendered document page
   look tinted would hurt legibility for no visual-identity benefit.
-- **Dark mode's exact shadow values** are this session's own extension, not part of the source spec (which only ever gives a light
-  palette) - a dark cool-slate base (`#2B2F36`) with a lighter tint standing in for the "light source" shadow and near-black for the
-  "falls away" shadow, following the same dual-shadow physics as light mode.
+- **Dark mode's exact shadow values** are this session's own extension, not part of any source spec (both palette briefs only ever
+  gave a light version) - a lighter warm tint standing in for the "light source" shadow and near-black for the "falls away" shadow,
+  following the same dual-shadow physics as light mode.
 
 ## Dashboard: donut gauge + monthly bar chart + segmented toggle
 Reworked to echo a reference "UI Widgets" neumorphism moodboard the user shared, using the app's own real data rather than
@@ -77,40 +86,56 @@ have no PM-SALE equivalent, so weren't added). Three concrete pieces came out of
   `.subtabs` div; the audit page, already wrapped) picked this up with no JS changes.
 
 ## ปฏิทิน (Calendar)
-A new top-level page (its own permanent rail icon, next to แดชบอร์ด - not folded into a group, same reasoning as dashboard/
-Action Plan) requested with an explicit, complete design brief (colours, fonts, layout) to follow "regardless of the other
-pages" - so it deliberately does NOT use the Neumorphism tokens above. Everything is scoped under one `.cal-root` class
-(`= #tab-calendar`) with its own `--cal-*` custom properties (ivory `#faf7f2` canvas, near-black ink, terracotta/sage/dusty-blue/
-amber accents, `Fraunces`+`Inter` fonts falling back to `Noto Sans Thai` the same way the Neumorphism fonts do) so neither
-system leaks into the other; `.cal-root{ margin:-32px -36px; }` cancels out `.content`'s own padding so the page reads as a
-genuine full-bleed canvas rather than a card floating inside the app chrome.
+A top-level page (its own permanent rail icon, next to แดชบอร์ด - not folded into a group, same reasoning as dashboard/Action
+Plan). It shipped first as a deliberately separate "warm editorial" design system, then was folded into the shared Neumorphism
+tokens above once the user asked for one consistent look everywhere - `.cal-root` (`= #tab-calendar`) now just reuses
+`var(--paper)`/`var(--card)`/`var(--shadow-*)`/etc like every other page, plus two hue-only tokens for its own two categories
+that don't already have a shared semantic colour (`--cal-blue` for โครงการ, `--cal-plum` for นัดหมาย - sale/plan/delivery reuse
+`--accent`/`--ok`/`--sun` directly). `.cal-root{ margin:-32px -36px; }` still cancels out `.content`'s own padding so the page
+reads as a full-bleed canvas; `.cal-topbar{ position:sticky; top:0; background:var(--paper); }` **must stay fully opaque** -
+it briefly shipped with a translucent `rgba(...,0.92)` + `backdrop-filter:blur()` background (copied from the original design
+brief) which let scrolled-away content underneath show through as a blurred, overlapping mess once the page had enough rows
+to scroll - a real regression caught from a screenshot, not something a computed-style test would have flagged.
 
-**There is no separate "calendar event" data or collection.** Every entry `buildCalendarEvents()` produces is derived, read-only,
-from records the app already has, sorted into the reference's four muted colour families:
-- **ซื้อขาย** (terracotta) - a sale's own `startDate` ("สั่งซื้อ").
-- **โครงการ** (dusty blue) - a project's `startDate` ("เซ็นสัญญา") and `endDate` ("สิ้นสุดสัญญา").
-- **แผนดำเนินการ** (sage) - every Action Plan leaf step's own due date, via the existing `planLeaves(p.plan)` helper (same one
-  the Gantt chart uses), titled with the step's own name.
-- **ส่งงาน/ประกัน** (amber) - each entry in a project's `deliveries[]` (by its own `date`) and the computed warranty expiry
+Four of five event categories are derived, read-only, from records the app already has (`buildCalendarEvents()`):
+- **ซื้อขาย** - a sale's own `startDate` ("สั่งซื้อ").
+- **โครงการ** - a project's `startDate` ("เซ็นสัญญา") and `endDate` ("สิ้นสุดสัญญา").
+- **แผนดำเนินการ** - every Action Plan leaf step's own due date, via the existing `planLeaves(p.plan)` helper (same one the
+  Gantt chart uses), titled with the step's own name.
+- **ส่งงาน/ประกัน** - each entry in a project's `deliveries[]` (by its own `date`) and the computed warranty expiry
   (`projectWarranty(p).expiry`) share one bucket, since both read as "something falls due" for the same audience.
 
-Clicking any event chip calls `openProjectView(id)` - the calendar has no editing UI of its own; it hands off to that job's
-own (Neumorphism-styled) read-only view modal, same as clicking a row on the ซื้อขาย/โครงการ list. "+ รายการใหม่" is a small
-dropdown to `openProjectForm(null,'sale'|'project')` rather than a calendar-only "add event" flow, since a fabricated event
-with no real job behind it would have nowhere to live. Because none of these dates carry a time-of-day (`startDate`/`endDate`/
-etc. are plain `YYYY-MM-DD` strings), the reference design's hourly time-grid, current-time line, and side-by-side
+Clicking one of those four calls `openProjectView(id)` - hands off to that job's own read-only view modal, same as clicking a
+row on the ซื้อขาย/โครงการ list. Because none of these dates carry a time-of-day (`startDate`/`endDate`/etc. are plain
+`YYYY-MM-DD` strings), the original reference design's hourly time-grid, current-time line, and side-by-side
 overlapping-time-slot split were all left out - there's no time component to position them against - and every event instead
-renders as a whole-day chip (`calChip()`) inside whichever view is active:
-- **สัปดาห์ (week, default)** - 7 day columns, each stacking that day's chips vertically (no fixed height, grows with content).
-- **เดือน (month)** - a traditional 6-row month grid, up to 3 chips per cell plus a "+N เพิ่มเติม" overflow count.
-- **วัน (day)** - a single large-format agenda list for one day.
+renders as a whole-day chip (`calChip()`) inside whichever view is active: **เดือน (month, default)** - a traditional 6-row
+grid, up to 3 chips per cell plus a "+N เพิ่มเติม" overflow count; **สัปดาห์ (week)** - 7 day columns, each stacking that
+day's chips vertically; **วัน (day)** - a single large-format agenda list for one day. The topbar's month/year title and the
+sidebar's mini-month header use `MONTH_TH_FULL` (full Thai month names) rather than the abbreviated `MONTH_TH` used everywhere
+else in the app (`fmtDate()` etc.), since this page's own header was specifically asked to spell the month out in full.
 
-The sidebar's mini-month picker, "ปฏิทินของฉัน" category checklist (`calActiveCats`, a real filter - unticking a category hides
-it from the grid, the up-next list, and the mini-picker has nothing to do with it directly), and "ถัดไป" mini-agenda (next 6
-upcoming events, ignoring the search box but respecting the category filter) are all driven off the same single `calRefDate`/
-`calActiveCats`/`calSearchTerm` state and `buildCalendarEvents()` call - there's no separate data path per widget. `calYMD()`/
-`calParseYMD()` format and parse `YYYY-MM-DD` using local date components (never `toISOString()`, which converts through UTC
-and can roll the date back a day for the calendar's own users depending on the browser's timezone offset).
+**นัดหมาย (appointment) is the fifth category, and the one real thing this page lets you create.** Unlike the other four, it
+has an actual time-of-day and its own Firestore collection, `pm_appointments` (`title`, `date`, `time`, `customerId`/
+`customerName`, `mode:'visit'|'online'`, `location` (mode `visit`) or `link`/`meetingId`/`passcode` (mode `online`),
+`createdBy`/`createdAt`) - scoped and rule-gated exactly like `pm_customers` (own-`createdBy` read/write for a non-admin, admin
+sees everything; see `firestore.rules` - **publish it before this feature works for a non-admin**). It has no soft-delete: an
+appointment is a personal scheduling note, not business data, so "ลบ" in `#appointmentModal` calls `.delete()` for real rather
+than routing through Trash. "+ รายการใหม่" opens that same modal directly (`openAppointmentModal(null, calYMD(calRefDate))`,
+pre-filling the date/time inputs to whatever day is currently focused) - there's no dropdown to also create a sale/project from
+here any more, since the page's purpose was reframed specifically around booking appointments, not general record creation.
+The mode toggle (`#apptModeSwitch`) reuses the shared `.subtabs`/`.subtab-item` segmented-control classes directly; picking
+"เข้าพบลูกค้า" shows only the location field, "ออนไลน์" shows link/meeting-ID/passcode instead (`setApptMode()` toggles both the
+active class and each field group's `display`). Editing reopens the same modal pre-filled (`editingAppointmentId` set) rather
+than a separate view-then-edit step like the ซื้อขาย/โครงการ pattern - a single-owner scheduling note doesn't carry the same
+multi-editor risk that pattern exists to guard against.
+
+The sidebar's mini-month picker, "ปฏิทินของฉัน" category checklist (`calActiveCats`, a real filter - unticking a category
+hides it from the grid and the up-next list), and "ถัดไป" mini-agenda (next 6 upcoming events, ignoring the search box but
+respecting the category filter) are all driven off the same single `calRefDate`/`calActiveCats`/`calSearchTerm` state and
+`buildCalendarEvents()` call - there's no separate data path per widget. `calYMD()`/`calParseYMD()` format and parse
+`YYYY-MM-DD` using local date components (never `toISOString()`, which converts through UTC and can roll the date back a day
+depending on the browser's timezone offset).
 
 ## Data model (short)
 `pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse` (goods, `kind:'good'`) or `pm_serviceWarehouse` (services, `kind:'service'`, `svcId` instead of
@@ -121,7 +146,8 @@ installment, or the last one once everything is in - not `installmentNo` directl
 `pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB
 each, 8 per project - a `role:'closing'` one is the ปิดงาน signed document instead, exactly one per job, not one of the 8), `pm_photos` (handover photos, base64 <=900 KB
 each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved),
-`pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
+`pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable), `pm_appointments` (ปฏิทิน's own นัดหมาย records - see
+"ปฏิทิน (Calendar)" below; no soft delete, a real `.delete()`). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
 
 ## Menus
 ซื้อขาย (`tab-sales`, `#salesBody`) and โครงการ (`tab-projects`, `#projectsBody`) are separate menus over the same `pm_projects` collection; `renderJobs(kind)` draws both. There is no job-type select/filter/column any more: `openProjectForm(id, kind)` sets the hidden `#prjJobType` from the menu.

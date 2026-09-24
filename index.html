@@ -16,42 +16,56 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <!-- pdf.js is loaded lazily on first use (loadPdfJs() near the catalog code) - most sessions never open a PDF, so it no longer blocks every page load -->
-<!-- Plus Jakarta Sans / DM Sans (Neumorphism design system's type pair) have no Thai glyphs at all, so both stacks fall back to
-     Noto Sans Thai for Thai text - the Latin font supplies its own glyphs for anything it can render, Thai falls through per-codepoint.
-     Fraunces / Inter are the ปฏิทิน page's own separate type pair (its own self-contained design system - see CLAUDE.md "ปฏิทิน"),
-     same Thai-fallback logic applies. -->
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- The printed handover/Action Plan documents must keep matching docs/handover-template.docx exactly (see "Printing" in
+     CLAUDE.md), so their own font-family list is untouched by the app-wide font below - Noto Sans Thai/Sarabun stay loaded
+     only as ITS fallback fonts. -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
+  /* App-wide type: Chillax (Latin + numbers) / RSU (Thai) - local files under fonts/, replacing the earlier Google-Fonts pair.
+     Chillax has no Thai glyphs at all, so every font-family list below lists it first and lets Thai text fall through to RSU
+     per-codepoint - same fallback trick the app already used for its earlier font pairs. Not used by the printed documents
+     (see the <link> comment above and "Printing" in CLAUDE.md) - those keep their own separate font-family list unconditionally. */
+  @font-face{ font-family:'Chillax'; src:url('fonts/Chillax_Complete/Fonts/WEB/fonts/Chillax-Extralight.woff2') format('woff2'); font-weight:200; font-display:swap; }
+  @font-face{ font-family:'Chillax'; src:url('fonts/Chillax_Complete/Fonts/WEB/fonts/Chillax-Light.woff2') format('woff2'); font-weight:300; font-display:swap; }
+  @font-face{ font-family:'Chillax'; src:url('fonts/Chillax_Complete/Fonts/WEB/fonts/Chillax-Regular.woff2') format('woff2'); font-weight:400; font-display:swap; }
+  @font-face{ font-family:'Chillax'; src:url('fonts/Chillax_Complete/Fonts/WEB/fonts/Chillax-Medium.woff2') format('woff2'); font-weight:500; font-display:swap; }
+  @font-face{ font-family:'Chillax'; src:url('fonts/Chillax_Complete/Fonts/WEB/fonts/Chillax-Semibold.woff2') format('woff2'); font-weight:600; font-display:swap; }
+  @font-face{ font-family:'Chillax'; src:url('fonts/Chillax_Complete/Fonts/WEB/fonts/Chillax-Bold.woff2') format('woff2'); font-weight:700; font-display:swap; }
+  @font-face{ font-family:'RSU'; src:url('fonts/RSU/RSU_light.ttf') format('truetype'); font-weight:300; font-display:swap; }
+  @font-face{ font-family:'RSU'; src:url('fonts/RSU/RSU_Regular.ttf') format('truetype'); font-weight:400; font-display:swap; }
+  @font-face{ font-family:'RSU'; src:url('fonts/RSU/RSU_BOLD.ttf') format('truetype'); font-weight:700; font-display:swap; }
   :root{
-    /* ---- Neumorphism (Soft UI): every surface is molded from the same cool-grey material - shadows, not borders or separate
-       card colours, define every edge. See CLAUDE.md "Design system: Neumorphism" for the full rationale. ---- */
-    --font-display:'Plus Jakarta Sans','Noto Sans Thai',sans-serif;
-    --font-body:'DM Sans','Noto Sans Thai',sans-serif;
-    --paper:#E0E5EC; --paper-dim:#D6DCE4; --card:#E0E5EC;
-    --ink:#3D4852; --ink-soft:#6B7280; --line:rgba(163,177,198,0.35);
-    --accent:#6C63FF; --accent-light:#8B84FF; --accent-soft:rgba(108,99,255,0.14);
-    --sun:#C97A2B; --sun-soft:rgba(201,122,43,0.16);
-    --ok:#2C8983; --ok-ink:#236e69; --ok-soft:rgba(56,178,172,0.18);
-    --gray:#6B7280; --gray-soft:rgba(107,114,128,0.16);
-    --danger:#D6416A; --danger-soft:rgba(214,65,106,0.14);
+    /* ---- Neumorphism (Soft UI): every surface is molded from the same warm-ivory material - shadows, not borders or separate
+       card colours, define every edge. Colour palette follows the ปฏิทิน (Calendar) page's own warm-editorial brief, since the
+       whole app was asked to match it; see CLAUDE.md "Design system: Neumorphism" for the full rationale. ---- */
+    --font-display:'Chillax','RSU',sans-serif;
+    --font-body:'Chillax','RSU',sans-serif;
+    --paper:#EFE7D9; --paper-dim:#E5DAC6; --card:#EFE7D9;
+    --ink:#1A1714; --ink-soft:#8B8178; --line:rgba(139,129,120,0.32);
+    --accent:#C4623D; --accent-light:#DD8760; --accent-soft:rgba(196,98,61,0.16);
+    --sun:#CF9749; --sun-soft:rgba(207,151,73,0.18);
+    --ok:#7A8A6F; --ok-ink:#5C6B52; --ok-soft:rgba(122,138,111,0.2);
+    --gray:#8B8178; --gray-soft:rgba(139,129,120,0.18);
+    --danger:#AE4438; --danger-soft:rgba(174,68,56,0.16);
     /* dual-shadow components (rgb triples, composed below) - light source top-left, dark falls bottom-right */
-    --sh-hi:255,255,255; --sh-lo:163,177,198;
-    --shadow-ext:9px 9px 16px rgba(var(--sh-lo),0.6), -9px -9px 16px rgba(var(--sh-hi),0.5);
-    --shadow-ext-hover:12px 12px 20px rgba(var(--sh-lo),0.7), -12px -12px 20px rgba(var(--sh-hi),0.6);
-    --shadow-ext-sm:5px 5px 10px rgba(var(--sh-lo),0.6), -5px -5px 10px rgba(var(--sh-hi),0.5);
-    --shadow-inset:inset 6px 6px 10px rgba(var(--sh-lo),0.6), inset -6px -6px 10px rgba(var(--sh-hi),0.5);
-    --shadow-inset-deep:inset 10px 10px 20px rgba(var(--sh-lo),0.7), inset -10px -10px 20px rgba(var(--sh-hi),0.6);
-    --shadow-inset-sm:inset 3px 3px 6px rgba(var(--sh-lo),0.6), inset -3px -3px 6px rgba(var(--sh-hi),0.5);
+    --sh-hi:255,251,244; --sh-lo:176,159,135;
+    --shadow-ext:9px 9px 16px rgba(var(--sh-lo),0.55), -9px -9px 16px rgba(var(--sh-hi),0.85);
+    --shadow-ext-hover:12px 12px 20px rgba(var(--sh-lo),0.65), -12px -12px 20px rgba(var(--sh-hi),0.9);
+    --shadow-ext-sm:5px 5px 10px rgba(var(--sh-lo),0.55), -5px -5px 10px rgba(var(--sh-hi),0.85);
+    --shadow-inset:inset 6px 6px 10px rgba(var(--sh-lo),0.55), inset -6px -6px 10px rgba(var(--sh-hi),0.85);
+    --shadow-inset-deep:inset 10px 10px 20px rgba(var(--sh-lo),0.65), inset -10px -10px 20px rgba(var(--sh-hi),0.9);
+    --shadow-inset-sm:inset 3px 3px 6px rgba(var(--sh-lo),0.55), inset -3px -3px 6px rgba(var(--sh-hi),0.85);
   }
   :root[data-theme="dark"]{
     /* The source design system only specifies a light palette; this dark variant applies the same dual-shadow physics
-       to a dark cool-slate base (lighter tint = "light source", near-black = the falling shadow) so the theme toggle still works. */
-    --paper:#2B2F36; --paper-dim:#242830; --card:#2B2F36;
-    --ink:#E7E9ED; --ink-soft:#9AA3AF; --line:rgba(0,0,0,0.4);
-    --accent-soft:rgba(108,99,255,0.22); --sun-soft:rgba(201,122,43,0.22);
-    --ok-soft:rgba(56,178,172,0.22); --gray-soft:rgba(154,163,175,0.18);
-    --danger-soft:rgba(214,65,106,0.22);
-    --sh-hi:60,66,76; --sh-lo:0,0,0;
+       to a dark warm-espresso base (lighter warm tint = "light source", near-black = the falling shadow) so the theme
+       toggle still works. */
+    --paper:#241C15; --paper-dim:#1A140F; --card:#241C15;
+    --ink:#F2E9DC; --ink-soft:#B7A794; --line:rgba(0,0,0,0.4);
+    --accent-soft:rgba(196,98,61,0.24); --sun-soft:rgba(207,151,73,0.24);
+    --ok-soft:rgba(122,138,111,0.26); --gray-soft:rgba(183,167,148,0.2);
+    --danger-soft:rgba(174,68,56,0.26);
+    --sh-hi:64,50,36; --sh-lo:0,0,0;
   }
   *{ margin:0; padding:0; box-sizing:border-box; }
   body{ background:var(--paper); color:var(--ink); font-family:var(--font-body); line-height:1.5; transition:background-color .2s ease, color .2s ease; }
@@ -396,103 +410,98 @@
   .user-avatar{ display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; font-size:13px; font-weight:600; background:var(--paper-dim); box-shadow:var(--shadow-inset-sm); color:var(--accent); overflow:hidden; cursor:pointer; }
   .user-avatar img{ width:100%; height:100%; object-fit:cover; }
 
-  /* ====== ปฏิทิน (Calendar): its own self-contained "warm editorial" design system - deliberately NOT the rest of the app's
-     Neumorphism tokens (asked for by name, color and font, independent of every other page). Everything is scoped under
-     .cal-root (= #tab-calendar) so none of it leaks out, and none of the outer --paper/--ink/etc tokens leak in. ====== */
-  .cal-root{
-    --cal-bg:#faf7f2; --cal-ink:#1a1714; --cal-muted:#8b8178; --cal-line:rgba(139,129,120,0.22); --cal-card:#fff;
-    --cal-terracotta:#c4623d; --cal-terracotta-tint:#f3e2da; --cal-terracotta-ink:#9a4a2c;
-    --cal-sage:#7a8a6f; --cal-sage-tint:#e6ebe0; --cal-sage-ink:#57634c;
-    --cal-blue:#6f8299; --cal-blue-tint:#e4e9ee; --cal-blue-ink:#4d5f74;
-    --cal-amber:#cf9749; --cal-amber-tint:#f6e9d2; --cal-amber-ink:#9c6f2c;
-    --cal-serif:'Fraunces','Noto Sans Thai',serif; --cal-sans:'Inter','Noto Sans Thai',sans-serif;
-    background:var(--cal-bg); margin:-32px -36px; padding:0 0 40px; color:var(--cal-ink); font-family:var(--cal-sans);
-  }
+  /* ====== ปฏิทิน (Calendar): now folded into the same Neumorphism system + warm palette as the rest of the app (it used to be
+     a deliberately separate "warm editorial" design - the user later asked for the whole app to share one look instead), so
+     .cal-* rules below just reuse var(--paper)/var(--card)/var(--shadow-*)/etc. Two extra hue-only tokens (--cal-blue,
+     --cal-plum) cover this page's own two categories that don't already have a shared semantic colour (โครงการ, นัดหมาย). ====== */
+  .cal-root{ --cal-blue:#6F8299; --cal-blue-tint:rgba(111,130,153,0.16); --cal-blue-ink:#4D5F74;
+    --cal-plum:#96536A; --cal-plum-tint:rgba(150,83,106,0.16); --cal-plum-ink:#733E50;
+    background:var(--paper); margin:-32px -36px; padding:0 0 40px; color:var(--ink); }
   @media (max-width:760px){ .cal-root{ margin:-20px -16px; } }
-  .cal-topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:18px 32px; background:rgba(250,247,242,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--cal-line); }
+  .cal-topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:18px 32px; background:var(--paper); box-shadow:0 6px 16px rgba(var(--sh-lo),0.18); }
   .cal-brand{ display:flex; align-items:center; gap:10px; margin-right:6px; }
-  .cal-mark{ width:30px; height:30px; border-radius:9px; background:var(--cal-terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
-  .cal-title{ font-family:var(--cal-serif); font-size:19px; font-weight:600; color:var(--cal-ink); white-space:nowrap; }
-  .cal-title-year{ color:var(--cal-muted); font-weight:500; }
-  .cal-pill-btn{ height:34px; padding:0 16px; border-radius:100px; border:1px solid var(--cal-line); background:transparent; color:var(--cal-ink); font-family:var(--cal-sans); font-size:12.5px; font-weight:600; }
-  .cal-pill-btn:hover{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); }
-  .cal-icon-btn{ width:32px; height:32px; border-radius:50%; border:1px solid var(--cal-line); background:transparent; color:var(--cal-ink); font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .cal-mark{ width:34px; height:34px; border-radius:12px; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .cal-mark svg{ width:18px; height:18px; }
+  .cal-title{ font-family:var(--font-display); font-size:19px; font-weight:700; color:var(--ink); white-space:nowrap; }
+  .cal-title-year{ color:var(--ink-soft); font-weight:500; }
+  .cal-pill-btn{ height:34px; padding:0 16px; border-radius:100px; border:none; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--ink); font-size:12.5px; font-weight:600; transition:box-shadow .2s ease; }
+  .cal-pill-btn:hover{ box-shadow:var(--shadow-ext-hover); }
+  .cal-icon-btn{ width:32px; height:32px; border-radius:50%; border:none; background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--ink); font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; transition:box-shadow .2s ease; }
   .cal-icon-btn.sm{ width:24px; height:24px; font-size:13px; }
-  .cal-icon-btn:hover{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); color:var(--cal-terracotta-ink); }
-  .cal-switch{ display:inline-flex; gap:2px; background:#f0ebe3; padding:3px; border-radius:100px; margin-left:4px; }
-  .cal-switch-item{ padding:7px 14px; border-radius:100px; border:none; background:transparent; color:var(--cal-muted); font-family:var(--cal-sans); font-size:12.5px; font-weight:600; }
-  .cal-switch-item.active{ background:#fff; color:var(--cal-ink); box-shadow:0 1px 3px rgba(26,23,20,0.12); }
-  .cal-search{ height:34px; padding:0 14px; border-radius:100px; border:1px solid var(--cal-line); background:#fff; color:var(--cal-ink); font-family:var(--cal-sans); font-size:12.5px; width:170px; }
-  .cal-search::placeholder{ color:var(--cal-muted); }
-  .cal-search:focus{ outline:none; border-color:var(--cal-terracotta); }
-  .cal-new-wrap{ position:relative; margin-left:auto; }
-  .cal-new-btn{ height:36px; padding:0 18px; border-radius:100px; border:none; background:var(--cal-terracotta); color:#fff; font-family:var(--cal-sans); font-size:12.5px; font-weight:700; box-shadow:0 6px 16px rgba(196,98,61,0.32); }
-  .cal-new-btn:hover{ opacity:.92; }
-  .cal-new-menu{ position:absolute; right:0; top:calc(100% + 8px); background:#fff; border:1px solid var(--cal-line); border-radius:14px; box-shadow:0 14px 32px rgba(26,23,20,0.14); padding:8px; width:190px; z-index:20; flex-direction:column; gap:2px; }
-  .cal-new-menu button{ display:block; width:100%; text-align:left; padding:9px 11px; border-radius:9px; border:none; background:none; font-family:var(--cal-sans); font-size:12.5px; color:var(--cal-ink); }
-  .cal-new-menu button:hover{ background:var(--cal-terracotta-tint); color:var(--cal-terracotta-ink); }
+  .cal-icon-btn:hover{ box-shadow:var(--shadow-ext-hover); color:var(--accent); }
+  .cal-switch{ display:inline-flex; gap:2px; background:var(--paper); box-shadow:var(--shadow-inset-sm); padding:3px; border-radius:100px; margin-left:4px; }
+  .cal-switch-item{ padding:7px 14px; border-radius:100px; border:none; background:transparent; color:var(--ink-soft); font-size:12.5px; font-weight:600; box-shadow:none; transition:box-shadow .2s ease, color .2s ease; }
+  .cal-switch-item.active{ background:var(--paper); color:var(--accent); box-shadow:var(--shadow-ext-sm); }
+  .cal-search{ height:34px; padding:0 14px; border-radius:100px; border:none; background:var(--paper); box-shadow:var(--shadow-inset-sm); color:var(--ink); font-size:12.5px; width:170px; }
+  .cal-search::placeholder{ color:var(--ink-soft); }
+  .cal-search:focus{ outline:none; box-shadow:var(--shadow-inset); }
+  .cal-new-btn{ height:36px; padding:0 18px; border-radius:100px; border:none; background:var(--accent); color:#fff; font-size:12.5px; font-weight:700; box-shadow:var(--shadow-ext); margin-left:auto; transition:transform .2s ease-out, box-shadow .2s ease-out; }
+  .cal-new-btn:hover{ transform:translateY(-1px); box-shadow:var(--shadow-ext-hover); }
 
   .cal-body{ display:flex; align-items:flex-start; }
-  .cal-sidebar{ width:264px; flex-shrink:0; padding:22px 20px; border-right:1px solid var(--cal-line); align-self:stretch; }
+  .cal-sidebar{ width:264px; flex-shrink:0; padding:22px 20px; align-self:stretch; }
+  .cal-mini{ background:var(--card); border-radius:24px; padding:16px; box-shadow:var(--shadow-ext); }
   .cal-mini-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
-  .cal-mini-head span{ font-family:var(--cal-serif); font-size:14.5px; font-weight:600; }
+  .cal-mini-head span{ font-family:var(--font-display); font-size:14.5px; font-weight:700; }
   .cal-mini-head div{ display:flex; gap:4px; }
-  .cal-mini-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10px; color:var(--cal-muted); margin-bottom:4px; }
+  .cal-mini-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10px; color:var(--ink-soft); margin-bottom:4px; }
   .cal-mini-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-  .cal-mini-cell{ position:relative; height:26px; display:flex; align-items:center; justify-content:center; font-size:11.5px; border-radius:50%; color:var(--cal-ink); cursor:pointer; }
-  .cal-mini-cell.other-month{ color:#cfc7bd; }
-  .cal-mini-cell.in-week{ background:var(--cal-terracotta-tint); border-radius:0; }
+  .cal-mini-cell{ position:relative; height:26px; display:flex; align-items:center; justify-content:center; font-size:11.5px; border-radius:50%; color:var(--ink); cursor:pointer; }
+  .cal-mini-cell.other-month{ color:var(--ink-soft); opacity:.5; }
+  .cal-mini-cell.in-week{ background:var(--accent-soft); border-radius:0; }
   .cal-mini-cell.in-week.week-start{ border-radius:50% 0 0 50%; }
   .cal-mini-cell.in-week.week-end{ border-radius:0 50% 50% 0; }
-  .cal-mini-cell.today{ background:var(--cal-terracotta); color:#fff; font-weight:700; border-radius:50%; }
-  .cal-side-section{ margin-top:26px; }
-  .cal-eyebrow{ font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--cal-muted); text-transform:uppercase; margin-bottom:12px; }
+  .cal-mini-cell.today{ background:var(--accent); color:#fff; font-weight:700; border-radius:50%; box-shadow:var(--shadow-ext-sm); }
+  .cal-side-section{ margin-top:22px; background:var(--card); border-radius:24px; padding:16px; box-shadow:var(--shadow-ext); }
+  .cal-eyebrow{ font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--ink-soft); text-transform:uppercase; margin-bottom:12px; }
   .cal-cat-row{ display:flex; align-items:center; gap:9px; padding:5px 0; font-size:12.5px; cursor:pointer; }
   .cal-cat-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
   .cal-cat-row.off{ opacity:.4; }
-  .cal-cat-row.disabled{ opacity:.4; cursor:default; }
-  .cal-cat-row input{ margin-left:auto; accent-color:var(--cal-terracotta); }
+  .cal-cat-row input{ margin-left:auto; accent-color:var(--accent); }
   .cal-agenda-row{ display:flex; gap:10px; padding:8px 0; }
-  .cal-agenda-time{ width:52px; flex-shrink:0; font-size:11px; color:var(--cal-muted); line-height:1.3; padding-top:1px; }
+  .cal-agenda-time{ width:52px; flex-shrink:0; font-size:11px; color:var(--ink-soft); line-height:1.3; padding-top:1px; }
   .cal-agenda-rule{ width:3px; border-radius:2px; flex-shrink:0; }
   .cal-agenda-title{ font-size:12.5px; font-weight:600; line-height:1.3; }
-  .cal-agenda-meta{ font-size:11px; color:var(--cal-muted); margin-top:2px; }
-  .cal-empty{ font-size:12px; color:var(--cal-muted); padding:4px 0; }
+  .cal-agenda-meta{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
+  .cal-empty{ font-size:12px; color:var(--ink-soft); padding:4px 0; }
 
   .cal-main{ flex:1; min-width:0; padding:22px 32px; }
   .cal-week-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
-  .cal-day-col{ min-height:220px; }
-  .cal-day-head{ text-align:center; padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid var(--cal-line); }
-  .cal-day-head .dow{ font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--cal-muted); text-transform:uppercase; }
-  .cal-day-head .num{ font-family:var(--cal-serif); font-size:19px; font-weight:600; margin-top:3px; }
-  .cal-day-head.today .num{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:var(--cal-terracotta); color:#fff; }
+  .cal-day-col{ min-height:220px; background:var(--card); border-radius:20px; padding:12px; box-shadow:var(--shadow-ext-sm); }
+  .cal-day-head{ text-align:center; padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid var(--line); }
+  .cal-day-head .dow{ font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--ink-soft); text-transform:uppercase; }
+  .cal-day-head .num{ font-family:var(--font-display); font-size:19px; font-weight:700; margin-top:3px; }
+  .cal-day-head.today .num{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:var(--accent); color:#fff; }
   .cal-day-events{ display:flex; flex-direction:column; gap:6px; }
-  .cal-chip{ display:block; text-align:left; width:100%; border:none; cursor:pointer; border-radius:8px; padding:6px 9px 6px 10px; border-left:3px solid; font-family:var(--cal-sans); }
+  .cal-chip{ display:block; text-align:left; width:100%; border:none; cursor:pointer; border-radius:10px; padding:6px 9px 6px 10px; border-left:3px solid; box-shadow:var(--shadow-ext-sm); transition:box-shadow .2s ease, transform .15s ease; }
+  .cal-chip:hover{ box-shadow:var(--shadow-ext-hover); transform:translateY(-1px); }
   .cal-chip .t{ font-size:12px; font-weight:700; line-height:1.3; display:block; }
   .cal-chip .m{ font-size:10.5px; opacity:.8; line-height:1.3; display:block; margin-top:1px; }
-  .cal-chip.cat-sale{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); color:var(--cal-terracotta-ink); }
+  .cal-chip.cat-sale{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
   .cal-chip.cat-project{ background:var(--cal-blue-tint); border-color:var(--cal-blue); color:var(--cal-blue-ink); }
-  .cal-chip.cat-plan{ background:var(--cal-sage-tint); border-color:var(--cal-sage); color:var(--cal-sage-ink); }
-  .cal-chip.cat-delivery{ background:var(--cal-amber-tint); border-color:var(--cal-amber); color:var(--cal-amber-ink); }
-  .cal-day-empty{ font-size:11.5px; color:#cfc7bd; text-align:center; padding-top:10px; }
+  .cal-chip.cat-plan{ background:var(--ok-soft); border-color:var(--ok); color:var(--ok-ink); }
+  .cal-chip.cat-delivery{ background:var(--sun-soft); border-color:var(--sun); color:var(--sun); }
+  .cal-chip.cat-appointment{ background:var(--cal-plum-tint); border-color:var(--cal-plum); color:var(--cal-plum-ink); }
+  .cal-day-empty{ font-size:11.5px; color:var(--ink-soft); opacity:.6; text-align:center; padding-top:10px; }
 
-  .cal-month-grid{ display:grid; grid-template-columns:repeat(7,1fr); border-top:1px solid var(--cal-line); border-left:1px solid var(--cal-line); }
-  .cal-month-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.05em; color:var(--cal-muted); text-transform:uppercase; padding-bottom:8px; }
-  .cal-month-cell{ min-height:104px; border-right:1px solid var(--cal-line); border-bottom:1px solid var(--cal-line); padding:6px; }
-  .cal-month-cell.other-month{ background:rgba(139,129,120,0.05); }
-  .cal-month-date{ font-family:var(--cal-serif); font-size:13px; font-weight:600; color:var(--cal-ink); width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin-bottom:4px; }
-  .cal-month-cell.other-month .cal-month-date{ color:#cfc7bd; }
-  .cal-month-cell.today .cal-month-date{ background:var(--cal-terracotta); color:#fff; }
-  .cal-chip-mini{ font-size:10px; font-weight:600; padding:2px 6px; border-radius:5px; border-left:2px solid; margin-bottom:2px; display:block; width:100%; text-align:left; border-top:none; border-right:none; border-bottom:none; cursor:pointer; font-family:var(--cal-sans); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .cal-chip-mini.cat-sale{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); color:var(--cal-terracotta-ink); }
+  .cal-month-grid{ display:grid; grid-template-columns:repeat(7,1fr); background:var(--card); border-radius:20px; box-shadow:var(--shadow-ext); overflow:hidden; }
+  .cal-month-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.05em; color:var(--ink-soft); text-transform:uppercase; padding-bottom:8px; }
+  .cal-month-cell{ min-height:104px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px; }
+  .cal-month-cell.other-month{ background:rgba(var(--sh-lo),0.06); }
+  .cal-month-date{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--ink); width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin-bottom:4px; }
+  .cal-month-cell.other-month .cal-month-date{ color:var(--ink-soft); opacity:.5; }
+  .cal-month-cell.today .cal-month-date{ background:var(--accent); color:#fff; }
+  .cal-chip-mini{ font-size:10px; font-weight:600; padding:2px 6px; border-radius:5px; border-left:2px solid; margin-bottom:2px; display:block; width:100%; text-align:left; border-top:none; border-right:none; border-bottom:none; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cal-chip-mini.cat-sale{ background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
   .cal-chip-mini.cat-project{ background:var(--cal-blue-tint); border-color:var(--cal-blue); color:var(--cal-blue-ink); }
-  .cal-chip-mini.cat-plan{ background:var(--cal-sage-tint); border-color:var(--cal-sage); color:var(--cal-sage-ink); }
-  .cal-chip-mini.cat-delivery{ background:var(--cal-amber-tint); border-color:var(--cal-amber); color:var(--cal-amber-ink); }
-  .cal-month-more{ font-size:10px; color:var(--cal-muted); padding-left:2px; cursor:pointer; }
+  .cal-chip-mini.cat-plan{ background:var(--ok-soft); border-color:var(--ok); color:var(--ok-ink); }
+  .cal-chip-mini.cat-delivery{ background:var(--sun-soft); border-color:var(--sun); color:var(--sun); }
+  .cal-chip-mini.cat-appointment{ background:var(--cal-plum-tint); border-color:var(--cal-plum); color:var(--cal-plum-ink); }
+  .cal-month-more{ font-size:10px; color:var(--ink-soft); padding-left:2px; cursor:pointer; }
 
-  .cal-day-agenda-head{ font-family:var(--cal-serif); font-size:26px; font-weight:600; margin-bottom:18px; }
+  .cal-day-agenda-head{ font-family:var(--font-display); font-size:26px; font-weight:700; margin-bottom:18px; }
   .cal-day-agenda{ display:flex; flex-direction:column; gap:10px; max-width:640px; }
-  .cal-day-agenda .cal-chip{ padding:12px 14px 12px 16px; border-radius:12px; }
+  .cal-day-agenda .cal-chip{ padding:12px 14px 12px 16px; border-radius:14px; }
   .cal-day-agenda .cal-chip .t{ font-size:14px; }
   .cal-day-agenda .cal-chip .m{ font-size:11.5px; margin-top:3px; }
 
@@ -786,7 +795,7 @@
       <div id="tab-calendar" class="tab-panel cal-root" style="display:none;">
         <div class="cal-topbar">
           <div class="cal-brand">
-            <span class="cal-mark">✳</span>
+            <span class="cal-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
             <div class="cal-title"><span id="calMonthName">-</span> <span class="cal-title-year" id="calYearName"></span></div>
           </div>
           <button class="cal-pill-btn" type="button" id="calTodayBtn">วันนี้</button>
@@ -794,17 +803,11 @@
           <button class="cal-icon-btn" type="button" id="calNextBtn" aria-label="ถัดไป">›</button>
           <div class="cal-switch" id="calViewSwitch">
             <button class="cal-switch-item" type="button" data-view="day">วัน</button>
-            <button class="cal-switch-item active" type="button" data-view="week">สัปดาห์</button>
-            <button class="cal-switch-item" type="button" data-view="month">เดือน</button>
+            <button class="cal-switch-item" type="button" data-view="week">สัปดาห์</button>
+            <button class="cal-switch-item active" type="button" data-view="month">เดือน</button>
           </div>
           <input type="text" id="calSearchInput" class="cal-search" placeholder="ค้นหารายการ...">
-          <div class="cal-new-wrap">
-            <button class="cal-new-btn" type="button" id="calNewBtn">+ รายการใหม่</button>
-            <div class="cal-new-menu" id="calNewMenu" style="display:none;">
-              <button type="button" id="calNewSaleBtn">+ เพิ่มการซื้อขาย</button>
-              <button type="button" id="calNewProjectBtn">+ เพิ่มโครงการ</button>
-            </div>
-          </div>
+          <button class="cal-new-btn" type="button" id="calNewBtn">+ รายการใหม่</button>
         </div>
         <div class="cal-body">
           <aside class="cal-sidebar">
@@ -1379,6 +1382,39 @@
   </div>
 </div>
 
+<!-- ปฏิทิน: create/edit a นัดหมาย (personal appointment - own collection, real delete, not a soft-deleted business record) -->
+<div class="modal-overlay" id="appointmentModal" style="display:none;">
+  <div class="modal" style="max-width:520px;">
+    <h3 class="serif" id="apptModalTitle" style="font-size:19px; margin-bottom:14px;">นัดหมายใหม่</h3>
+    <form id="appointmentForm">
+      <div class="form-grid">
+        <div class="field full"><label>หัวข้อนัดหมาย *</label><input type="text" id="apptTitle" required></div>
+        <div class="field"><label>วันที่ *</label>
+          <div class="date-edit-wrap"><input type="date" id="apptDate" required><span class="date-display placeholder" id="apptDateText">dd/mm/yyyy</span></div>
+        </div>
+        <div class="field"><label>เวลา *</label><input type="time" id="apptTime" required></div>
+        <div class="field full"><label>บริษัท / ลูกค้า</label><select id="apptCustomer"><option value="">— ไม่ระบุ —</option></select></div>
+        <div class="field full">
+          <label>รูปแบบการนัดหมาย</label>
+          <div class="subtabs" id="apptModeSwitch" style="margin-bottom:0;">
+            <button class="subtab-item active" type="button" data-mode="visit">เข้าพบลูกค้า</button>
+            <button class="subtab-item" type="button" data-mode="online">ออนไลน์</button>
+          </div>
+        </div>
+        <div class="field full" id="apptVisitField"><label>สถานที่นัดพบ</label><input type="text" id="apptLocation" placeholder="เช่น สำนักงานลูกค้า ชั้น 5"></div>
+        <div class="field full" id="apptOnlineField" style="display:none;"><label>ลิงก์ประชุม</label><input type="text" id="apptLink" placeholder="ลิงก์ Google Meet หรือ Microsoft Teams"></div>
+        <div class="field" id="apptMeetingIdField" style="display:none;"><label>เลขประชุม</label><input type="text" id="apptMeetingId"></div>
+        <div class="field" id="apptPasscodeField" style="display:none;"><label>รหัสผ่าน</label><input type="text" id="apptPasscode"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn danger" type="button" id="apptDeleteBtn" style="display:none; margin-right:auto;">ลบ</button>
+        <button class="btn outline" type="button" id="apptCancelBtn">ยกเลิก</button>
+        <button class="btn" type="submit" id="apptSaveBtn">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Action plan editor -->
 <div class="modal-overlay" id="planModal" style="display:none;">
   <div class="modal wide">
@@ -1678,12 +1714,12 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.22.0';
+const APP_VERSION = '1.23.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
-  warehouse:'pm_warehouse', serviceWarehouse:'pm_serviceWarehouse', files:'pm_files', photos:'pm_photos', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog'
+  warehouse:'pm_warehouse', serviceWarehouse:'pm_serviceWarehouse', files:'pm_files', photos:'pm_photos', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog', appointments:'pm_appointments'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -1761,7 +1797,7 @@ let currentTab = 'dashboard';
 let authMode = 'signin';
 let pendingSignupName = '';
 let justLoggedInViaForm = false;
-const data = { projects:[], customers:[], companies:[], warehouse:[], serviceWarehouse:[], catalogs:[], users:[], pending:[], audit:[], errors:[] };
+const data = { projects:[], customers:[], companies:[], warehouse:[], serviceWarehouse:[], catalogs:[], users:[], pending:[], audit:[], errors:[], appointments:[] };
 let unsubscribers = [];
 let loaded = {};
 let loadingWatchdog = null;   // see attachRealtimeListeners() - forces the "กำลังโหลดข้อมูล..." block to clear even if one collection's first snapshot never arrives
@@ -2305,6 +2341,7 @@ function attachRealtimeListeners(){
   watch('companies', db.collection(COL.companies), mapDocs);
   watch('warehouse', db.collection(COL.warehouse), mapDocs);   // shared stock: not scoped per user
   watch('serviceWarehouse', db.collection(COL.serviceWarehouse), mapDocs);   // shared, same as warehouse but for services
+  watch('appointments', scoped(db.collection(COL.appointments)), mapDocs);   // ปฏิทิน's own นัดหมาย records - same createdBy scoping as pm_customers
   // Catalogs are a bonus subscription (not part of the first-load gate, no error toast): if the pm_catalogs rules aren't published yet only the Catalog page says so
   unsubscribers.push(db.collection(COL.catalogs).onSnapshot(
     snap => { catalogsUnavailable = false; data.catalogs = mapDocs(snap); onAnyUpdate(); },
@@ -2322,7 +2359,7 @@ function attachRealtimeListeners(){
   // app underneath was already fully usable with what had loaded. If the gate hasn't cleared itself on its own within 8s, force it closed anyway.
   clearTimeout(loadingWatchdog);
   loadingWatchdog = setTimeout(() => {
-    const stuck = ['projects','customers','companies','warehouse','serviceWarehouse','users'].filter(k => !loaded[k]);
+    const stuck = ['projects','customers','companies','warehouse','serviceWarehouse','users','appointments'].filter(k => !loaded[k]);
     if (!stuck.length) return;
     console.warn('loading watchdog: still waiting on', stuck);
     $('loadingOverlay').style.display = 'none';
@@ -2331,7 +2368,7 @@ function attachRealtimeListeners(){
   }, 8000);
 }
 function checkAllLoaded(){
-  if (['projects','customers','companies','warehouse','serviceWarehouse','users'].every(k => loaded[k])){
+  if (['projects','customers','companies','warehouse','serviceWarehouse','users','appointments'].every(k => loaded[k])){
     clearTimeout(loadingWatchdog);
     $('loadingOverlay').style.display = 'none';
     $('sidebar').classList.remove('loading-lock');
@@ -2570,19 +2607,22 @@ function renderDashboard(){
 }
 
 /* ====== ปฏิทิน (Calendar) ======
-   Not a separate collection - every "event" is derived, read-only, from data the app already has: a job's own order/sign date
-   and end date, its ส่งงาน deliveries[], its computed warranty expiry, and its Action Plan leaf steps' own due dates. Four
-   categories (matching the four muted colour families in CLAUDE.md "ปฏิทิน"): sale, project, plan (Action Plan), delivery
-   (ส่งงาน + ประกัน share one bucket since both are "something falls due on this date" for the warehouse/ops side). Clicking any
-   event opens that job's own (Neumorphism-styled) view modal - the calendar itself has no edit UI of its own. */
+   Four of the five categories are derived, read-only, from data the app already has: a job's own order/sign date and end
+   date, its ส่งงาน deliveries[], its computed warranty expiry, and its Action Plan leaf steps' own due dates - clicking one of
+   those opens that job's own (Neumorphism-styled) view modal. The fifth, "นัดหมาย" (appointment), is the one real thing this
+   page lets you create itself: its own `pm_appointments` collection (createdBy-scoped like pm_customers - see firestore.rules),
+   a real date+time, an optional customer, and either an in-person location or an online link/meeting-ID/passcode depending on
+   which mode is picked - clicking one opens `openAppointmentModal(id)` to edit or delete it. */
 const CAL_CATS = {
-  sale:     { label:'ซื้อขาย',        dot:'#c4623d' },
-  project:  { label:'โครงการ',        dot:'#6f8299' },
-  plan:     { label:'แผนดำเนินการ',    dot:'#7a8a6f' },
-  delivery: { label:'ส่งงาน/ประกัน',  dot:'#cf9749' },
+  sale:        { label:'ซื้อขาย',         dot:'var(--accent)' },
+  project:     { label:'โครงการ',         dot:'var(--cal-blue)' },
+  plan:        { label:'แผนดำเนินการ',     dot:'var(--ok)' },
+  delivery:    { label:'ส่งงาน/ประกัน',   dot:'var(--sun)' },
+  appointment: { label:'นัดหมาย',         dot:'var(--cal-plum)' },
 };
+const MONTH_TH_FULL = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 let calRefDate = new Date();
-let calView = 'week';   // 'day' | 'week' | 'month'
+let calView = 'month';   // 'day' | 'week' | 'month'
 let calActiveCats = new Set(Object.keys(CAL_CATS));
 let calSearchTerm = '';
 const CAL_DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];   // Date#getDay() order (Sunday-first)
@@ -2607,6 +2647,10 @@ function buildCalendarEvents(){
     if (wr.expiry) events.push({ date:wr.expiry, cat:'delivery', title:p.name, meta:'ประกันหมดอายุ', id:p.id });
     planLeaves(p.plan).forEach(leaf => { const end = leaf.end || leaf.start; if (end) events.push({ date:end, cat:'plan', title: leaf.title || '(ไม่มีชื่อขั้นตอน)', meta:`แผนงาน · ${p.name}`, id:p.id }); });
   });
+  data.appointments.forEach(a => {
+    const modeText = a.mode === 'online' ? 'ออนไลน์' : 'เข้าพบลูกค้า';
+    events.push({ date:a.date, cat:'appointment', title:a.title, meta:[a.time, modeText, a.customerName].filter(Boolean).join(' · '), id:a.id, isAppt:true });
+  });
   return events;
 }
 function calFilteredEvents(){
@@ -2618,14 +2662,15 @@ function calGroupByDate(events){
   events.forEach(e => (map[e.date] = map[e.date] || []).push(e));
   return map;
 }
+function calOpen(e){ return e.isAppt ? `openAppointmentModal('${e.id}')` : `openProjectView('${e.id}')`; }
 function calChip(e, mini){
-  return `<button type="button" class="${mini ? 'cal-chip-mini' : 'cal-chip'} cat-${e.cat}" onclick="openProjectView('${e.id}')" title="${escapeHtml(e.title)}${e.meta ? ' - ' + escapeHtml(e.meta) : ''}">
+  return `<button type="button" class="${mini ? 'cal-chip-mini' : 'cal-chip'} cat-${e.cat}" onclick="${calOpen(e)}" title="${escapeHtml(e.title)}${e.meta ? ' - ' + escapeHtml(e.meta) : ''}">
     <span class="t">${escapeHtml(e.title)}</span>${mini ? '' : `<span class="m">${escapeHtml(e.meta || '')}</span>`}
   </button>`;
 }
 function renderCalMini(){
   const y = calRefDate.getFullYear(), m = calRefDate.getMonth();
-  $('calMiniLabel').textContent = `${MONTH_TH[m]} ${y + 543}`;
+  $('calMiniLabel').textContent = `${MONTH_TH_FULL[m]} ${y + 543}`;
   const gridStart = calAddDays(new Date(y, m, 1), -((new Date(y, m, 1).getDay() + 6) % 7));
   const weekStart = calStartOfWeek(calRefDate), weekEnd = calAddDays(weekStart, 6);
   const today = todayStr();
@@ -2657,7 +2702,7 @@ function renderCalUpNext(){
     return `<div class="cal-agenda-row">
       <div class="cal-agenda-time">${d.getDate()} ${MONTH_TH[d.getMonth()]}</div>
       <div class="cal-agenda-rule" style="background:${cat.dot};"></div>
-      <div><div class="cal-agenda-title" style="cursor:pointer;" onclick="openProjectView('${e.id}')">${escapeHtml(e.title)}</div><div class="cal-agenda-meta">${escapeHtml(e.meta || '')}</div></div>
+      <div><div class="cal-agenda-title" style="cursor:pointer;" onclick="${calOpen(e)}">${escapeHtml(e.title)}</div><div class="cal-agenda-meta">${escapeHtml(e.meta || '')}</div></div>
     </div>`;
   }).join('') : '<div class="cal-empty">ไม่มีรายการ</div>';
 }
@@ -2686,11 +2731,11 @@ function renderCalMonth(byDate){
 }
 function renderCalDay(byDate){
   const ymd = calYMD(calRefDate), evs = byDate[ymd] || [];
-  $('calMain').innerHTML = `<div class="cal-day-agenda-head">${CAL_DOW[calRefDate.getDay()]} ${calRefDate.getDate()} ${MONTH_TH[calRefDate.getMonth()]} ${calRefDate.getFullYear() + 543}</div>
+  $('calMain').innerHTML = `<div class="cal-day-agenda-head">${CAL_DOW[calRefDate.getDay()]} ${calRefDate.getDate()} ${MONTH_TH_FULL[calRefDate.getMonth()]} ${calRefDate.getFullYear() + 543}</div>
     <div class="cal-day-agenda">${evs.length ? evs.map(e => calChip(e, false)).join('') : '<div class="cal-empty">ไม่มีรายการในวันนี้</div>'}</div>`;
 }
 function renderCalendar(){
-  $('calMonthName').textContent = MONTH_TH[calRefDate.getMonth()];
+  $('calMonthName').textContent = MONTH_TH_FULL[calRefDate.getMonth()];
   $('calYearName').textContent = calRefDate.getFullYear() + 543;
   document.querySelectorAll('.cal-switch-item').forEach(b => b.classList.toggle('active', b.dataset.view === calView));
   renderCalMini();
@@ -2720,10 +2765,90 @@ $('calCatList').addEventListener('change', e => {
   if (cb.checked) calActiveCats.add(cb.dataset.cat); else calActiveCats.delete(cb.dataset.cat);
   renderCalendar();
 });
-$('calNewBtn').addEventListener('click', () => { const m = $('calNewMenu'); m.style.display = m.style.display === 'none' ? 'flex' : 'none'; });
-$('calNewSaleBtn').addEventListener('click', () => { $('calNewMenu').style.display = 'none'; openProjectForm(null, 'sale'); });
-$('calNewProjectBtn').addEventListener('click', () => { $('calNewMenu').style.display = 'none'; openProjectForm(null, 'project'); });
-document.addEventListener('click', e => { if (!e.target.closest('.cal-new-wrap')) $('calNewMenu').style.display = 'none'; });
+$('calNewBtn').addEventListener('click', () => openAppointmentModal(null, calYMD(calRefDate)));
+
+/* ---- นัดหมาย (appointment) form: create/edit/delete, its own pm_appointments doc - see the comment above buildCalendarEvents() ---- */
+let editingAppointmentId = null;
+let apptMode = 'visit';
+function fillApptCustomerSelect(selectedId){
+  const customers = [...data.customers].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  $('apptCustomer').innerHTML = `<option value="">— ไม่ระบุ —</option>` + customers.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  $('apptCustomer').value = customers.some(c => c.id === selectedId) ? selectedId : '';
+}
+function setApptMode(mode){
+  apptMode = mode;
+  document.querySelectorAll('#apptModeSwitch .subtab-item').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  $('apptVisitField').style.display = mode === 'visit' ? '' : 'none';
+  $('apptOnlineField').style.display = mode === 'online' ? '' : 'none';
+  $('apptMeetingIdField').style.display = mode === 'online' ? '' : 'none';
+  $('apptPasscodeField').style.display = mode === 'online' ? '' : 'none';
+}
+document.querySelectorAll('#apptModeSwitch .subtab-item').forEach(btn => btn.addEventListener('click', () => setApptMode(btn.dataset.mode)));
+function openAppointmentModal(id, presetDate){
+  const a = id ? data.appointments.find(x => x.id === id) : null;
+  if (id && !a) return;
+  editingAppointmentId = a ? a.id : null;
+  $('apptModalTitle').textContent = a ? 'แก้ไขนัดหมาย' : 'นัดหมายใหม่';
+  $('apptTitle').value = a ? a.title || '' : '';
+  $('apptDate').value = a ? a.date || '' : (presetDate || todayStr());
+  syncApptDateText();
+  $('apptTime').value = a ? a.time || '' : '';
+  fillApptCustomerSelect(a && a.customerId);
+  setApptMode(a ? (a.mode || 'visit') : 'visit');
+  $('apptLocation').value = a ? a.location || '' : '';
+  $('apptLink').value = a ? a.link || '' : '';
+  $('apptMeetingId').value = a ? a.meetingId || '' : '';
+  $('apptPasscode').value = a ? a.passcode || '' : '';
+  $('apptDeleteBtn').style.display = a ? '' : 'none';
+  openModal('appointmentModal');
+}
+function syncApptDateText(){
+  const v = $('apptDate').value;
+  $('apptDateText').textContent = dateText(v);
+  $('apptDateText').classList.toggle('placeholder', !v);
+}
+['input', 'change'].forEach(evt => $('apptDate').addEventListener(evt, syncApptDateText));
+$('apptCancelBtn').addEventListener('click', () => closeModal('appointmentModal'));
+$('appointmentForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const customer = $('apptCustomer').value;
+  const doc = {
+    title: $('apptTitle').value.trim(), date: $('apptDate').value, time: $('apptTime').value,
+    customerId: customer, customerName: customer ? (data.customers.find(c => c.id === customer) || {}).name || '' : '',
+    mode: apptMode,
+    location: apptMode === 'visit' ? $('apptLocation').value.trim() : '',
+    link: apptMode === 'online' ? $('apptLink').value.trim() : '',
+    meetingId: apptMode === 'online' ? $('apptMeetingId').value.trim() : '',
+    passcode: apptMode === 'online' ? $('apptPasscode').value.trim() : '',
+  };
+  if (!doc.title){ toast('กรุณากรอกหัวข้อนัดหมาย'); return; }
+  if (!doc.date || !doc.time){ toast('กรุณาเลือกวันที่และเวลา'); return; }
+  $('apptSaveBtn').disabled = true;
+  setSync('saving');
+  try{
+    if (editingAppointmentId){
+      await db.collection(COL.appointments).doc(editingAppointmentId).update(doc);
+      logAudit('แก้ไขนัดหมาย', doc.title, fmtDate(doc.date) + ' ' + doc.time);
+    } else {
+      await db.collection(COL.appointments).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('เพิ่มนัดหมาย', doc.title, fmtDate(doc.date) + ' ' + doc.time);
+    }
+    setSync('ok'); closeModal('appointmentModal'); toast('บันทึกนัดหมายแล้ว');
+  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+  $('apptSaveBtn').disabled = false;
+});
+$('apptDeleteBtn').addEventListener('click', () => {
+  if (!editingAppointmentId) return;
+  const id = editingAppointmentId;
+  confirmAction('ลบนัดหมายนี้ใช่หรือไม่?', async () => {
+    setSync('saving');
+    try{
+      await db.collection(COL.appointments).doc(id).delete();
+      logAudit('ลบนัดหมาย', $('apptTitle').value.trim(), '');
+      setSync('ok'); closeModal('appointmentModal'); toast('ลบนัดหมายแล้ว');
+    }catch(err){ setSync('error'); toast('ลบไม่สำเร็จ'); }
+  }, 'ลบนัดหมาย');
+});
 
 /* ====== Sales / projects ======
    One list holds both kinds of job (`jobType`: 'sale' | 'project'). Each has equipment lines that point at warehouse items:

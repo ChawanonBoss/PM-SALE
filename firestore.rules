@@ -47,6 +47,17 @@
       allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
+    // ปฏิทิน (Calendar) นัดหมาย: same shape/scoping as pm_customers above - each user only sees/edits their own, admin sees everything.
+    // No soft-delete here (an appointment is deleted for real, not sent to Trash - it's a personal scheduling note, not business data).
+    match /pm_appointments/{id} {
+      allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
+      allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if pmIsAdmin()
+        || (pmIsApproved() && resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdBy == resource.data.createdBy);
+      allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
+    }
+
     // Company profiles (letterhead): everyone signed in can read (needed to print), only admin edits.
     match /pm_companies/{id} {
       allow read: if pmIsApproved();
