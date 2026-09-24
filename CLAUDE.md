@@ -53,6 +53,65 @@ actively work against dual soft shadows):
   palette) - a dark cool-slate base (`#2B2F36`) with a lighter tint standing in for the "light source" shadow and near-black for the
   "falls away" shadow, following the same dual-shadow physics as light mode.
 
+## Dashboard: donut gauge + monthly bar chart + segmented toggle
+Reworked to echo a reference "UI Widgets" neumorphism moodboard the user shared, using the app's own real data rather than
+copying the reference's own decorative widgets one-for-one (a heating-control icon, a heart/favourite toggle, a sign-up form etc.
+have no PM-SALE equivalent, so weren't added). Three concrete pieces came out of it:
+- **Status donut** (`renderStatusDonutArcs()`, `#dashDonutSvg`) replaces the old flat "สัดส่วนสถานะ" linear split-bar with a
+  radial gauge - three stacked `<circle>` elements sharing one center/radius, each given a `stroke-dasharray`/`stroke-dashoffset`
+  slice sized to its share of the total and rotated together via `transform="rotate(-90 60 60)"` so the first segment starts at
+  12 o'clock, sitting over a plain `--paper-dim` track circle. The total count sits in the middle (`#dashDonutTotal`,
+  absolutely-positioned over the SVG) - this is a genuine extension of the existing 3-way pending/active/ended split, not an
+  invented metric, since a single-value gauge (like the reference's own "Peak Demand 88") doesn't fit data that's already a
+  3-way breakdown. The legend beside it (`#dashSplitLegend`) is unchanged in content, just laid out in a column next to the
+  gauge instead of below a bar.
+- **Monthly bar chart** (`monthlyStartCounts()`, `#dashBars`) is the reference's weekly bar-chart widget, adapted to data this
+  app actually has: PM-SALE jobs carry no day-of-week meaning of their own, so the 6 bars are the last 6 months by `startDate`
+  count instead, with the current month highlighted in `--accent` (`.dash-bar-col.current`) the same way the reference
+  highlights one weekday. Bar height is `count / max(counts) * 90px`, floored at 8px so an empty month still shows a visible nub.
+- **Segmented toggle**: `.subtabs` (already shared by the dashboard's ซื้อขาย/โครงการ switch and the audit log's sub-tabs) changed
+  from a row of separately-raised pills to a proper segmented control - the track itself is now one shallow inset groove
+  (`box-shadow:var(--shadow-inset-sm)` on `.subtabs`) and the active option pops up out of it (`--shadow-ext-sm` on
+  `.subtab-item.active`), matching the reference's ACCOUNT/CLIENT switcher and the same raised-vs-pressed language used
+  everywhere else in the Neumorphism system above. Both existing call sites (`#dashJobBar`'s two buttons, now wrapped in a
+  `.subtabs` div; the audit page, already wrapped) picked this up with no JS changes.
+
+## ปฏิทิน (Calendar)
+A new top-level page (its own permanent rail icon, next to แดชบอร์ด - not folded into a group, same reasoning as dashboard/
+Action Plan) requested with an explicit, complete design brief (colours, fonts, layout) to follow "regardless of the other
+pages" - so it deliberately does NOT use the Neumorphism tokens above. Everything is scoped under one `.cal-root` class
+(`= #tab-calendar`) with its own `--cal-*` custom properties (ivory `#faf7f2` canvas, near-black ink, terracotta/sage/dusty-blue/
+amber accents, `Fraunces`+`Inter` fonts falling back to `Noto Sans Thai` the same way the Neumorphism fonts do) so neither
+system leaks into the other; `.cal-root{ margin:-32px -36px; }` cancels out `.content`'s own padding so the page reads as a
+genuine full-bleed canvas rather than a card floating inside the app chrome.
+
+**There is no separate "calendar event" data or collection.** Every entry `buildCalendarEvents()` produces is derived, read-only,
+from records the app already has, sorted into the reference's four muted colour families:
+- **ซื้อขาย** (terracotta) - a sale's own `startDate` ("สั่งซื้อ").
+- **โครงการ** (dusty blue) - a project's `startDate` ("เซ็นสัญญา") and `endDate` ("สิ้นสุดสัญญา").
+- **แผนดำเนินการ** (sage) - every Action Plan leaf step's own due date, via the existing `planLeaves(p.plan)` helper (same one
+  the Gantt chart uses), titled with the step's own name.
+- **ส่งงาน/ประกัน** (amber) - each entry in a project's `deliveries[]` (by its own `date`) and the computed warranty expiry
+  (`projectWarranty(p).expiry`) share one bucket, since both read as "something falls due" for the same audience.
+
+Clicking any event chip calls `openProjectView(id)` - the calendar has no editing UI of its own; it hands off to that job's
+own (Neumorphism-styled) read-only view modal, same as clicking a row on the ซื้อขาย/โครงการ list. "+ รายการใหม่" is a small
+dropdown to `openProjectForm(null,'sale'|'project')` rather than a calendar-only "add event" flow, since a fabricated event
+with no real job behind it would have nowhere to live. Because none of these dates carry a time-of-day (`startDate`/`endDate`/
+etc. are plain `YYYY-MM-DD` strings), the reference design's hourly time-grid, current-time line, and side-by-side
+overlapping-time-slot split were all left out - there's no time component to position them against - and every event instead
+renders as a whole-day chip (`calChip()`) inside whichever view is active:
+- **สัปดาห์ (week, default)** - 7 day columns, each stacking that day's chips vertically (no fixed height, grows with content).
+- **เดือน (month)** - a traditional 6-row month grid, up to 3 chips per cell plus a "+N เพิ่มเติม" overflow count.
+- **วัน (day)** - a single large-format agenda list for one day.
+
+The sidebar's mini-month picker, "ปฏิทินของฉัน" category checklist (`calActiveCats`, a real filter - unticking a category hides
+it from the grid, the up-next list, and the mini-picker has nothing to do with it directly), and "ถัดไป" mini-agenda (next 6
+upcoming events, ignoring the search box but respecting the category filter) are all driven off the same single `calRefDate`/
+`calActiveCats`/`calSearchTerm` state and `buildCalendarEvents()` call - there's no separate data path per widget. `calYMD()`/
+`calParseYMD()` format and parse `YYYY-MM-DD` using local date components (never `toISOString()`, which converts through UTC
+and can roll the date back a day for the calendar's own users depending on the browser's timezone offset).
+
 ## Data model (short)
 `pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse` (goods, `kind:'good'`) or `pm_serviceWarehouse` (services, `kind:'service'`, `svcId` instead of
 `whId` - see "Service warehouse" below); plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered,

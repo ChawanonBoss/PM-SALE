@@ -17,8 +17,10 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <!-- pdf.js is loaded lazily on first use (loadPdfJs() near the catalog code) - most sessions never open a PDF, so it no longer blocks every page load -->
 <!-- Plus Jakarta Sans / DM Sans (Neumorphism design system's type pair) have no Thai glyphs at all, so both stacks fall back to
-     Noto Sans Thai for Thai text - the Latin font supplies its own glyphs for anything it can render, Thai falls through per-codepoint. -->
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+     Noto Sans Thai for Thai text - the Latin font supplies its own glyphs for anything it can render, Thai falls through per-codepoint.
+     Fraunces / Inter are the ปฏิทิน page's own separate type pair (its own self-contained design system - see CLAUDE.md "ปฏิทิน"),
+     same Thai-fallback logic applies. -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@400;500;700&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     /* ---- Neumorphism (Soft UI): every surface is molded from the same cool-grey material - shadows, not borders or separate
@@ -181,10 +183,12 @@
   .filter-control{ height:36px; padding:0 14px; border:none; border-radius:100px; background:var(--paper); color:var(--ink); font-size:13px; font-weight:500; box-shadow:var(--shadow-inset-sm); }
   .filter-control:focus{ outline:none; box-shadow:var(--shadow-inset), 0 0 0 2px var(--accent-soft); }
   .filter-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--paper); padding:8px; border-radius:16px; box-shadow:var(--shadow-inset-sm); }
-  .subtabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
-  .subtab-item{ padding:9px 18px; border-radius:100px; border:none; background:var(--paper); color:var(--ink-soft); font-size:13.5px; font-weight:500; box-shadow:var(--shadow-ext-sm); transition:box-shadow .2s ease, color .2s ease; }
-  .subtab-item:hover{ color:var(--ink); box-shadow:var(--shadow-ext-hover); }
-  .subtab-item.active{ background:var(--paper); box-shadow:var(--shadow-inset-sm); color:var(--accent); font-weight:600; }
+  /* a "segmented control": the track itself is a shallow groove (inset), the active option pops up out of it (extruded) - same
+     idiom as a physical toggle switch, reused for both the dashboard's ซื้อขาย/โครงการ switch and the audit log's sub-tabs */
+  .subtabs{ display:inline-flex; gap:4px; flex-wrap:wrap; margin-bottom:16px; background:var(--paper); padding:5px; border-radius:100px; box-shadow:var(--shadow-inset-sm); }
+  .subtab-item{ padding:9px 18px; border-radius:100px; border:none; background:transparent; color:var(--ink-soft); font-size:13.5px; font-weight:500; box-shadow:none; transition:box-shadow .2s ease, color .2s ease, background .2s ease; }
+  .subtab-item:hover{ color:var(--ink); }
+  .subtab-item.active{ background:var(--paper); box-shadow:var(--shadow-ext-sm); color:var(--accent); font-weight:600; }
 
   /* ---- Status badges: pending=orange, active=green, ended=gray ---- */
   .badge{ display:inline-block; padding:3px 10px; border-radius:100px; font-size:11.5px; font-weight:500; white-space:nowrap; }
@@ -211,10 +215,23 @@
   .stat-sub{ font-size:12px; margin-top:6px; color:var(--ink-soft); }
   .stat-card.filled .stat-sub{ color:rgba(255,255,255,.85); }
   .alert-banner{ display:flex; flex-direction:column; gap:4px; background:var(--sun-soft); color:var(--ink); border-left:4px solid var(--sun); border-radius:12px; padding:12px 16px; margin-bottom:20px; font-size:13px; }
-  .split-bar{ display:flex; height:14px; border-radius:100px; overflow:hidden; background:var(--paper); box-shadow:var(--shadow-inset-sm); margin:4px 0 12px; }
-  .split-bar span{ display:block; height:100%; transition:width .4s ease; }
-  .split-legend{ display:flex; gap:18px; flex-wrap:wrap; font-size:12.5px; color:var(--ink-soft); }
-  .split-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; }
+  .split-legend{ display:flex; flex-direction:column; gap:12px; font-size:13px; color:var(--ink-soft); justify-content:center; }
+  .split-legend i{ display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px; flex-shrink:0; }
+  .split-legend b{ color:var(--ink); font-weight:700; }
+  /* ---- Dashboard widgets: donut gauge + monthly bar chart, echoing the "UI Widgets" neumorphism reference ---- */
+  .dash-widgets-row{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .dash-donut-row{ display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+  .dash-donut-wrap{ position:relative; width:132px; height:132px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .dash-donut{ width:100%; height:100%; }
+  .dash-donut-center{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; }
+  .dash-donut-num{ font-family:var(--font-display); font-size:30px; font-weight:800; color:var(--ink); line-height:1; }
+  .dash-donut-label{ font-size:11.5px; color:var(--ink-soft); margin-top:4px; }
+  .dash-bars{ display:flex; align-items:flex-end; gap:12px; height:96px; padding:6px 4px 0; }
+  .dash-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:8px; cursor:default; }
+  .dash-bar{ width:16px; border-radius:100px; background:var(--paper-dim); box-shadow:var(--shadow-inset-sm); min-height:8px; transition:height .4s ease, background .2s ease, box-shadow .2s ease; }
+  .dash-bar-col.current .dash-bar{ background:var(--accent); box-shadow:var(--shadow-ext-sm); }
+  .dash-bar-label{ font-size:11px; color:var(--ink-soft); white-space:nowrap; }
+  .dash-bar-col.current .dash-bar-label{ color:var(--accent); font-weight:700; }
   .dash-cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
   .dash-col{ background:var(--card); border:none; border-radius:32px; padding:18px; box-shadow:var(--shadow-ext); border-top:4px solid var(--gray); }
   .dash-col.pending{ border-top-color:var(--sun); } .dash-col.active{ border-top-color:var(--ok); }
@@ -379,6 +396,114 @@
   .user-avatar{ display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; font-size:13px; font-weight:600; background:var(--paper-dim); box-shadow:var(--shadow-inset-sm); color:var(--accent); overflow:hidden; cursor:pointer; }
   .user-avatar img{ width:100%; height:100%; object-fit:cover; }
 
+  /* ====== ปฏิทิน (Calendar): its own self-contained "warm editorial" design system - deliberately NOT the rest of the app's
+     Neumorphism tokens (asked for by name, color and font, independent of every other page). Everything is scoped under
+     .cal-root (= #tab-calendar) so none of it leaks out, and none of the outer --paper/--ink/etc tokens leak in. ====== */
+  .cal-root{
+    --cal-bg:#faf7f2; --cal-ink:#1a1714; --cal-muted:#8b8178; --cal-line:rgba(139,129,120,0.22); --cal-card:#fff;
+    --cal-terracotta:#c4623d; --cal-terracotta-tint:#f3e2da; --cal-terracotta-ink:#9a4a2c;
+    --cal-sage:#7a8a6f; --cal-sage-tint:#e6ebe0; --cal-sage-ink:#57634c;
+    --cal-blue:#6f8299; --cal-blue-tint:#e4e9ee; --cal-blue-ink:#4d5f74;
+    --cal-amber:#cf9749; --cal-amber-tint:#f6e9d2; --cal-amber-ink:#9c6f2c;
+    --cal-serif:'Fraunces','Noto Sans Thai',serif; --cal-sans:'Inter','Noto Sans Thai',sans-serif;
+    background:var(--cal-bg); margin:-32px -36px; padding:0 0 40px; color:var(--cal-ink); font-family:var(--cal-sans);
+  }
+  @media (max-width:760px){ .cal-root{ margin:-20px -16px; } }
+  .cal-topbar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:18px 32px; background:rgba(250,247,242,0.92); backdrop-filter:blur(6px); border-bottom:1px solid var(--cal-line); }
+  .cal-brand{ display:flex; align-items:center; gap:10px; margin-right:6px; }
+  .cal-mark{ width:30px; height:30px; border-radius:9px; background:var(--cal-terracotta); color:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .cal-title{ font-family:var(--cal-serif); font-size:19px; font-weight:600; color:var(--cal-ink); white-space:nowrap; }
+  .cal-title-year{ color:var(--cal-muted); font-weight:500; }
+  .cal-pill-btn{ height:34px; padding:0 16px; border-radius:100px; border:1px solid var(--cal-line); background:transparent; color:var(--cal-ink); font-family:var(--cal-sans); font-size:12.5px; font-weight:600; }
+  .cal-pill-btn:hover{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); }
+  .cal-icon-btn{ width:32px; height:32px; border-radius:50%; border:1px solid var(--cal-line); background:transparent; color:var(--cal-ink); font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; }
+  .cal-icon-btn.sm{ width:24px; height:24px; font-size:13px; }
+  .cal-icon-btn:hover{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); color:var(--cal-terracotta-ink); }
+  .cal-switch{ display:inline-flex; gap:2px; background:#f0ebe3; padding:3px; border-radius:100px; margin-left:4px; }
+  .cal-switch-item{ padding:7px 14px; border-radius:100px; border:none; background:transparent; color:var(--cal-muted); font-family:var(--cal-sans); font-size:12.5px; font-weight:600; }
+  .cal-switch-item.active{ background:#fff; color:var(--cal-ink); box-shadow:0 1px 3px rgba(26,23,20,0.12); }
+  .cal-search{ height:34px; padding:0 14px; border-radius:100px; border:1px solid var(--cal-line); background:#fff; color:var(--cal-ink); font-family:var(--cal-sans); font-size:12.5px; width:170px; }
+  .cal-search::placeholder{ color:var(--cal-muted); }
+  .cal-search:focus{ outline:none; border-color:var(--cal-terracotta); }
+  .cal-new-wrap{ position:relative; margin-left:auto; }
+  .cal-new-btn{ height:36px; padding:0 18px; border-radius:100px; border:none; background:var(--cal-terracotta); color:#fff; font-family:var(--cal-sans); font-size:12.5px; font-weight:700; box-shadow:0 6px 16px rgba(196,98,61,0.32); }
+  .cal-new-btn:hover{ opacity:.92; }
+  .cal-new-menu{ position:absolute; right:0; top:calc(100% + 8px); background:#fff; border:1px solid var(--cal-line); border-radius:14px; box-shadow:0 14px 32px rgba(26,23,20,0.14); padding:8px; width:190px; z-index:20; flex-direction:column; gap:2px; }
+  .cal-new-menu button{ display:block; width:100%; text-align:left; padding:9px 11px; border-radius:9px; border:none; background:none; font-family:var(--cal-sans); font-size:12.5px; color:var(--cal-ink); }
+  .cal-new-menu button:hover{ background:var(--cal-terracotta-tint); color:var(--cal-terracotta-ink); }
+
+  .cal-body{ display:flex; align-items:flex-start; }
+  .cal-sidebar{ width:264px; flex-shrink:0; padding:22px 20px; border-right:1px solid var(--cal-line); align-self:stretch; }
+  .cal-mini-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .cal-mini-head span{ font-family:var(--cal-serif); font-size:14.5px; font-weight:600; }
+  .cal-mini-head div{ display:flex; gap:4px; }
+  .cal-mini-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10px; color:var(--cal-muted); margin-bottom:4px; }
+  .cal-mini-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+  .cal-mini-cell{ position:relative; height:26px; display:flex; align-items:center; justify-content:center; font-size:11.5px; border-radius:50%; color:var(--cal-ink); cursor:pointer; }
+  .cal-mini-cell.other-month{ color:#cfc7bd; }
+  .cal-mini-cell.in-week{ background:var(--cal-terracotta-tint); border-radius:0; }
+  .cal-mini-cell.in-week.week-start{ border-radius:50% 0 0 50%; }
+  .cal-mini-cell.in-week.week-end{ border-radius:0 50% 50% 0; }
+  .cal-mini-cell.today{ background:var(--cal-terracotta); color:#fff; font-weight:700; border-radius:50%; }
+  .cal-side-section{ margin-top:26px; }
+  .cal-eyebrow{ font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--cal-muted); text-transform:uppercase; margin-bottom:12px; }
+  .cal-cat-row{ display:flex; align-items:center; gap:9px; padding:5px 0; font-size:12.5px; cursor:pointer; }
+  .cal-cat-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .cal-cat-row.off{ opacity:.4; }
+  .cal-cat-row.disabled{ opacity:.4; cursor:default; }
+  .cal-cat-row input{ margin-left:auto; accent-color:var(--cal-terracotta); }
+  .cal-agenda-row{ display:flex; gap:10px; padding:8px 0; }
+  .cal-agenda-time{ width:52px; flex-shrink:0; font-size:11px; color:var(--cal-muted); line-height:1.3; padding-top:1px; }
+  .cal-agenda-rule{ width:3px; border-radius:2px; flex-shrink:0; }
+  .cal-agenda-title{ font-size:12.5px; font-weight:600; line-height:1.3; }
+  .cal-agenda-meta{ font-size:11px; color:var(--cal-muted); margin-top:2px; }
+  .cal-empty{ font-size:12px; color:var(--cal-muted); padding:4px 0; }
+
+  .cal-main{ flex:1; min-width:0; padding:22px 32px; }
+  .cal-week-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:10px; }
+  .cal-day-col{ min-height:220px; }
+  .cal-day-head{ text-align:center; padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid var(--cal-line); }
+  .cal-day-head .dow{ font-size:10.5px; font-weight:700; letter-spacing:.06em; color:var(--cal-muted); text-transform:uppercase; }
+  .cal-day-head .num{ font-family:var(--cal-serif); font-size:19px; font-weight:600; margin-top:3px; }
+  .cal-day-head.today .num{ display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:50%; background:var(--cal-terracotta); color:#fff; }
+  .cal-day-events{ display:flex; flex-direction:column; gap:6px; }
+  .cal-chip{ display:block; text-align:left; width:100%; border:none; cursor:pointer; border-radius:8px; padding:6px 9px 6px 10px; border-left:3px solid; font-family:var(--cal-sans); }
+  .cal-chip .t{ font-size:12px; font-weight:700; line-height:1.3; display:block; }
+  .cal-chip .m{ font-size:10.5px; opacity:.8; line-height:1.3; display:block; margin-top:1px; }
+  .cal-chip.cat-sale{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); color:var(--cal-terracotta-ink); }
+  .cal-chip.cat-project{ background:var(--cal-blue-tint); border-color:var(--cal-blue); color:var(--cal-blue-ink); }
+  .cal-chip.cat-plan{ background:var(--cal-sage-tint); border-color:var(--cal-sage); color:var(--cal-sage-ink); }
+  .cal-chip.cat-delivery{ background:var(--cal-amber-tint); border-color:var(--cal-amber); color:var(--cal-amber-ink); }
+  .cal-day-empty{ font-size:11.5px; color:#cfc7bd; text-align:center; padding-top:10px; }
+
+  .cal-month-grid{ display:grid; grid-template-columns:repeat(7,1fr); border-top:1px solid var(--cal-line); border-left:1px solid var(--cal-line); }
+  .cal-month-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.05em; color:var(--cal-muted); text-transform:uppercase; padding-bottom:8px; }
+  .cal-month-cell{ min-height:104px; border-right:1px solid var(--cal-line); border-bottom:1px solid var(--cal-line); padding:6px; }
+  .cal-month-cell.other-month{ background:rgba(139,129,120,0.05); }
+  .cal-month-date{ font-family:var(--cal-serif); font-size:13px; font-weight:600; color:var(--cal-ink); width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin-bottom:4px; }
+  .cal-month-cell.other-month .cal-month-date{ color:#cfc7bd; }
+  .cal-month-cell.today .cal-month-date{ background:var(--cal-terracotta); color:#fff; }
+  .cal-chip-mini{ font-size:10px; font-weight:600; padding:2px 6px; border-radius:5px; border-left:2px solid; margin-bottom:2px; display:block; width:100%; text-align:left; border-top:none; border-right:none; border-bottom:none; cursor:pointer; font-family:var(--cal-sans); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cal-chip-mini.cat-sale{ background:var(--cal-terracotta-tint); border-color:var(--cal-terracotta); color:var(--cal-terracotta-ink); }
+  .cal-chip-mini.cat-project{ background:var(--cal-blue-tint); border-color:var(--cal-blue); color:var(--cal-blue-ink); }
+  .cal-chip-mini.cat-plan{ background:var(--cal-sage-tint); border-color:var(--cal-sage); color:var(--cal-sage-ink); }
+  .cal-chip-mini.cat-delivery{ background:var(--cal-amber-tint); border-color:var(--cal-amber); color:var(--cal-amber-ink); }
+  .cal-month-more{ font-size:10px; color:var(--cal-muted); padding-left:2px; cursor:pointer; }
+
+  .cal-day-agenda-head{ font-family:var(--cal-serif); font-size:26px; font-weight:600; margin-bottom:18px; }
+  .cal-day-agenda{ display:flex; flex-direction:column; gap:10px; max-width:640px; }
+  .cal-day-agenda .cal-chip{ padding:12px 14px 12px 16px; border-radius:12px; }
+  .cal-day-agenda .cal-chip .t{ font-size:14px; }
+  .cal-day-agenda .cal-chip .m{ font-size:11.5px; margin-top:3px; }
+
+  @media (max-width:1023px){ .cal-sidebar{ display:none; } }
+  @media (max-width:760px){
+    .cal-week-grid{ grid-template-columns:1fr; }
+    .cal-topbar{ padding:14px 16px; }
+    .cal-main{ padding:16px; }
+    .cal-search{ display:none; }
+  }
+
   /* ---- Print (PDF): only #printArea is shown ---- */
   #printArea{ display:none; }
   @media print{
@@ -470,6 +595,7 @@
   @media (max-width:900px){
     .stat-grid{ grid-template-columns:repeat(2,1fr); }
     .dash-cols{ grid-template-columns:1fr; }
+    .dash-widgets-row{ grid-template-columns:1fr; }
   }
   @media (max-width:760px){
     .content{ padding:20px 16px; } .topbar{ padding:16px; }
@@ -509,6 +635,10 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
         <span class="nav-count-badge" id="dashNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">แดชบอร์ด</span>
+      </button>
+      <button class="nav-item" data-tab="calendar">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="nav-tooltip">ปฏิทิน</span>
       </button>
       <button class="nav-item" data-group="group1">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
@@ -623,18 +753,80 @@
       <div id="tab-dashboard" class="tab-panel" style="display:none;">
         <div class="dash-job-bar" id="dashJobBar">
           <span style="font-size:12.5px; color:var(--ink-soft);">แสดงเฉพาะ</span>
-          <button class="subtab-item" type="button" data-dashjob="sale">ซื้อขาย</button>
-          <button class="subtab-item" type="button" data-dashjob="project">โครงการ</button>
+          <div class="subtabs" style="margin-bottom:0;">
+            <button class="subtab-item" type="button" data-dashjob="sale">ซื้อขาย</button>
+            <button class="subtab-item" type="button" data-dashjob="project">โครงการ</button>
+          </div>
           <button class="btn outline" type="button" id="dashJobClear" style="margin-left:auto;">เคลียร์</button>
         </div>
         <div class="alert-banner" id="dashAlert" style="display:none;"></div>
         <div class="stat-grid" id="dashStats"></div>
-        <div class="panel">
-          <div class="panel-head"><h3 id="dashSplitTitle">สัดส่วนสถานะ</h3></div>
-          <div class="split-bar" id="dashSplitBar"></div>
-          <div class="split-legend" id="dashSplitLegend"></div>
+        <div class="dash-widgets-row">
+          <div class="panel">
+            <div class="panel-head"><h3 id="dashSplitTitle">สัดส่วนสถานะ</h3></div>
+            <div class="dash-donut-row">
+              <div class="dash-donut-wrap">
+                <svg class="dash-donut" id="dashDonutSvg" viewBox="0 0 120 120"></svg>
+                <div class="dash-donut-center"><div class="dash-donut-num" id="dashDonutTotal">0</div><div class="dash-donut-label">ทั้งหมด</div></div>
+              </div>
+              <div class="split-legend" id="dashSplitLegend"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>แนวโน้มรายเดือน</h3></div>
+            <p class="panel-note" style="margin:-8px 0 8px;">จำนวนรายการที่เริ่มในแต่ละเดือน ย้อนหลัง 6 เดือน</p>
+            <div class="dash-bars" id="dashBars"></div>
+          </div>
         </div>
         <div class="dash-cols" id="dashCols"></div>
+      </div>
+
+      <!-- Calendar: its own self-contained "warm editorial" design system (ivory/terracotta, Fraunces+Inter) - deliberately NOT the
+           rest of the app's Neumorphism look, per how it was asked for. See CLAUDE.md "ปฏิทิน". -->
+      <div id="tab-calendar" class="tab-panel cal-root" style="display:none;">
+        <div class="cal-topbar">
+          <div class="cal-brand">
+            <span class="cal-mark">✳</span>
+            <div class="cal-title"><span id="calMonthName">-</span> <span class="cal-title-year" id="calYearName"></span></div>
+          </div>
+          <button class="cal-pill-btn" type="button" id="calTodayBtn">วันนี้</button>
+          <button class="cal-icon-btn" type="button" id="calPrevBtn" aria-label="ก่อนหน้า">‹</button>
+          <button class="cal-icon-btn" type="button" id="calNextBtn" aria-label="ถัดไป">›</button>
+          <div class="cal-switch" id="calViewSwitch">
+            <button class="cal-switch-item" type="button" data-view="day">วัน</button>
+            <button class="cal-switch-item active" type="button" data-view="week">สัปดาห์</button>
+            <button class="cal-switch-item" type="button" data-view="month">เดือน</button>
+          </div>
+          <input type="text" id="calSearchInput" class="cal-search" placeholder="ค้นหารายการ...">
+          <div class="cal-new-wrap">
+            <button class="cal-new-btn" type="button" id="calNewBtn">+ รายการใหม่</button>
+            <div class="cal-new-menu" id="calNewMenu" style="display:none;">
+              <button type="button" id="calNewSaleBtn">+ เพิ่มการซื้อขาย</button>
+              <button type="button" id="calNewProjectBtn">+ เพิ่มโครงการ</button>
+            </div>
+          </div>
+        </div>
+        <div class="cal-body">
+          <aside class="cal-sidebar">
+            <div class="cal-mini">
+              <div class="cal-mini-head">
+                <span id="calMiniLabel">-</span>
+                <div><button class="cal-icon-btn sm" type="button" id="calMiniPrev">‹</button><button class="cal-icon-btn sm" type="button" id="calMiniNext">›</button></div>
+              </div>
+              <div class="cal-mini-dow"><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span><span>อา</span></div>
+              <div class="cal-mini-grid" id="calMiniGrid"></div>
+            </div>
+            <div class="cal-side-section">
+              <div class="cal-eyebrow">ปฏิทินของฉัน</div>
+              <div id="calCatList"></div>
+            </div>
+            <div class="cal-side-section">
+              <div class="cal-eyebrow">ถัดไป</div>
+              <div id="calUpNext"></div>
+            </div>
+          </aside>
+          <div class="cal-main" id="calMain"></div>
+        </div>
       </div>
 
       <!-- Projects -->
@@ -1486,7 +1678,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.21.10';
+const APP_VERSION = '1.22.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1675,6 +1867,7 @@ document.querySelectorAll('.nav-item[data-group]').forEach(btn => btn.addEventLi
 
 const TITLES = {
   dashboard:['แดชบอร์ด','สรุปสถานะซื้อขาย/โครงการทั้งหมด'],
+  calendar:['ปฏิทิน','วันที่สำคัญของซื้อขาย/โครงการทั้งหมด - วันสั่งซื้อ/เซ็นสัญญา สิ้นสุดสัญญา ส่งงาน ประกัน และแผนดำเนินการ'],
   sales:['ซื้อขาย','บันทึกรายการซื้อขาย เลือกสินค้าจากโกดัง ตัดสต็อกเมื่อส่งของ และพิมพ์เอกสารส่งมอบงานเป็น PDF'],
   projects:['โครงการ','บันทึกโครงการ เลือกอุปกรณ์จากโกดัง ส่งข้อมูลไปที่ Action Plan แบ่งงวดส่งงาน และพิมพ์เอกสารส่งมอบงานเป็น PDF'],
   actionplan:['แผนดำเนินการ (Action Plan)','ขั้นตอนการดำเนินการ ผู้รับผิดชอบ และแผนภูมิตามสัปดาห์'],
@@ -1710,7 +1903,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 
 function renderActiveTab(){
   const fn = {
-    dashboard:renderDashboard, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, serviceWarehouse:renderServiceWarehouse, catalog:renderCatalogs,
+    dashboard:renderDashboard, calendar:renderCalendar, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, serviceWarehouse:renderServiceWarehouse, catalog:renderCatalogs,
     customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit, photos:renderPhotos
   }[currentTab];
   if (fn) fn();
@@ -2288,6 +2481,33 @@ function updateNavBadge(){
 }
 document.querySelectorAll('.subtab-item[data-dashjob]').forEach(btn => btn.addEventListener('click', () => { dashJobFilter = btn.dataset.dashjob; renderDashboard(); }));
 $('dashJobClear').addEventListener('click', () => { dashJobFilter = 'all'; renderDashboard(); });
+// Donut gauge (see "Design system: Neumorphism" in CLAUDE.md): three stacked stroke-dasharray arcs on one shared circle,
+// rotated -90deg so the first segment starts at 12 o'clock like a normal gauge, sitting over a plain track circle.
+function renderStatusDonutArcs(groups, total){
+  const R = 46, C = 2 * Math.PI * R;
+  const segs = [['pending', 'var(--sun)'], ['active', 'var(--ok)'], ['ended', 'var(--gray)']];
+  let acc = 0;
+  const arcs = segs.map(([key, color]) => {
+    const frac = total ? groups[key].length / total : 0;
+    const dash = frac * C;
+    const el = `<circle cx="60" cy="60" r="${R}" fill="none" stroke="${color}" stroke-width="13" stroke-linecap="round" stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-acc * C}"></circle>`;
+    acc += frac;
+    return el;
+  }).join('');
+  return `<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--paper-dim)" stroke-width="13"></circle><g transform="rotate(-90 60 60)">${arcs}</g>`;
+}
+// Monthly bar chart: how many of the given jobs started in each of the last 6 months (by startDate), current month highlighted -
+// mirrors the reference design's weekly bar widget with data this app actually has (jobs have no meaningful "day of week" of their own).
+function monthlyStartCounts(list){
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: MONTH_TH[d.getMonth()], current: i === 5, n: 0 };
+  });
+  list.forEach(p => { const m = months.find(x => x.key === (p.startDate || '').slice(0, 7)); if (m) m.n++; });
+  const max = Math.max(...months.map(m => m.n), 1);
+  return months.map(m => ({ ...m, max }));
+}
 function renderDashboard(){
   const jf = dashJobFilter;
   document.querySelectorAll('.subtab-item[data-dashjob]').forEach(b => b.classList.toggle('active', b.dataset.dashjob === jf));
@@ -2321,14 +2541,20 @@ function renderDashboard(){
 
   $('dashSplitTitle').textContent = jf === 'sale' ? 'สัดส่วนสถานะซื้อขาย' : jf === 'project' ? 'สัดส่วนสถานะโครงการ' : 'สัดส่วนสถานะ';
   const pct = n => total ? (n / total * 100) : 0;
-  $('dashSplitBar').innerHTML =
-    `<span style="width:${pct(groups.pending.length)}%; background:var(--sun);"></span>` +
-    `<span style="width:${pct(groups.active.length)}%; background:var(--ok);"></span>` +
-    `<span style="width:${pct(groups.ended.length)}%; background:var(--gray);"></span>`;
+  $('dashDonutTotal').textContent = total;
+  $('dashDonutSvg').innerHTML = renderStatusDonutArcs(groups, total);
   $('dashSplitLegend').innerHTML =
-    `<span><i style="background:var(--sun)"></i>${labels.pending} ${groups.pending.length} (${pct(groups.pending.length).toFixed(0)}%)</span>` +
-    `<span><i style="background:var(--ok)"></i>${labels.active} ${groups.active.length} (${pct(groups.active.length).toFixed(0)}%)</span>` +
-    `<span><i style="background:var(--gray)"></i>${labels.ended} ${groups.ended.length} (${pct(groups.ended.length).toFixed(0)}%)</span>`;
+    `<span><i style="background:var(--sun)"></i>${labels.pending} <b>${groups.pending.length}</b> (${pct(groups.pending.length).toFixed(0)}%)</span>` +
+    `<span><i style="background:var(--ok)"></i>${labels.active} <b>${groups.active.length}</b> (${pct(groups.active.length).toFixed(0)}%)</span>` +
+    `<span><i style="background:var(--gray)"></i>${labels.ended} <b>${groups.ended.length}</b> (${pct(groups.ended.length).toFixed(0)}%)</span>`;
+
+  $('dashBars').innerHTML = monthlyStartCounts(list).map(m => {
+    const h = m.max ? Math.max(8, Math.round(m.n / m.max * 90)) : 8;
+    return `<div class="dash-bar-col ${m.current ? 'current' : ''}" title="${m.label}: ${m.n} รายการ">
+      <div class="dash-bar" style="height:${h}px;"></div>
+      <div class="dash-bar-label">${m.label}</div>
+    </div>`;
+  }).join('');
 
   const sortBy = { pending:(a,b)=>(a.startDate||'').localeCompare(b.startDate||''), active:(a,b)=>(a.endDate||'').localeCompare(b.endDate||''), ended:(a,b)=>(b.endDate||'').localeCompare(a.endDate||'') };
   $('dashCols').innerHTML = ['pending','active','ended'].map(st => {
@@ -2342,6 +2568,162 @@ function renderDashboard(){
     return `<div class="dash-col ${st}"><h4><span>${labels[st]}</span><span class="count-pill">${groups[st].length}</span></h4>${body}${more}</div>`;
   }).join('');
 }
+
+/* ====== ปฏิทิน (Calendar) ======
+   Not a separate collection - every "event" is derived, read-only, from data the app already has: a job's own order/sign date
+   and end date, its ส่งงาน deliveries[], its computed warranty expiry, and its Action Plan leaf steps' own due dates. Four
+   categories (matching the four muted colour families in CLAUDE.md "ปฏิทิน"): sale, project, plan (Action Plan), delivery
+   (ส่งงาน + ประกัน share one bucket since both are "something falls due on this date" for the warehouse/ops side). Clicking any
+   event opens that job's own (Neumorphism-styled) view modal - the calendar itself has no edit UI of its own. */
+const CAL_CATS = {
+  sale:     { label:'ซื้อขาย',        dot:'#c4623d' },
+  project:  { label:'โครงการ',        dot:'#6f8299' },
+  plan:     { label:'แผนดำเนินการ',    dot:'#7a8a6f' },
+  delivery: { label:'ส่งงาน/ประกัน',  dot:'#cf9749' },
+};
+let calRefDate = new Date();
+let calView = 'week';   // 'day' | 'week' | 'month'
+let calActiveCats = new Set(Object.keys(CAL_CATS));
+let calSearchTerm = '';
+const CAL_DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];   // Date#getDay() order (Sunday-first)
+function calYMD(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function calParseYMD(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function calAddDays(d, n){ const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function calAddMonthsSafe(d, n){   // clamps the day so e.g. 31 Jan -1 month lands on 31 Dec, not rolling into March
+  const day = d.getDate();
+  const x = new Date(d.getFullYear(), d.getMonth() + n, 1);
+  x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()));
+  return x;
+}
+function calStartOfWeek(d){ const x = new Date(d); x.setDate(x.getDate() - (x.getDay() + 6) % 7); x.setHours(0,0,0,0); return x; }   // Monday-first
+function buildCalendarEvents(){
+  const events = [];
+  getVisibleProjects().forEach(p => {
+    const sale = isSale(p);
+    if (p.startDate) events.push({ date:p.startDate, cat: sale ? 'sale' : 'project', title:p.name, meta:(sale ? 'สั่งซื้อ' : 'เซ็นสัญญา') + (p.docNo ? ' · ' + p.docNo : ''), id:p.id });
+    if (!sale && p.endDate) events.push({ date:p.endDate, cat:'project', title:p.name, meta:'สิ้นสุดสัญญา' + (p.docNo ? ' · ' + p.docNo : ''), id:p.id });
+    (p.deliveries || []).forEach(d => { if (d.date) events.push({ date:d.date, cat:'delivery', title:p.name, meta:`ส่งงานงวดที่ ${d.no}/${d.total || p.installmentTotal || ''}`, id:p.id }); });
+    const wr = projectWarranty(p);
+    if (wr.expiry) events.push({ date:wr.expiry, cat:'delivery', title:p.name, meta:'ประกันหมดอายุ', id:p.id });
+    planLeaves(p.plan).forEach(leaf => { const end = leaf.end || leaf.start; if (end) events.push({ date:end, cat:'plan', title: leaf.title || '(ไม่มีชื่อขั้นตอน)', meta:`แผนงาน · ${p.name}`, id:p.id }); });
+  });
+  return events;
+}
+function calFilteredEvents(){
+  const term = calSearchTerm.trim().toLowerCase();
+  return buildCalendarEvents().filter(e => calActiveCats.has(e.cat) && (!term || e.title.toLowerCase().includes(term) || (e.meta || '').toLowerCase().includes(term)));
+}
+function calGroupByDate(events){
+  const map = {};
+  events.forEach(e => (map[e.date] = map[e.date] || []).push(e));
+  return map;
+}
+function calChip(e, mini){
+  return `<button type="button" class="${mini ? 'cal-chip-mini' : 'cal-chip'} cat-${e.cat}" onclick="openProjectView('${e.id}')" title="${escapeHtml(e.title)}${e.meta ? ' - ' + escapeHtml(e.meta) : ''}">
+    <span class="t">${escapeHtml(e.title)}</span>${mini ? '' : `<span class="m">${escapeHtml(e.meta || '')}</span>`}
+  </button>`;
+}
+function renderCalMini(){
+  const y = calRefDate.getFullYear(), m = calRefDate.getMonth();
+  $('calMiniLabel').textContent = `${MONTH_TH[m]} ${y + 543}`;
+  const gridStart = calAddDays(new Date(y, m, 1), -((new Date(y, m, 1).getDay() + 6) % 7));
+  const weekStart = calStartOfWeek(calRefDate), weekEnd = calAddDays(weekStart, 6);
+  const today = todayStr();
+  $('calMiniGrid').innerHTML = Array.from({ length: 42 }, (_, i) => calAddDays(gridStart, i)).map(d => {
+    const ymd = calYMD(d);
+    const inWeek = calView === 'week' && d >= weekStart && d <= weekEnd;
+    const cls = ['cal-mini-cell'];
+    if (d.getMonth() !== m) cls.push('other-month');
+    if (inWeek) cls.push('in-week');
+    if (inWeek && ymd === calYMD(weekStart)) cls.push('week-start');
+    if (inWeek && ymd === calYMD(weekEnd)) cls.push('week-end');
+    if (ymd === today) cls.push('today');
+    return `<div class="${cls.join(' ')}" onclick="calGoToDate('${ymd}')">${d.getDate()}</div>`;
+  }).join('');
+}
+function calGoToDate(ymd){ calRefDate = calParseYMD(ymd); renderCalendar(); }
+function renderCalCatList(){
+  $('calCatList').innerHTML = Object.entries(CAL_CATS).map(([key, c]) => `
+    <label class="cal-cat-row ${calActiveCats.has(key) ? '' : 'off'}">
+      <span class="cal-cat-dot" style="background:${c.dot};"></span><span>${c.label}</span>
+      <input type="checkbox" data-cat="${key}" ${calActiveCats.has(key) ? 'checked' : ''}>
+    </label>`).join('');
+}
+function renderCalUpNext(){
+  const today = todayStr();
+  const events = buildCalendarEvents().filter(e => calActiveCats.has(e.cat) && e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 6);
+  $('calUpNext').innerHTML = events.length ? events.map(e => {
+    const d = calParseYMD(e.date), cat = CAL_CATS[e.cat];
+    return `<div class="cal-agenda-row">
+      <div class="cal-agenda-time">${d.getDate()} ${MONTH_TH[d.getMonth()]}</div>
+      <div class="cal-agenda-rule" style="background:${cat.dot};"></div>
+      <div><div class="cal-agenda-title" style="cursor:pointer;" onclick="openProjectView('${e.id}')">${escapeHtml(e.title)}</div><div class="cal-agenda-meta">${escapeHtml(e.meta || '')}</div></div>
+    </div>`;
+  }).join('') : '<div class="cal-empty">ไม่มีรายการ</div>';
+}
+function renderCalWeek(byDate){
+  const start = calStartOfWeek(calRefDate), today = todayStr();
+  $('calMain').innerHTML = '<div class="cal-week-grid">' + Array.from({ length: 7 }, (_, i) => calAddDays(start, i)).map(d => {
+    const ymd = calYMD(d), evs = byDate[ymd] || [], isToday = ymd === today;
+    return `<div class="cal-day-col">
+      <div class="cal-day-head ${isToday ? 'today' : ''}"><div class="dow">${CAL_DOW[d.getDay()]}</div><div class="num">${d.getDate()}</div></div>
+      <div class="cal-day-events">${evs.length ? evs.map(e => calChip(e, false)).join('') : '<div class="cal-day-empty">—</div>'}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+function renderCalMonth(byDate){
+  const y = calRefDate.getFullYear(), m = calRefDate.getMonth(), today = todayStr();
+  const gridStart = calAddDays(new Date(y, m, 1), -((new Date(y, m, 1).getDay() + 6) % 7));
+  const dowRow = '<div class="cal-month-dow">' + ['จ','อ','พ','พฤ','ศ','ส','อา'].map(x => `<span>${x}</span>`).join('') + '</div>';
+  const grid = Array.from({ length: 42 }, (_, i) => calAddDays(gridStart, i)).map(d => {
+    const ymd = calYMD(d), evs = byDate[ymd] || [], otherMonth = d.getMonth() !== m, isToday = ymd === today;
+    const shown = evs.slice(0, 3), more = evs.length > 3 ? `<div class="cal-month-more">+${evs.length - 3} เพิ่มเติม</div>` : '';
+    return `<div class="cal-month-cell ${otherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}">
+      <div class="cal-month-date">${d.getDate()}</div>${shown.map(e => calChip(e, true)).join('')}${more}
+    </div>`;
+  }).join('');
+  $('calMain').innerHTML = dowRow + `<div class="cal-month-grid">${grid}</div>`;
+}
+function renderCalDay(byDate){
+  const ymd = calYMD(calRefDate), evs = byDate[ymd] || [];
+  $('calMain').innerHTML = `<div class="cal-day-agenda-head">${CAL_DOW[calRefDate.getDay()]} ${calRefDate.getDate()} ${MONTH_TH[calRefDate.getMonth()]} ${calRefDate.getFullYear() + 543}</div>
+    <div class="cal-day-agenda">${evs.length ? evs.map(e => calChip(e, false)).join('') : '<div class="cal-empty">ไม่มีรายการในวันนี้</div>'}</div>`;
+}
+function renderCalendar(){
+  $('calMonthName').textContent = MONTH_TH[calRefDate.getMonth()];
+  $('calYearName').textContent = calRefDate.getFullYear() + 543;
+  document.querySelectorAll('.cal-switch-item').forEach(b => b.classList.toggle('active', b.dataset.view === calView));
+  renderCalMini();
+  renderCalCatList();
+  renderCalUpNext();
+  const byDate = calGroupByDate(calFilteredEvents());
+  if (calView === 'week') renderCalWeek(byDate);
+  else if (calView === 'month') renderCalMonth(byDate);
+  else renderCalDay(byDate);
+}
+function calNav(dir){
+  if (calView === 'day') calRefDate = calAddDays(calRefDate, dir);
+  else if (calView === 'week') calRefDate = calAddDays(calRefDate, dir * 7);
+  else calRefDate = calAddMonthsSafe(calRefDate, dir);
+  renderCalendar();
+}
+$('calTodayBtn').addEventListener('click', () => { calRefDate = new Date(); renderCalendar(); });
+$('calPrevBtn').addEventListener('click', () => calNav(-1));
+$('calNextBtn').addEventListener('click', () => calNav(1));
+$('calMiniPrev').addEventListener('click', () => { calRefDate = calAddMonthsSafe(calRefDate, -1); renderCalendar(); });
+$('calMiniNext').addEventListener('click', () => { calRefDate = calAddMonthsSafe(calRefDate, 1); renderCalendar(); });
+document.querySelectorAll('.cal-switch-item').forEach(btn => btn.addEventListener('click', () => { calView = btn.dataset.view; renderCalendar(); }));
+$('calSearchInput').addEventListener('input', e => { calSearchTerm = e.target.value; renderCalendar(); });
+$('calCatList').addEventListener('change', e => {
+  const cb = e.target.closest('input[data-cat]');
+  if (!cb) return;
+  if (cb.checked) calActiveCats.add(cb.dataset.cat); else calActiveCats.delete(cb.dataset.cat);
+  renderCalendar();
+});
+$('calNewBtn').addEventListener('click', () => { const m = $('calNewMenu'); m.style.display = m.style.display === 'none' ? 'flex' : 'none'; });
+$('calNewSaleBtn').addEventListener('click', () => { $('calNewMenu').style.display = 'none'; openProjectForm(null, 'sale'); });
+$('calNewProjectBtn').addEventListener('click', () => { $('calNewMenu').style.display = 'none'; openProjectForm(null, 'project'); });
+document.addEventListener('click', e => { if (!e.target.closest('.cal-new-wrap')) $('calNewMenu').style.display = 'none'; });
 
 /* ====== Sales / projects ======
    One list holds both kinds of job (`jobType`: 'sale' | 'project'). Each has equipment lines that point at warehouse items:
