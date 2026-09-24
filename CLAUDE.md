@@ -214,10 +214,25 @@ every individual `render*()` call site by hand.
   them) - `CAL_DOW`/the month-grid's day row pick `CAL_DOW_EN`/an English array directly off `currentLang` instead,
   the same targeted pattern as the pager.
 
-**Known gaps, not yet covered**: the long explanatory `<p class="panel-note">` paragraphs on most list pages (translated
-selectively would be a lot of prose for comparatively little functional value - flag any of these to Claude directly
-if they matter to you and they can be added), and anything not yet noticed in normal use. The dictionary is designed to
-grow incrementally - adding a missed phrase is a one-line addition to `I18N_EN`, never a structural change. The printed
+**Search-box placeholders and the `<p class="panel-note">` explanatory paragraphs are now covered too** - both were
+flagged directly as an incomplete-translation report ("ตรงช่องค้นหา กับคำอธิบายจะเป็นภาษาไทยอยู่"), reversing the
+"known gap" this section used to describe. All 10 page-specific search placeholders (ซื้อขาย/โครงการ/แผนดำเนินการ/
+equipment/warehouse/serviceWarehouse/catalog/customers/users/audit - the calendar's own `#calSearchInput` already had
+one) and every static panel-note across the app were added to `I18N_EN`, extracted programmatically from the live HTML
+(a small Python script, not hand-retyped) specifically so the Thai dictionary KEY is guaranteed byte-identical to what
+`translatePage()` will actually look up - a hand-typed multi-clause Thai string is exactly the kind of key that silently
+fails to match on a single mistyped character, with no error, just a paragraph that stays Thai. A panel-note wrapping
+part of its text in `<b>` (the ซื้อขาย/โครงการ list notes' own `<b>ซื้อขาย</b>`/`<b>โครงการ</b>` lead-in, and the item-status
+lock note's `<b>ล็อคของ</b>`/`<b>ทันที</b>`) splits into MULTIPLE sibling text nodes at each tag boundary, each needing
+its own dictionary entry - and since Thai has no inter-word spaces but English does, a fragment translation needs an
+explicit trailing/leading space of its own at that boundary (`'immediately '`, `'...to '`) or the reassembled English
+reads as one run-on word ("warehouseimmediately") - trimmed only for the dictionary LOOKUP, not for what actually gets
+written back into the node's rendered text. The two `photosEquipHint`/`photosInstallHint` panel-notes are NOT static -
+`addProjectPhotos()`'s caller sets their `textContent` from a template string mixing static wording with a live
+`fmtBytes()` byte count and a `sale ? 'ซื้อขาย' : 'โครงการ'` branch - a composite string can never exactly match a
+dictionary key once the number is filled in (the same limitation `renderPager()` already worked around), so it was
+made `currentLang`-aware directly instead, picking its own English or Thai template string rather than going through
+`I18N_EN` at all. The printed
 handover/Action Plan PDFs (`#printArea`) are explicitly excluded from `translatePage()` and always print in Thai
 regardless of the on-screen language, since the document must keep matching `docs/handover-template.docx` exactly (see
 "Printing"). The two `"แผนดำเนินการ (Action Plan)"` labels found during this work (a nav tooltip and a page title) had

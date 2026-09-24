@@ -1723,7 +1723,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.5';
+const APP_VERSION = '1.23.6';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1944,6 +1944,36 @@ const I18N_EN = {
   // Common toasts / confirms
   'บันทึกแล้ว':'Saved', 'บันทึกไม่สำเร็จ':'Save failed', 'ลบไม่สำเร็จ':'Delete failed', 'กรุณากรอกข้อมูลให้ครบถ้วน':'Please fill in all required fields',
   'ต้องการลบรายการนี้ใช่หรือไม่?':'Delete this record?',
+  // Search placeholders + panel-note descriptions (added: English coverage gap fix)
+  '— สถานะดูจากรายการสินค้าแต่ละบรรทัด: ยังไม่มีรายการที่ดำเนินการ = รอดำเนินการ, ดำเนินการบางส่วน = กำลังดำเนินการ, ครบทุกรายการ = ดำเนินการแล้ว · เลือกสินค้าจากโกดัง เมื่อบันทึกเป็น "ดำเนินการแล้ว" ระบบตัดจำนวนและ Serial ออกจากโกดังให้ · ช่อง "สถานะงาน" ติ๊กเองไม่ได้ ระบบติ๊กให้เมื่อแนบรูปภาพจริงเท่านั้น (เว้นว่างถ้ารายการนี้ไม่ได้เลือกชุดรูปนั้นตอนสร้าง) · กด ⚙ ที่หัวตารางเพื่อเลือกว่าจะแสดงคอลัมน์ไหนบ้าง (มีผลเฉพาะเบราว์เซอร์นี้)':'— Status is read from each item line: no items processed = Pending, some processed = In progress, all processed = Done · Pick items from the warehouse — marking a line "Done" deducts the quantity and serials from the warehouse automatically · The "Status" checkboxes can\'t be ticked by hand; the system ticks them only when real photos are attached (left blank if that photo set wasn\'t chosen when the job was created) · Click ⚙ in the table header to choose which columns to show (this browser only)',
+  '— สถานะคำนวณอัตโนมัติ: ก่อนวันเซ็นสัญญา หรือยังไม่ได้ระบุข้อมูลใน Action Plan = รอดำเนินการ, อยู่ในช่วงสัญญาและมีแผนแล้ว = กำลังดำเนินการ, หลังวันสิ้นสุด = สิ้นสุดสัญญาโครงการ · เลือกอุปกรณ์จากโกดังเหมือนการซื้อขาย และกด "แผนงาน" เพื่อวางขั้นตอนใน Action Plan · ตัวกรอง "งวดงาน" อ้างอิงจากงวดที่ยังไม่ได้ส่ง (หรืองวดสุดท้ายถ้าส่งครบแล้ว) ของแต่ละโครงการ · ช่อง "สถานะงาน" ติ๊กเองไม่ได้ ระบบติ๊กให้เมื่อบันทึกแผนดำเนินงาน/รูปภาพจริงเท่านั้น · กด ⚙ ที่หัวตารางเพื่อเลือกว่าจะแสดงคอลัมน์ไหนบ้าง (มีผลเฉพาะเบราว์เซอร์นี้)':'— Status is calculated automatically: before the contract-signing date, or no Action Plan set yet = Pending, within the contract period with a plan = In progress, after the end date = Contract ended · Pick equipment from the warehouse the same way as a sale, then click "Plan" to lay out the Action Plan steps · The "Installment" filter refers to each project\'s next undelivered installment (or the last one once all are delivered) · The "Status" checkboxes can\'t be ticked by hand; the system ticks them only when a plan/real photos are actually saved · Click ⚙ in the table header to choose which columns to show (this browser only)',
+  'แต่ละโครงการมีแผนดำเนินการของตัวเอง — กดที่โครงการเพื่อเปิดแผนของโครงการนั้น':'Each project has its own Action Plan — click a project to open its plan',
+  'สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด (ส่วนสีเข้มคือความคืบหน้า) · ลากแถบเพื่อย้าย, ลากขอบซ้าย/ขวาเพื่อปรับความยาว (เป็นรายสัปดาห์), ลากบนแถวที่ยังไม่มีวันที่เพื่อสร้างแถบ · ติ๊กช่อง ✓ หน้าสุดของแถวเมื่อดำเนินการแล้ว (ความคืบหน้าคำนวณจากจำนวนที่ติ๊ก)':'Weeks are counted by day-of-month: days 1–7 = week 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29+ = 5 · The colored bar spans from the start date\'s week to the end date\'s week (the darker part is progress) · Drag the bar to move it, drag the left/right edge to resize (by week), drag on a row with no date yet to create a bar · Tick the ✓ box at the start of a row when done (progress is calculated from how many are ticked)',
+  'ข้อมูลมาจากช่อง "สถานที่" และ "การรับประกัน (เดือน)" ในฟอร์มเพิ่มรายการ — โครงการนับจากวันที่สิ้นสุดโครงการ, ซื้อขายนับจากวันที่สั่งซื้อ':'Data comes from the "Location" and "Warranty (months)" fields on the add-record form — for a project it\'s counted from the contract end date, for a sale from the order date',
+  'กดที่รายการอุปกรณ์เพื่อดู Serial Number และประวัติการเบิก/คืน (เบิกไปซื้อขาย/โครงการไหน) — การเรียงตามจำนวนดูจากจำนวนที่เหลืออยู่ในโกดังเท่านั้น · "เพิ่มข้อมูลตัวอย่าง" (เฉพาะผู้ดูแลระบบ) เพิ่มกล้องวงจรปิด 3 รายการและสวิตช์ 2 รายการ แท็กเป็นข้อมูลตัวอย่าง ลบทีเดียวได้ที่ถังขยะ ("ลบข้อมูลตัวอย่างทั้งหมด") หรือลบทีละรายการตามปกติ':'Click an item to see its serial numbers and issue/return history (which sale/project it went to) — sorting by quantity only looks at what\'s left in the warehouse · "Add sample data" (admin only) adds 3 CCTV items and 2 switches tagged as sample data, deletable all at once from Trash ("Delete all sample data") or one at a time as usual',
+  'รายการบริการ (ไม่มีจำนวน/Serial เพราะไม่ใช่สินค้าที่นับสต็อก) — เลือกใช้แยกจากโกดังสินค้าได้ในฟอร์มซื้อขาย/โครงการ ผ่านปุ่ม "+ เพิ่มบริการ"':'Service records (no quantity/serial since a service isn\'t stocked) — picked separately from the goods warehouse on the sale/project form via the "+ Add service" button',
+  'ภาพโปสการ์ดคือหน้าแรกของ Catalog — กดที่ภาพเพื่อเปิดดู PDF ออนไลน์ และกด "ดาวน์โหลด" เพื่อเก็บไฟล์ไว้ (ผู้ดูแลระบบอัปโหลด/แก้ไข/ลบได้ ไฟล์ขนาดไม่เกิน 15 MB) · การ์ดที่มีป้าย "ตัวอย่าง" เป็นไฟล์ตัวอย่าง — จะแสดงตอนที่ในระบบยังไม่มี Catalog':'The poster image is the catalog\'s first page — click it to view the PDF online, or click "Download" to save the file (admin can upload/edit/delete, max 15 MB) · Cards labeled "Sample" are sample files — shown only when there\'s no real catalog in the system yet',
+  'โลโก้และที่อยู่ของบริษัทจะถูกใช้เป็นหัวกระดาษเวลาพิมพ์โครงการเป็น PDF (เลือกบริษัทได้ในฟอร์มโครงการ) — เฉพาะผู้ดูแลระบบที่เพิ่ม/แก้ไขได้':'The company\'s logo and address are used as the letterhead when printing a job to PDF (pick a company on the job form) — only an admin can add/edit them',
+  'เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกโดยไม่มีชื่อในลิสต์จะได้เป็น "ผู้ใช้งานทั่วไป" อัตโนมัติ':'You can add someone before they ever sign in (matched by email) — anyone who signs in for the first time without being on this list is automatically made a "General user"',
+  'บันทึกการสร้าง/แก้ไข/ลบ/กู้คืนรายการต่างๆ ในระบบ แสดง 300 รายการล่าสุด เรียงจากใหม่ไปเก่า':'Logs every create/edit/delete/restore in the system. Shows the latest 300 entries, newest first',
+  'ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน แสดง 200 รายการล่าสุด':'Real JavaScript errors that occurred on a user\'s own device. Shows the latest 200 entries',
+  'รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด) · "ลบข้อมูลตัวอย่างทั้งหมด" ลบถาวรทันที (ไม่ผ่านถังขยะ) ทุกรายการที่มีแท็ก "sample" (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ ที่ขึ้นต้น "[ตัวอย่าง]") ไม่ว่าจะอยู่ในถังขยะหรือไม่':'Deleted records stay here and can be restored — nothing is auto-purged · Click "Refresh" to load the latest list (this page doesn\'t update live) · "Delete all sample data" permanently deletes (bypassing Trash) every record tagged "sample" (companies/customers/warehouse/sales-projects/invites starting with "[Sample]"), whether it\'s in Trash or not',
+  'เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เปลี่ยนเป็น "เลือกแล้ว" เพื่อ':'Pick equipment from the warehouse data (part, brand, name, type fill in automatically) — the default status is "Pending", change it to "Selected" to ',
+  'ล็อคของ':'lock the item',
+  ': ถ้ารายการนี้เคยบันทึกไว้แล้ว ระบบตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง':': if this line has already been saved before, the system deducts the quantity and serial numbers from the warehouse ',
+  'ทันที':'immediately ',
+  'ไม่ต้องรอกดบันทึกทั้งฟอร์ม (รายการที่เพิ่งสร้างใหม่ยังไม่เคยบันทึก จะตัดตอนกดบันทึกครั้งแรกตามปกติ) และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้ทันทีเช่นกัน':'without waiting to save the whole form (a brand-new, never-saved line still deducts on its first save as usual) — and switching it back to "Pending" or deleting the row returns it to the warehouse immediately too',
+  'หัวข้อที่มีรายละเอียดย่อย จะใช้วันที่เริ่มต้น–สิ้นสุดรวมจากรายการย่อยโดยอัตโนมัติ · จำนวนวันนับรวมวันเริ่มต้นและวันสิ้นสุด':'A step with sub-items automatically uses the combined start–end date range of its sub-items · Day count includes both the start and end date',
+  'ค้นหาเลขที่เอกสาร, ชื่องาน, ลูกค้า, เลขที่ PO':'Search doc no., job name, customer, PO no.',
+  'ค้นหาเลขที่เอกสาร, ชื่อโครงการ, ลูกค้า, เลขที่สัญญา, เลขที่ PO':'Search doc no., project name, customer, contract no., PO no.',
+  'ค้นหาโครงการ, ลูกค้า, เลขที่สัญญา':'Search project, customer, contract no.',
+  'ค้นหาเลขที่เอกสาร, ชื่อ, ลูกค้า, สถานที่':'Search doc no., name, customer, location',
+  'ค้นหา Part, ชื่ออุปกรณ์, Serial Number':'Search part, item name, serial number',
+  'ค้นหา Part, ซัพพลายเออร์, ชื่อบริการ':'Search part, supplier, service name',
+  'ค้นหาชื่อ Catalog, ยี่ห้อ, หมวดสินค้า':'Search catalog name, brand, category',
+  'ค้นหาบริษัท, ผู้ติดต่อ, เลขผู้เสียภาษี':'Search company, contact, tax ID',
+  'ค้นหาชื่อ, อีเมล':'Search name, email',
+  'ค้นหาผู้ทำรายการ, รายการ, รายละเอียด':'Search by user, action, details',
 };
 let currentLang = 'th';
 // Thai month names appear constantly INSIDE otherwise-dynamic strings (fmtDate() -> "24 ก.ย. 2569", never matchable as a whole
@@ -5066,9 +5096,13 @@ async function renderPhotos(){
   const hasEquip = equipmentOptionsFor(rec).length > 0;
   [['photosEquipHint', 'photosEquipBtn'], ['photosInstallHint', 'photosInstallBtn']].forEach(([hintId, btnId]) => {
     $(btnId).disabled = !hasEquip;
-    $(hintId).textContent = hasEquip
-      ? `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)} · ต้องเลือกอุปกรณ์ก่อนแนบรูปทุกครั้ง (ใช้กับรูปที่เลือกในครั้งนี้ทั้งหมด แก้ทีหลังไม่ได้)`
-      : `ยังไม่มีรายการสินค้าในงานนี้ — เพิ่มรายการสินค้าในฟอร์ม${sale ? 'ซื้อขาย' : 'โครงการ'}ก่อนจึงจะแนบรูปได้`;
+    $(hintId).textContent = currentLang === 'en'
+      ? (hasEquip
+          ? `Max ${fmtBytes(PHOTO_MAX_BYTES)} per photo · You must pick equipment before attaching photos every time (applies to every photo picked in this action, can't be changed later)`
+          : `This job has no items yet — add an item on the ${sale ? 'sale' : 'project'} form before you can attach photos`)
+      : (hasEquip
+          ? `รูปละไม่เกิน ${fmtBytes(PHOTO_MAX_BYTES)} · ต้องเลือกอุปกรณ์ก่อนแนบรูปทุกครั้ง (ใช้กับรูปที่เลือกในครั้งนี้ทั้งหมด แก้ทีหลังไม่ได้)`
+          : `ยังไม่มีรายการสินค้าในงานนี้ — เพิ่มรายการสินค้าในฟอร์ม${sale ? 'ซื้อขาย' : 'โครงการ'}ก่อนจึงจะแนบรูปได้`);
   });
   $('photosEquipGrid').innerHTML = ''; $('photosInstallGrid').innerHTML = ''; projectPhotos = [];
   try{
