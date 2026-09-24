@@ -221,6 +221,15 @@ Because nearly everything in this app re-renders via fresh `innerHTML` throughou
 nodes (a freshly re-rendered table, a modal that just opened) get caught the moment they appear, with no need to hook
 every individual `render*()` call site by hand.
 
+`applyLanguage()` itself also calls `renderActiveTab()` (guarded by `if (currentUserUid)`, so it's a no-op at the
+pre-login `applyLanguage(savedLang)` call that restores the saved language on page load) right after `translatePage()`.
+This was added after a real report that toggling the language left some things showing the old language until the
+person switched tabs and back - the pieces below that pick their own Thai/English string directly off `currentLang`
+(rather than a fixed string translatePage() can match) only regenerate that string when their OWN render function
+next runs, which otherwise wouldn't happen until something else (a filter change, a Firestore snapshot, navigating
+away and back) re-rendered that specific tab. Re-rendering the currently-open tab on every toggle is what makes the
+switch feel instant instead of lagging one navigation behind.
+
 **Two kinds of string need a different fix, not the dictionary:**
 - **Composite strings** that mix a translatable word with dynamic data in the same text node - `renderPager()`'s
   "5 รายการต่อหน้า · 1–10 จากทั้งหมด 23 รายการ" line, for instance - can never exactly match a dictionary key once the

@@ -1740,7 +1740,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.8';
+const APP_VERSION = '1.23.9';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2038,6 +2038,11 @@ function applyLanguage(lang){
   currentLang = lang;
   $('langToggleLabel').textContent = lang === 'en' ? 'ไทย' : 'English';
   translatePage(document.body);
+  // A few pieces of UI pick their own Thai/English text at render time instead of going through the dictionary
+  // (renderPager's item-count line, the calendar's day-of-week headers, the photo-page hint) - translatePage()
+  // alone can't touch those since they're not a fixed string, so re-render the tab that's currently open to
+  // pick up the new language immediately instead of waiting for the next unrelated re-render to catch it.
+  if (currentUserUid) renderActiveTab();
 }
 $('langToggleBtn').addEventListener('click', () => {
   const next = currentLang === 'en' ? 'th' : 'en';
