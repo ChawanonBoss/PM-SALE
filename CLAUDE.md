@@ -9,6 +9,50 @@ Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by
 - Reply in Thai, short. Decide instead of asking when a sensible default exists; confirm before destructive actions on real data.
 - Patch `index.html` with small Python scripts that assert exact match counts; avoid bash heredocs with mixed quotes (write files with the editor tools). After a big edit run `python tests/static_test.py` (a bad replace once left `class="tab-panel"...` visible on the dashboard).
 
+## Design system: Neumorphism (Soft UI)
+The whole app UI (not the printed PDF documents - see below) runs on a Neumorphism/Soft UI design system: every surface is "molded"
+from one cool-grey base colour (`--paper`/`--card`, both `#E0E5EC` light / `#2B2F36` dark - deliberately the SAME colour, per the
+system's own anti-pattern rule "never a separate white/card colour"), and shadows do all the work borders used to do. All the physics
+lives in `:root` as reusable tokens: `--shadow-ext`/`-hover`/`-sm` (raised/"extruded" - the resting state for buttons, cards, panels,
+popovers) and `--shadow-inset`/`-deep`/`-sm` (pressed/"carved" - wells for inputs, icon circles, the Gantt's scroll frame, and the
+`:active`/`.active` state of anything that reads as "currently pressed or selected"). The shadow colour itself is two more tokens,
+`--sh-hi`/`--sh-lo` (RGB triples, not full colours, so `rgba(var(--sh-lo),0.6)` composes cleanly) - dark mode only needs to override
+those two plus the base paper/ink colours, and every `--shadow-*` token recomputes automatically since CSS custom properties resolve
+at use time, not at definition time. `--line` changed from a solid hex to a soft translucent `rgba(163,177,198,0.35)` - kept only for
+things that still want a plain divider (table row separators, the Gantt's grid lines, a couple of `border-bottom` dividers in popovers)
+rather than a full shadow treatment, since those already relied on `var(--line)` throughout the file and recolour themselves for free.
+`--paper-dim` is NOT identical to `--paper` (a deliberate deviation from "same colour" for anything that must stay opaque against
+scrolled content behind it - the Gantt's sticky frozen columns/header row, the sidebar strip, `.docno` chips) - it's a few percent
+darker, still visibly "the same material," but solid enough that position:sticky cells don't let scrolled-past content show through
+a translucent fill.
+
+Fonts follow the system's pair (`Plus Jakarta Sans` for `--font-display`/headings, `DM Sans` for `--font-body`) but BOTH stacks fall
+back to `Noto Sans Thai` (`'Plus Jakarta Sans','Noto Sans Thai',sans-serif`) - neither Latin font has Thai glyphs at all, and since
+nearly every string in this app is Thai, the fallback does essentially all the actual rendering work; only Latin letters/digits
+(doc numbers, part codes) actually show the new typeface. `.btn` (primary actions) takes the system's `rounded-2xl` (16px) spec
+literally and is filled solid `--accent` (`#6C63FF`); small inline pills that were already fully round before this (`.icon-btn`,
+`.badge`, `.filter-control`, `.page-btn`, `.subtab-item`) kept their `rounded-full` shape, read as the system's own "Inner Elements:
+12px or rounded-full" token rather than the primary-button token. Status colours (`--sun`/`--ok`/`--danger`/`--gray` and their
+`-soft` tints, `.badge.*`) keep their original semantic meaning (pending/active/ended/warning/danger) but were re-picked to sit
+naturally against the cooler base - since every badge/status rule already read from these variables rather than hard-coded hex,
+recolouring the tokens re-skinned all of them with no per-rule edits needed at all.
+
+**Deliberately left outside this system** (asked for "the whole web UI," but a few things aren't really "UI" in that sense, or
+actively work against dual soft shadows):
+- **The printed handover document / Action Plan PDF** (`@media print`, every `.pr-*`/`.ho-*` rule) - untouched. It's a formal business
+  document measured against `docs/handover-template.docx` (TH Sarabun New, navy/gold), not a screen surface, and Chromium's print
+  engine doesn't render soft box-shadows the same way anyway.
+- **Dense data tables** (`td`/`th`, list rows) - rows stay flat with a thin `var(--line)` divider inside one outer `--shadow-ext`/
+  `--shadow-inset` panel/frame, rather than every row or cell getting its own dual shadow - real neumorphism examples nest a "flat"
+  content region inside one raised/carved container rather than stacking shadows per row, and doing the latter here (hundreds of
+  `<td>`s) would be both visually heavy and a real paint-cost concern.
+- **The Gantt's per-task bar colours** (`PLAN_COLORS`) and the PDF viewer's own page canvas (`.pdf-page` stays literal white) -
+  categorical/functional colours unrelated to the neutral chrome; recolouring a chart palette or making a rendered document page
+  look tinted would hurt legibility for no visual-identity benefit.
+- **Dark mode's exact shadow values** are this session's own extension, not part of the source spec (which only ever gives a light
+  palette) - a dark cool-slate base (`#2B2F36`) with a lighter tint standing in for the "light source" shadow and near-black for the
+  "falls away" shadow, following the same dual-shadow physics as light mode.
+
 ## Data model (short)
 `pm_projects` (`jobType` sale | project; items[] link to `pm_warehouse` (goods, `kind:'good'`) or `pm_serviceWarehouse` (services, `kind:'service'`, `svcId` instead of
 `whId` - see "Service warehouse" below); plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered,
