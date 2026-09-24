@@ -357,6 +357,23 @@
   .plan-card-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
   .plan-card-top b{ font-size:14.5px; line-height:1.35; }
   .g-prog-bar.wide{ display:block; width:100%; height:6px; margin:0; }
+  /* Per-project topic tracker on the Action Plan list card: one row per plan topic (หัวข้อใหญ่), in plan order.
+     Each row draws its own connector below its marker so inserting/removing a topic needs no recalculation. */
+  .plan-track{ display:flex; flex-direction:column; margin-top:2px; }
+  .plan-track-row{ display:flex; gap:10px; }
+  .plan-track-marker-col{ position:relative; width:16px; flex-shrink:0; display:flex; justify-content:center; }
+  .plan-track-marker{ width:10px; height:10px; border-radius:50%; margin-top:4px; background:var(--paper-dim); box-shadow:var(--shadow-inset-sm); flex-shrink:0; z-index:1; }
+  .plan-track-row:not(:last-child) .plan-track-marker-col::after{ content:''; position:absolute; top:14px; bottom:-10px; left:50%; width:2px; margin-left:-1px; background:var(--line); }
+  .plan-track-row.done:not(:last-child) .plan-track-marker-col::after{ background:var(--ok); }
+  .plan-track-row.done .plan-track-marker{ background:var(--ok); box-shadow:none; }
+  .plan-track-row.done .plan-track-marker::before{ content:'✓'; display:block; width:10px; height:10px; line-height:10px; font-size:8px; text-align:center; color:#fff; font-weight:700; }
+  .plan-track-row.live .plan-track-marker{ background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); animation:planTrackPulse 1.6s ease-in-out infinite; }
+  @keyframes planTrackPulse{ 0%,100%{ box-shadow:0 0 0 3px var(--accent-soft); } 50%{ box-shadow:0 0 0 6px var(--accent-soft); } }
+  .plan-track-body{ padding-bottom:10px; min-width:0; }
+  .plan-track-title{ font-size:12.5px; font-weight:600; color:var(--ink); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .plan-track-row.pending .plan-track-title{ color:var(--ink-soft); font-weight:500; }
+  .plan-track-subs{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; line-height:1.4; }
+  .plan-track-row.pending .plan-track-subs{ opacity:.7; }
   .plan-head{ display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; }
   .plan-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--ink-soft); }
   .plan-meta b{ color:var(--ink); font-weight:500; }
@@ -1723,7 +1740,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.7';
+const APP_VERSION = '1.23.8';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1845,7 +1862,7 @@ $('railMenuVersion').textContent = 'Version ' + APP_VERSION;
 const I18N_EN = {
   // Nav / rail
   'แดชบอร์ด':'Dashboard', 'ปฏิทิน':'Calendar', 'ซื้อขาย/โครงการ':'Sales/Projects', 'แผนดำเนินการ':'Action Plan',
-  'แผนดำเนินงานโครงการ':'Action Plan',
+  'แผนดำเนินงานโครงการ':'Action Plan', 'ยังไม่มีแผนดำเนินการ':'No Action Plan yet',
   'คลังและอุปกรณ์':'Warehouse & Equipment', 'ลูกค้าและบริษัท':'Customers & Companies', 'ตั้งค่า':'Settings', 'เมนู':'Menu',
   'ซิงก์แล้ว':'Synced', 'กำลังบันทึก...':'Saving...', 'ผิดพลาด':'Error',
   'โหมดมืด':'Dark mode', 'โหมดสว่าง':'Light mode', 'English':'ไทย', 'ออกจากระบบ':'Sign out',
@@ -4212,6 +4229,30 @@ function renderActionPlan(){
   $('planDetailView').style.display = p ? '' : 'none';
   if (p) renderPlanDetail(p); else renderPlanList(visible);
 }
+// One row per plan topic (หัวข้อใหญ่), in the project's own plan order - done topics stay checked wherever
+// they fall, the first not-yet-done topic is the single "live" row, everything after it is muted/pending.
+function planTrackHtml(p){
+  const topics = p.plan || [];
+  let liveTaken = false;
+  const rows = topics.map(t => {
+    const subs = t.subs || [];
+    const done = subs.length ? subs.every(isDone) : isDone(t);
+    let state = 'pending';
+    if (done) state = 'done';
+    else if (!liveTaken){ state = 'live'; liveTaken = true; }
+    const ts = topicState(t);
+    const urgent = state !== 'done' && (ts === 'late' || ts === 'soon');
+    const subsLine = subs.length ? `<div class="plan-track-subs">${subs.map(s => escapeHtml(s.title)).join(' · ')}</div>` : '';
+    return `<div class="plan-track-row ${state}">
+      <div class="plan-track-marker-col"><span class="plan-track-marker"></span></div>
+      <div class="plan-track-body">
+        <div class="plan-track-title">${escapeHtml(t.title)}${urgent ? `<span class="badge ${ts === 'late' ? 'expired' : 'soon'}">${PLAN_STATUS[ts][0]}</span>` : ''}</div>
+        ${subsLine}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="plan-track">${rows}</div>`;
+}
 function renderPlanList(projects){
   const order = { active:0, pending:1, ended:2 };
   const q = $('planListSearch').value.trim().toLowerCase();
@@ -4227,12 +4268,9 @@ function renderPlanList(projects){
     return `<div class="plan-card" onclick="openActionPlan('${pr.id}')">
       <div class="plan-card-top"><b>${escapeHtml(pr.name)}</b>${statusBadge(projectStatus(pr))}</div>
       <div class="cell-sub">${pr.docNo ? `<span class="docno">${escapeHtml(pr.docNo)}</span> ` : ''}${escapeHtml(pr.customerName || '-')}${pr.contractNo ? ' · ' + escapeHtml(pr.contractNo) : ''}</div>
-      <div class="cell-sub">${fmtDate(pr.startDate)} – ${fmtDate(pr.endDate)}</div>
-      <div><span class="g-prog-bar wide"><i style="width:${sm.progress}%"></i></span></div>
-      <div class="cell-sub" style="display:flex; justify-content:space-between; align-items:center;">
-        <span>${sm.steps ? `${sm.steps} หัวข้อ · ดำเนินการแล้ว ${sm.done}/${sm.total} (<b style="color:var(--ink);">${sm.progress}%</b>)` : 'ยังไม่มีแผนดำเนินการ'}</span>
-        <span style="display:flex; gap:6px;">${sm.late ? `<span class="badge expired">เลยกำหนด ${sm.late}</span>` : ''}${sm.soon ? `<span class="badge soon">ใกล้ครบกำหนด ${sm.soon}</span>` : ''}</span>
-      </div>
+      ${sm.steps
+        ? `<div class="cell-sub">${sm.steps} หัวข้อ · ดำเนินการแล้ว ${sm.done}/${sm.total} (<b style="color:var(--ink);">${sm.progress}%</b>)</div>${planTrackHtml(pr)}`
+        : `<div class="dash-empty" style="padding:6px 0 0;">ยังไม่มีแผนดำเนินการ</div>`}
     </div>`;
   }).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${projects.length ? 'ไม่พบโครงการตามเงื่อนไข' : 'ยังไม่มีโครงการ — สร้างโครงการที่หน้า "โครงการ" แล้วจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ'}</div>`;
 }

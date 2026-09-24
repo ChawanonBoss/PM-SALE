@@ -103,6 +103,29 @@ have no PM-SALE equivalent, so weren't added). Three concrete pieces came out of
   everywhere else in the Neumorphism system above. Both existing call sites (`#dashJobBar`'s two buttons, now wrapped in a
   `.subtabs` div; the audit page, already wrapped) picked this up with no JS changes.
 
+## แผนดำเนินงานโครงการ list: per-project topic tracker
+Each card on the Action Plan LIST page (`renderPlanList()`, `#planCards` - not the Gantt chart you get after clicking
+into one project) shows a compact vertical step tracker of that project's own plan topics (`planTrackHtml()`), replacing
+what used to be a single "N หัวข้อ · ดำเนินการแล้ว X/Y" text line with nothing else - added after a screenshot-driven
+UI-component brief (a shadcn-style "order/process tracker": done rows checked with a green connector, one live row with
+a pulsing marker, pending rows muted), adapted to this app's own Neumorphism tokens rather than the brief's literal
+light-mode palette, and confirmed with the user to apply to the LIST page's cards specifically, not the per-project
+Gantt detail view. The project's own start–end date range line that used to sit under the customer line was dropped
+entirely ("ส่วนเวลา เอาออก") - a tracker row shows only its state and title, not a date. Rows are the project's `plan[]`
+topics **in their own existing order** ("ลำดับ อ้างอิงจากหัวข้อใหญ่ของโครงการ") - never re-sorted by date or urgency -
+and each topic's state is one of `done` (checked wherever it falls, even if a later topic finished first out of order),
+the single `live` row (the FIRST not-yet-done topic walking the list in order - there is always at most one), or
+`pending` (every not-done topic after that one, muted). A topic that is itself `late`/`soon` (via the existing
+`topicState()`) gets a small badge next to its title using the same `badge expired`/`badge soon` classes the old
+summary line's late/soon counts used to show, so that signal wasn't lost, just moved onto the specific row it applies
+to instead of a page-level count. Below each topic's title, its own sub-items (`t.subs[]`, หัวข้อย่อย) are listed as one
+muted line joined by " · " ("ส่วนข้อความด้านล่างหัวข้อใหญ่ ให้แสดงหัวข้อย่อยของโครงการ") - plain descriptive text, not a
+second level of tickable rows, since editing still happens in the full Gantt after clicking into the project. The
+connector below a row's own marker (`.plan-track-marker-col::after`) is colored per that SAME row's state (green if it's
+done, muted otherwise) rather than needing to know its neighbour's state, so a topic can be inserted or removed from
+`plan[]` without any row needing to recompute another row's connector color - each row really does own its own
+connector, per the original component brief's own implementation note.
+
 ## ปฏิทิน (Calendar)
 A top-level page (its own permanent rail icon, next to แดชบอร์ด - not folded into a group, same reasoning as dashboard/Action
 Plan). It shipped first as a deliberately separate "warm editorial" design system, then was folded into the shared Neumorphism
