@@ -905,7 +905,7 @@
               </select>
               <button class="btn" id="projectsCreateBtn" type="button">+ เพิ่มโครงการ</button>
               <button class="btn outline" type="button" id="projectsExportBtn">ส่งออก Excel</button>
-              <button class="btn outline" type="button" id="projectsAddSampleBtn" style="display:none;">+ เพิ่มข้อมูลตัวอย่าง (5 โครงการ)</button>
+              <button class="btn outline" type="button" id="projectsAddSampleBtn" style="display:none;">+ เพิ่มข้อมูลตัวอย่าง (ชุดเต็ม)</button>
               <button class="btn outline" type="button" id="projectsClearBtn">เคลียร์</button>
             </div>
           </div>
@@ -1740,7 +1740,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.9';
+const APP_VERSION = '1.23.10';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3798,35 +3798,79 @@ function renderProjectColumnsModal(){
 $('projectsColumnsBtn').addEventListener('click', () => { renderProjectColumnsModal(); openModal('projectColumnsModal'); });
 $('projectColumnsCloseBtn').addEventListener('click', () => closeModal('projectColumnsModal'));
 
-// One-click canned sample set for โครงการ (admin only, same visibility toggle as warehouseAddSampleBtn): 5 realistic projects with
-// every field filled in, an Action Plan with every step already done, and one installment short of the last (ready to hand over
-// that final one via "ส่งงาน"). Each also gets real pm_photos rows for both sets - not just the photoCounts a project row reads -
-// so the "รูปภาพ" page has something real to open/print, not an empty shell behind a ticked checkbox. Reuses the first existing
-// company for the letterhead if there is one (else makes a throwaway sample one); its own sample customer is always created fresh.
-// Everything here is tagged sample:true, so #deleteSampleDataBtn (which now also sweeps pm_photos - see SAMPLE_DATA_COLS) cleans
-// all of it up in one go, photos included, rather than leaving them as orphaned rows once their project is gone.
+// One-click canned FULL sample set, triggered only from the โครงการ page (#projectsAddSampleBtn stays the one entry point,
+// per the user's own call, rather than spreading a button across every affected page): 5 ซื้อขาย + 5 โครงการ, each with a
+// realistic multi-line item list (goods AND a service line - a single item was "too few when testing"), 3 sample customers to
+// spread them across, a full Action Plan per project (topics that have their own sub-items AND plain topics, not just 5 empty
+// leaves), and the existing โกดังสินค้า/โกดังบริการ sample sets (seedSampleWarehouseSet()/seedSampleServiceWarehouseSet() -
+// each already a no-op if that set exists, so this never double-creates them even if the standalone warehouse button was
+// already used separately). Everything is tagged sample:true, swept together by #deleteSampleDataBtn (SAMPLE_DATA_COLS).
+const SALE_SAMPLE_DEFS = [
+  'จำหน่ายกล้องวงจรปิดพร้อมติดตั้ง อาคาร A',
+  'จำหน่ายอุปกรณ์เครือข่ายสำนักงานสาขา',
+  'จำหน่ายเครื่องควบคุมประตูเข้า-ออก',
+  'จำหน่ายอุปกรณ์ Wi-Fi พร้อมติดตั้ง',
+  'จำหน่ายเครื่องสำรองไฟ UPS',
+];
+// [name, installmentTotal] - the item list itself now comes from sampleItemLines(), shared with the sales above
 const PROJECT_SAMPLE_DEFS = [
-  ['ติดตั้งระบบกล้องวงจรปิดอาคารสำนักงาน', 'CCTV-DOME-2MP', 'Hikvision', 'กล้องวงจรปิดโดม 2MP', 'CCTV', 10, 4],
-  ['ปรับปรุงเครือข่ายโรงงานผลิต', 'SW-24P-GB', 'Cisco', 'สวิตช์เครือข่าย 24 พอร์ต Gigabit PoE+', 'Switch', 6, 4],
-  ['ติดตั้งระบบควบคุมประตูอัตโนมัติ', 'ACC-DOOR-01', 'ZKTeco', 'เครื่องควบคุมประตู Access Control', 'Access Control', 4, 3],
-  ['ติดตั้งระบบ Wi-Fi โรงพยาบาล', 'FAP-231F', 'Fortinet', 'FortiAP 231F Wi-Fi 6', 'Access Point', 8, 5],
-  ['วางระบบไฟฟ้าสำรอง UPS ห้อง Server', 'UPS-3KVA', 'APC', 'Smart-UPS 3000VA Rack', 'UPS', 2, 3],
+  ['ติดตั้งระบบกล้องวงจรปิดอาคารสำนักงาน', 4],
+  ['ปรับปรุงเครือข่ายโรงงานผลิต', 4],
+  ['ติดตั้งระบบควบคุมประตูอัตโนมัติ', 3],
+  ['ติดตั้งระบบ Wi-Fi โรงพยาบาล', 5],
+  ['วางระบบไฟฟ้าสำรอง UPS ห้อง Server', 3],
 ];
 const PROJECT_SAMPLE_PLAN_STEPS = ['สำรวจหน้างานและวางแผนติดตั้ง', 'จัดซื้อและตรวจรับอุปกรณ์', 'ติดตั้งอุปกรณ์หน้างาน', 'เดินสายและเชื่อมต่อระบบ', 'ทดสอบระบบและส่งมอบงาน'];
+const SAMPLE_CUSTOMER_DEFS = [
+  ['[ตัวอย่าง] บริษัท ตัวอย่างลูกค้า จำกัด', 'private', '0105569000111', '99 ถนนตัวอย่าง แขวงตัวอย่าง เขตตัวอย่าง กรุงเทพฯ 10110', 'คุณตัวอย่าง ทดสอบระบบ', '081-234-5678'],
+  ['[ตัวอย่าง] เทศบาลนครตัวอย่าง', 'gov', '0994000123456', '55 ถนนราชการตัวอย่าง อำเภอเมือง จังหวัดตัวอย่าง 40000', 'คุณสมมติ ราชการดี', '043-123-456'],
+  ['[ตัวอย่าง] บริษัท โรงพยาบาลตัวอย่าง จำกัด', 'private', '0105569000333', '12 ถนนสุขภาพตัวอย่าง เขตตัวอย่าง กรุงเทพฯ 10120', 'คุณพยาบาล ใจดี', '02-987-6543'],
+];
 const SAMPLE_PHOTO_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+// 3 goods lines (rotated off SAMPLE_WAREHOUSE_SET by `seed` so sales/projects don't all show the identical 3) + 1 service line
+// (off SAMPLE_SERVICEWH_SET) - every line unlinked (whId/svcId:'') exactly like the old single-item version, so adding sample
+// data never touches real warehouse stock.
+function sampleItemLines(seed){
+  const n = SAMPLE_WAREHOUSE_SET.length;
+  const items = [0, 1, 2].map(k => {
+    const [part, brand, type, name, poolQty, pre] = SAMPLE_WAREHOUSE_SET[(seed + k) % n];
+    const qty = Math.min(poolQty, 3);
+    return { rid:'r' + k, kind:'good', whId:'', part, brand, name, type, qty,
+      serials: Array.from({ length: qty }, (_, j) => `SN-${part}-${String(j + 1).padStart(3, '0')}`), status:'done' };
+  });
+  const [svcPart, svcBrand, svcType, svcName] = SAMPLE_SERVICEWH_SET[seed % SAMPLE_SERVICEWH_SET.length];
+  items.push({ rid:'rs0', kind:'service', svcId:'', part: svcPart, brand: svcBrand, type: svcType, name: svcName, qty:1, status:'done' });
+  return items;
+}
+// 5 topics: 2 carry their own sub-items (their start/end/done are derived from those subs, matching what persistPlan() would
+// have computed), 3 are plain leaf topics - so sample data exercises both shapes the Gantt/tracker actually have to handle,
+// not just one.
+function sampleActionPlanSteps(dayOffset){
+  const SUB_DEFS = { 1:['จัดทำใบสั่งซื้ออุปกรณ์', 'ตรวจรับอุปกรณ์เข้าคลัง', 'ตรวจสอบสภาพและทดสอบเบื้องต้น'], 3:['เดินสายสัญญาณหลัก', 'เชื่อมต่ออุปกรณ์เข้าระบบ'] };
+  return PROJECT_SAMPLE_PLAN_STEPS.map((title, si) => {
+    const owner = PLAN_OWNERS[si % PLAN_OWNERS.length];
+    const subTitles = SUB_DEFS[si];
+    if (subTitles){
+      const subs = subTitles.map((t, j) => ({ title: t, owner, start: dayOffset(-100 + si * 15 + j * 2), end: dayOffset(-100 + si * 15 + j * 2 + 1), done:true }));
+      return { title, owner, start: subs[0].start, end: subs[subs.length - 1].end, done:true, subs };
+    }
+    return { title, owner, start: dayOffset(-100 + si * 15), end: dayOffset(-90 + si * 15), done:true, subs:[] };
+  });
+}
 $('projectsAddSampleBtn').addEventListener('click', () => {
-  const names = new Set(PROJECT_SAMPLE_DEFS.map(d => `[ตัวอย่าง] ${d[0]}`));
+  const names = new Set([...SALE_SAMPLE_DEFS, ...PROJECT_SAMPLE_DEFS.map(d => d[0])].map(n => `[ตัวอย่าง] ${n}`));
   if (data.projects.some(p => names.has(p.name))){ toast('มีข้อมูลตัวอย่างชุดนี้อยู่แล้ว'); return; }
-  confirmAction('เพิ่มข้อมูลตัวอย่างโครงการ 5 รายการ (แผนดำเนินการครบ รูปภาพครบ พร้อมส่งมอบงานงวดสุดท้าย) ใช่หรือไม่?', async () => {
+  confirmAction('เพิ่มข้อมูลตัวอย่างชุดเต็ม (ซื้อขาย 5, โครงการ 5, แผนดำเนินการครบ, ลูกค้า 3, โกดังสินค้า 5, โกดังบริการ 5) ใช่หรือไม่?', async () => {
     setSync('saving');
     try{
       const now = new Date().toISOString();
       const dayOffset = n => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
-      const custRef = await db.collection(COL.customers).add({
-        name:'[ตัวอย่าง] บริษัท ตัวอย่างลูกค้า จำกัด', type:'private', taxId:'0105569000111',
-        address:'99 ถนนตัวอย่าง แขวงตัวอย่าง เขตตัวอย่าง กรุงเทพฯ 10110', contactName:'คุณตัวอย่าง ทดสอบระบบ', contactPhone:'081-234-5678',
-        sample:true, createdBy: currentUserUid, createdAt: now
-      });
+
+      const custRefs = [];
+      for (const [name, type, taxId, address, contactName, contactPhone] of SAMPLE_CUSTOMER_DEFS){
+        const ref = await db.collection(COL.customers).add({ name, type, taxId, address, contactName, contactPhone, sample:true, createdBy: currentUserUid, createdAt: now });
+        custRefs.push({ id: ref.id, name });
+      }
       let companyId = data.companies[0] && data.companies[0].id;
       if (!companyId){
         const coRef = await db.collection(COL.companies).add({
@@ -3835,41 +3879,66 @@ $('projectsAddSampleBtn').addEventListener('click', () => {
         });
         companyId = coRef.id;
       }
+      await seedSampleWarehouseSet();
+      await seedSampleServiceWarehouseSet();
+
       let photoCount = 0;
+      const addSamplePhotos = async (jobId, items) => {
+        const eq = items.find(it => it.kind === 'good');
+        for (const set of ['equipment', 'install']){
+          await db.collection(COL.photos).add({
+            projectId: jobId, ownerId: currentUserUid, set, name:`ตัวอย่าง-${set}.png`, size:100, type:'image/png', data: SAMPLE_PHOTO_PNG,
+            equipBrand: eq.brand, equipName: eq.name, equipSerial: (eq.serials || [])[0] || '', sample:true, createdBy: currentUserUid, createdAt: now
+          });
+          photoCount++;
+        }
+      };
+
+      // 5 ซื้อขาย - no Action Plan / installments (a sale has neither); every item line is already 'done' so the row is
+      // ready to test "ปิดงาน" on immediately.
+      for (let i = 0; i < SALE_SAMPLE_DEFS.length; i++){
+        const cust = custRefs[i % custRefs.length];
+        const items = sampleItemLines(i);
+        const saleRef = db.collection(COL.projects).doc();
+        await saleRef.set({
+          jobType:'sale', docNo:`SO-SAMPLE-${i + 1}`, name:`[ตัวอย่าง] ${SALE_SAMPLE_DEFS[i]}`,
+          customerId: cust.id, customerName: cust.name, companyId,
+          poNo:`PO-2569-20${i + 1}`, startDate: dayOffset(-30 + i), endDate: dayOffset(-30 + i),
+          installLocation:'สถานที่ติดตั้งตัวอย่าง', warrantyMonths:12, notes:'ข้อมูลตัวอย่างสำหรับทดสอบระบบ',
+          items, photoSets:['equipment', 'install'], photoCounts:{ equipment:1, install:1 },
+          sample:true, createdBy: currentUserUid, createdAt: now
+        });
+        await addSamplePhotos(saleRef.id, items);
+      }
+
+      // 5 โครงการ - full Action Plan, one installment short of the last (ready to hand over the final one via "ส่งงาน")
       for (let i = 0; i < PROJECT_SAMPLE_DEFS.length; i++){
-        const [name, part, brand, itemName, type, qty, total] = PROJECT_SAMPLE_DEFS[i];
+        const [name, total] = PROJECT_SAMPLE_DEFS[i];
+        const cust = custRefs[i % custRefs.length];
+        const items = sampleItemLines(i + 2);   // offset from the sales' own rotation so the two lists don't show identical lines
         const delivered = total - 1;
         const deliveries = Array.from({ length: delivered }, (_, k) => ({
           no: k + 1, total, date: dayOffset(-90 + k * 20), note: `ส่งมอบงวดที่ ${k + 1}`,
           by: currentUserUid, byName: currentUserName || currentUserEmail || '', at: now
         }));
-        const plan = PROJECT_SAMPLE_PLAN_STEPS.map((title, si) => ({
-          title, owner: PLAN_OWNERS[si % PLAN_OWNERS.length], start: dayOffset(-100 + si * 15), end: dayOffset(-90 + si * 15), done: true, subs: []
-        }));
-        const serials = Array.from({ length: qty }, (_, k) => `SN-${part}-${String(k + 1).padStart(3, '0')}`);
+        const plan = sampleActionPlanSteps(dayOffset);
         const projRef = db.collection(COL.projects).doc();
         await projRef.set({
           jobType:'project', docNo:`PJ-SAMPLE-${i + 1}`, name:`[ตัวอย่าง] ${name}`,
-          customerId: custRef.id, customerName:'[ตัวอย่าง] บริษัท ตัวอย่างลูกค้า จำกัด', companyId,
+          customerId: cust.id, customerName: cust.name, companyId,
           contractNo:`CT-2569-00${i + 1}`, poNo:`PO-2569-10${i + 1}`, startDate: dayOffset(-100), endDate: dayOffset(-10),
           installLocation:'สถานที่ติดตั้งตัวอย่าง', warrantyMonths:12, notes:'ข้อมูลตัวอย่างสำหรับทดสอบระบบ',
-          items:[{ rid:'r' + i, kind:'good', whId:'', part, brand, name: itemName, type, serials, qty, status:'done' }],
-          plan, installmentTotal: total, installmentNo: delivered, deliveries,
+          items, plan, installmentTotal: total, installmentNo: delivered, deliveries,
           photoCounts:{ equipment:1, install:1 }, sample:true, createdBy: currentUserUid, createdAt: now
         });
-        for (const set of ['equipment', 'install']){
-          await db.collection(COL.photos).add({
-            projectId: projRef.id, ownerId: currentUserUid, set, name:`ตัวอย่าง-${set}.png`, size:100, type:'image/png', data: SAMPLE_PHOTO_PNG,
-            equipBrand: brand, equipName: itemName, equipSerial: serials[0] || '', sample:true, createdBy: currentUserUid, createdAt: now
-          });
-          photoCount++;
-        }
+        await addSamplePhotos(projRef.id, items);
       }
-      logAudit('เพิ่มข้อมูลตัวอย่างโครงการ', 'ตัวอย่างโครงการ', `5 รายการ + รูปภาพ ${photoCount} รูป`);
-      toast('เพิ่มข้อมูลตัวอย่างโครงการแล้ว 5 รายการ');
+
+      logAudit('เพิ่มข้อมูลตัวอย่าง', 'ตัวอย่างชุดเต็ม', `ซื้อขาย 5, โครงการ 5, ลูกค้า 3, โกดังสินค้า 5, โกดังบริการ 5, รูปภาพ ${photoCount} รูป`);
+      toast('เพิ่มข้อมูลตัวอย่างแล้ว');
       setSync('ok');
     }catch(err){ setSync('error'); toast(err && err.message ? err.message : 'เพิ่มไม่สำเร็จ'); }
-  }, 'เพิ่มข้อมูลตัวอย่างโครงการ');
+  }, 'เพิ่มข้อมูลตัวอย่าง');
 });
 
 // ซื้อขาย list: same per-browser column-picker pattern as โครงการ above (see PROJECT_COLUMNS). "สร้างโดย" starts OFF; everything else ON.
@@ -4676,6 +4745,8 @@ function renderWarehouse(){
 
 // One-click canned sample set (admin only, see "Sample data" in CLAUDE.md): 3 CCTV + 2 Switch items, every field filled in, tagged sample:true so
 // they're covered by #deleteSampleDataBtn on the Trash page (and can just as well be deleted one at a time like any other warehouse item).
+// Also seeded (via seedSampleWarehouseSet()) as part of the bigger "เพิ่มข้อมูลตัวอย่าง" set on the โครงการ page, so both entry points
+// share one array and one no-op-if-already-there guard instead of drifting into two copies of the same data.
 // [part, brand, type, name, quantity, serialPrefix, note]
 const SAMPLE_WAREHOUSE_SET = [
   ['CCTV-DOME-2MP', 'Hikvision', 'CCTV', 'กล้องวงจรปิดโดม 2MP', 10, 'HK-DOME', 'ติดตั้งภายในอาคาร ภาพคมชัดกลางคืน'],
@@ -4684,28 +4755,58 @@ const SAMPLE_WAREHOUSE_SET = [
   ['SW-24P-GB', 'Cisco', 'Switch', 'สวิตช์เครือข่าย 24 พอร์ต Gigabit PoE+', 6, 'CS-24P', 'จ่ายไฟ PoE+ ให้กล้องวงจรปิดได้โดยตรง'],
   ['SW-8P-UNMG', 'TP-Link', 'Switch', 'สวิตช์เครือข่าย 8 พอร์ต แบบ Unmanaged', 12, 'TPL-8P', 'สำหรับเครือข่ายขนาดเล็ก ไม่ต้องตั้งค่า'],
 ];
+// Returns true if it created the set, false if it already existed (a silent no-op, not an error - the caller decides whether that's worth a toast).
+async function seedSampleWarehouseSet(){
+  const parts = new Set(SAMPLE_WAREHOUSE_SET.map(r => r[0]));
+  if (data.warehouse.some(w => parts.has(w.part))) return false;
+  const now = new Date().toISOString();
+  const batch = db.batch();
+  SAMPLE_WAREHOUSE_SET.forEach(([part, brand, type, name, qty, pre, note]) => {
+    batch.set(db.collection(COL.warehouse).doc(), {
+      part, brand, type, name: `[ตัวอย่าง] ${name}`, quantity: qty,
+      serials: Array.from({ length: qty }, (_, k) => `${pre}-${String(k + 1).padStart(3, '0')}`),
+      note, history: [], sample: true, createdBy: currentUserUid, createdAt: now
+    });
+  });
+  await batch.commit();
+  return true;
+}
 $('warehouseAddSampleBtn').addEventListener('click', () => {
   const parts = new Set(SAMPLE_WAREHOUSE_SET.map(r => r[0]));
   if (data.warehouse.some(w => parts.has(w.part))){ toast('มีข้อมูลตัวอย่างชุดนี้อยู่แล้วในโกดัง'); return; }
   confirmAction('เพิ่มข้อมูลตัวอย่างในโกดังสินค้า 5 รายการ (กล้องวงจรปิด 3, สวิตช์ 2) ใช่หรือไม่?', async () => {
     setSync('saving');
     try{
-      const now = new Date().toISOString();
-      const batch = db.batch();
-      SAMPLE_WAREHOUSE_SET.forEach(([part, brand, type, name, qty, pre, note]) => {
-        batch.set(db.collection(COL.warehouse).doc(), {
-          part, brand, type, name: `[ตัวอย่าง] ${name}`, quantity: qty,
-          serials: Array.from({ length: qty }, (_, k) => `${pre}-${String(k + 1).padStart(3, '0')}`),
-          note, history: [], sample: true, createdBy: currentUserUid, createdAt: now
-        });
-      });
-      await batch.commit();
+      await seedSampleWarehouseSet();
       logAudit('เพิ่มข้อมูลตัวอย่างโกดัง', 'ตัวอย่างสินค้า', '5 รายการ (กล้องวงจรปิด 3, สวิตช์ 2)');
       toast('เพิ่มข้อมูลตัวอย่างแล้ว 5 รายการ');
       setSync('ok');
     }catch(err){ setSync('error'); toast('เพิ่มไม่สำเร็จ'); }
   }, 'เพิ่มข้อมูลตัวอย่าง');
 });
+// Same idea for โกดังบริการ - no standalone button of its own (per the user's own call: the "เพิ่มข้อมูลตัวอย่าง" entry
+// point stays only on the โครงการ page), just the shared seed function the mega-generator below calls.
+// [part, brand(=ซัพพลายเออร์), type(=ประเภทงาน), name(=ชื่อบริการ), note]
+const SAMPLE_SERVICEWH_SET = [
+  ['SVC-INSTALL-CCTV', 'ทีมช่างตัวอย่าง เอ', 'ติดตั้งระบบกล้องวงจรปิด', 'บริการติดตั้งกล้องวงจรปิดพร้อมเดินสาย', 'รวมค่าแรงและอุปกรณ์ยึดจับ'],
+  ['SVC-NETWORK-SETUP', 'ทีมช่างตัวอย่าง บี', 'วางระบบเครือข่าย', 'บริการวางระบบเครือข่ายและตั้งค่าอุปกรณ์', 'ครอบคลุมการตั้งค่า VLAN และไฟร์วอลล์เบื้องต้น'],
+  ['SVC-MAINTENANCE', 'ทีมบำรุงรักษาตัวอย่าง', 'บำรุงรักษาระบบ (PM)', 'บริการตรวจเช็คและบำรุงรักษาระบบประจำปี', 'ตรวจเช็ค 2 ครั้งต่อปี พร้อมรายงานผล'],
+  ['SVC-TRAINING', 'ทีมฝึกอบรมตัวอย่าง', 'ฝึกอบรมการใช้งาน', 'บริการฝึกอบรมการใช้งานระบบให้ผู้ดูแลระบบ', 'ระยะเวลาอบรม 1 วันทำการ'],
+  ['SVC-WARRANTY-EXT', 'ทีมบริการตัวอย่าง', 'ขยายระยะประกัน', 'บริการขยายระยะเวลารับประกันเพิ่มเติม', 'ขยายเพิ่ม 12 เดือนจากประกันมาตรฐาน'],
+];
+async function seedSampleServiceWarehouseSet(){
+  const parts = new Set(SAMPLE_SERVICEWH_SET.map(r => r[0]));
+  if (data.serviceWarehouse.some(s => parts.has(s.part))) return false;
+  const now = new Date().toISOString();
+  const batch = db.batch();
+  SAMPLE_SERVICEWH_SET.forEach(([part, brand, type, name, note]) => {
+    batch.set(db.collection(COL.serviceWarehouse).doc(), {
+      part, brand, type, name: `[ตัวอย่าง] ${name}`, note, sample: true, createdBy: currentUserUid, createdAt: now
+    });
+  });
+  await batch.commit();
+  return true;
+}
 
 /* ---- Serial number boxes: exactly one per unit (quantity 4 -> 4 boxes), re-drawn live as the quantity changes ---- */
 let editingWarehouseId = null;
@@ -6025,7 +6126,7 @@ $('trashTypeFilter').addEventListener('change', renderTrash);
 // normal Trash purge which only ever acts on already-soft-deleted rows). pm_photos has no Trash concept of its own (it's never soft-
 // deleted), but is included here too so a sample project's own handover photos (see projectsAddSampleBtn) don't outlive the project
 // itself as orphaned rows. Audit-log rows written while seeding are immutable by rule and are deliberately left alone.
-const SAMPLE_DATA_COLS = ['pm_companies', 'pm_customers', 'pm_warehouse', 'pm_projects', 'pm_pendingRoles', 'pm_photos'];
+const SAMPLE_DATA_COLS = ['pm_companies', 'pm_customers', 'pm_warehouse', 'pm_serviceWarehouse', 'pm_projects', 'pm_pendingRoles', 'pm_photos'];
 $('deleteSampleDataBtn').addEventListener('click', () => {
   confirmAction('ลบข้อมูลตัวอย่างทั้งหมดถาวร (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ/รูปภาพ ที่มีแท็ก "ตัวอย่าง" ทั้งในและนอกถังขยะ) กู้คืนไม่ได้ ใช่หรือไม่?', async () => {
     setSync('saving');

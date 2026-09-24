@@ -503,28 +503,59 @@ overlay (and logs which key(s) never reported, via `console.warn`) if `checkAllL
 next session.
 
 ## Sample data
-Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`). `#deleteSampleDataBtn` on the (admin-only) Trash page
-hard-deletes every `sample: true` doc across `SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_projects`, `pm_pendingRoles`, `pm_photos`) in
-one go, whether that row is currently live or already sitting in the Trash - it queries each collection directly (`where('sample','==',true)`), not through the
-Trash's own `deletedAt` listing, so a soft-deleted sample row is caught too. `pm_photos` has no Trash concept of its own but is swept the same way, so a sample
-project's own handover photos (see `#projectsAddSampleBtn` below) never outlive it as orphaned rows. No rules change was needed: admin already has unconditional
-delete on all six of those collections. Real, non-sample rows are matched by the same tag and are never touched. Audit-log rows written while seeding still
-cannot be deleted (rules) - this button doesn't try to.
+Rows tagged `sample: true` / names starting `[ตัวอย่าง]` are test data (generators in `tests/fixtures/`, and the two live-site
+buttons below). `#deleteSampleDataBtn` on the (admin-only) Trash page hard-deletes every `sample: true` doc across
+`SAMPLE_DATA_COLS` (`pm_companies`, `pm_customers`, `pm_warehouse`, `pm_serviceWarehouse`, `pm_projects`, `pm_pendingRoles`,
+`pm_photos`) in one go, whether that row is currently live or already sitting in the Trash - it queries each collection
+directly (`where('sample','==',true)`), not through the Trash's own `deletedAt` listing, so a soft-deleted sample row is
+caught too. `pm_photos` has no Trash concept of its own but is swept the same way, so a sample job's own handover photos
+never outlive it as orphaned rows. No rules change was needed: admin already has unconditional delete on all seven of those
+collections. Real, non-sample rows are matched by the same tag and are never touched. Audit-log rows written while seeding
+still cannot be deleted (rules) - this button doesn't try to.
 
-`#warehouseAddSampleBtn` on the โกดังสินค้า page (admin-only, same visibility toggle pattern as `#catalogUploadBtn`) is a matching one-click **add**: a fixed
-`SAMPLE_WAREHOUSE_SET` of 5 real-looking items (3 CCTV, 2 Switch; every field filled in, including a full set of unique serials sized to each item's own
-quantity), tagged `sample: true` and named `[ตัวอย่าง] ...` so it's picked up by `#deleteSampleDataBtn` above like any other sample row, and just as
-deletable one at a time through the page's own normal "ลบ" -> Trash flow. Guards against creating the set twice (checks `data.warehouse` for any of its
-five `part` codes first) since, unlike the bulk generators in `tests/fixtures/`, this one is meant to be clicked from the live production site by an
-admin, not just seeded once for a test run. Written directly with `history: []` and `sample: true` as extra keys beyond `pm_warehouse`'s non-admin
-`hasOnly()` create rule - safe only because the button itself is admin-only, since `pmIsAdmin()` bypasses that key restriction entirely.
+`#warehouseAddSampleBtn` on the โกดังสินค้า page (admin-only, same visibility toggle pattern as `#catalogUploadBtn`) is a
+one-click **add**: a fixed `SAMPLE_WAREHOUSE_SET` of 5 real-looking items (3 CCTV, 2 Switch; every field filled in,
+including a full set of unique serials sized to each item's own quantity), tagged `sample: true` and named `[ตัวอย่าง] ...`.
+Its actual creation logic lives in `seedSampleWarehouseSet()` - a no-op returning `false` if the set already exists rather
+than throwing - so the button's own click handler and the mega-generator below (which also needs these 5 items to exist)
+share one array and one guard instead of drifting into two copies of the same data. Written directly with `history: []`
+and `sample: true` as extra keys beyond `pm_warehouse`'s non-admin `hasOnly()` create rule - safe only because both
+callers are admin-only, since `pmIsAdmin()` bypasses that key restriction entirely. `seedSampleServiceWarehouseSet()` /
+`SAMPLE_SERVICEWH_SET` mirror this exactly for โกดังบริการ (5 services, `part`/`brand`=ซัพพลายเออร์/`type`=ประเภทงาน/
+`name`=ชื่อบริการ/`note`) - but with **no standalone button of its own**: the user's own call was that "เพิ่มข้อมูลตัวอย่าง"
+stays a single entry point on the โครงการ page rather than spreading a button onto every page it touches.
 
-`#projectsAddSampleBtn` on the โครงการ page (same admin-only pattern) is the same idea for โครงการ specifically: 5 real-looking projects
-(`PROJECT_SAMPLE_DEFS`), each with every field filled in, one linked-looking (but unlinked - `whId:''`, so it never touches real warehouse stock)
-equipment line already `status:'done'`, a 5-step Action Plan (`PROJECT_SAMPLE_PLAN_STEPS`) with every step `done:true`, and installments one short of
-the total (`installmentNo = installmentTotal - 1`, `deliveries[]` filled to match) so the โครงการ list's own "งวดงาน" column reads "รอส่งงวดที่ N" for
-the LAST installment - ready to hand over via "ส่งงาน". Each project also gets two real `pm_photos` rows (one per set, tagged `equipBrand`/`equipName`/
-`equipSerial` from its own item line) so its "รูปภาพ" page has something real to open and print, not just a ticked checkbox with nothing behind it -
-`photoCounts` is set to match. Reuses the first existing company for the letterhead if there is one, else makes a throwaway sample one; its own sample
-customer is always created fresh. Everything (customer, company if made, 5 projects, 10 photos) is `sample: true`, so `#deleteSampleDataBtn` cleans all
-of it up together. Guards against duplicating the set the same way `#warehouseAddSampleBtn` does (checks project names first).
+**`#projectsAddSampleBtn` on the โครงการ page** (same admin-only pattern) is that single entry point, and seeds a full,
+realistic dataset in one click - reworked from an earlier version that made only 5 projects with one equipment line each,
+after a direct report that one line was "too few when testing":
+- **5 ซื้อขาย + 5 โครงการ** (`SALE_SAMPLE_DEFS` names + `PROJECT_SAMPLE_DEFS` as `[name, installmentTotal]` pairs), spread
+  across **3 sample customers** (`SAMPLE_CUSTOMER_DEFS` - a private company, a government office, a hospital) rather than
+  one shared customer, reusing the first existing real company for the letterhead if there is one, else making a throwaway
+  sample one (unchanged from before).
+- Every job's `items[]` comes from `sampleItemLines(seed)`: **3 goods lines rotated off `SAMPLE_WAREHOUSE_SET`** (by
+  `seed % 5`, so consecutive jobs don't all show the identical 3 items) **+ 1 service line off `SAMPLE_SERVICEWH_SET`** -
+  exercising the ซื้อขาย/โครงการ form's own สินค้า/บริการ split with real-looking data instead of one bare goods row.
+  Every line stays unlinked (`whId`/`svcId: ''`, `status:'done'`) exactly like the old single-item version, so this never
+  touches real warehouse stock. โครงการ items use `seed = i + 2` (a different rotation offset than ซื้อขาย's own `seed = i`)
+  purely so the two lists don't print identical line-for-line items against each other.
+- **โกดังสินค้า + โกดังบริการ** get their own 5-item sets via `seedSampleWarehouseSet()`/`seedSampleServiceWarehouseSet()` -
+  each a no-op if that set is already there (e.g. because `#warehouseAddSampleBtn` was already clicked separately), so this
+  button is safe to click regardless of what order the two buttons were used in.
+- Each โครงการ's Action Plan (`sampleActionPlanSteps()`) is 5 topics, but now **2 of them carry their own sub-items**
+  (`SUB_DEFS` inside that function - "จัดซื้อและตรวจรับอุปกรณ์" gets 3, "เดินสายและเชื่อมต่อระบบ" gets 2) and the other 3
+  stay plain leaf topics, so sample data exercises both shapes the Gantt/topic-tracker actually have to render, not just
+  one. A topic with subs has its own `start`/`end` computed as the min/max of its subs' own dates and `done: true` set
+  directly (matching what `persistPlan()` would have computed, since this writes to Firestore directly rather than through
+  that function) - every step and sub-item is still `done: true`, keeping the existing "ready to hand over the final
+  installment" narrative (`installmentNo = installmentTotal - 1`, `deliveries[]` filled to match, so the โครงการ list's
+  "งวดงาน" column reads "รอส่งงวดที่ N" for the LAST installment) unchanged. ซื้อขาย rows get **no** `plan`/installment
+  fields at all (a sale has neither) - every item line already `done` instead makes each one immediately ready to test
+  "ปิดงาน" on.
+- Every job (sale or project) still gets two real `pm_photos` rows (one per set, tagged `equipBrand`/`equipName`/
+  `equipSerial` off its own first GOODS line - never the service line, since a service isn't photographed) so its
+  "รูปภาพ" page has something real to open and print; `photoCounts` is set to match, and a sale's own `photoSets` defaults
+  to both.
+- The duplicate-run guard checks BOTH `SALE_SAMPLE_DEFS` and `PROJECT_SAMPLE_DEFS` names together (refusing the whole
+  click if either set is already there), while the warehouse/service-warehouse pieces guard themselves independently -
+  so re-running this after already using `#warehouseAddSampleBtn` on its own tops up only what's missing instead of
+  duplicating or refusing outright.
