@@ -84,6 +84,17 @@ all of them with no per-rule edits needed at all.
   gave a light version) - a lighter warm tint standing in for the "light source" shadow and near-black for the "falls away" shadow,
   following the same dual-shadow physics as light mode.
 
+## Login: always lands on แดชบอร์ด
+`auth.onAuthStateChanged()`'s successful-sign-in branch calls `showTab('dashboard')` directly rather than
+`showTab(currentTab)` - a direct request ("ทุกครั้งที่ Login ให้ไปหน้าแดชบอร์ด...เป็นลำดับแรกเสมอ") after noticing a
+fresh sign-in could land back on whatever tab a PRIOR session had open. `currentTab` is a plain module-level variable
+(`let currentTab = 'dashboard'`) that `showTab()` updates on every navigation but `showSignedOutUI()` never resets on
+sign-out - on a genuine full page reload this never mattered (the variable's own initializer already puts it back at
+`'dashboard'` before anything runs), but signing out and back into a DIFFERENT (or the same) account inside the same
+already-open browser tab - no reload in between - left `currentTab` holding whatever page was open when the previous
+session ended, and the old `showTab(currentTab)` call would silently reopen it instead of the overview page every
+future login is supposed to start from.
+
 ## Dashboard: donut gauge + monthly bar chart + segmented toggle
 Reworked to echo a reference "UI Widgets" neumorphism moodboard the user shared, using the app's own real data rather than
 copying the reference's own decorative widgets one-for-one (a heating-control icon, a heart/favourite toggle, a sign-up form etc.
@@ -338,11 +349,18 @@ user**, each keeping their own separate log - see "Access: personal, not shared"
   below), a synthetic `name` for the generic Trash/audit machinery, `createdBy`/`createdAt`, soft-deleted via
   `deletedAt` like everything else) - **not** one document per
   month holding an array. The month/year picker above
-  the table (`#travelMonthFilter`) is a FILTER over this flat list (and the source of the print header), the same way
-  every other list page in the app filters a flat collection - introducing a second "one doc holds an editable array"
-  shape (like `plan[]`) purely for this page would have been a new pattern for no real benefit. The year half of that
-  picker was deliberately left with no UI at all - it's always `new Date().getFullYear()` computed fresh on every
-  render/print ("ล็อคปีปัจจุบันไว้เสมอ" - always lock to the current year), only the month is a real `<select>`.
+  the table (`#travelMonthFilter` + `#travelYearFilter`) is a FILTER over this flat list (and the source of the print
+  header), the same way every other list page in the app filters a flat collection - introducing a second "one doc
+  holds an editable array" shape (like `plan[]`) purely for this page would have been a new pattern for no real
+  benefit. **เดือน and ปี are two independent `<select>`s**, not one combined dropdown - the original version baked
+  "the current year" into every month option's own label and had no year control at all ("ล็อคปีปัจจุบันไว้เสมอ"), so
+  there was no way to look at a past or future year's trips; a direct correction ("แยกเดือนกับปีออกจากกัน") split them
+  apart. `fillTravelYearFilter()` defaults to the current year but stays open-ended (`curYear-3` to `curYear+1`, PLUS
+  any year that genuinely has a trip in it even outside that range, so old migrated data is never stranded
+  unreachable) - `fillTravelMonthFilter()`'s own options are now plain month names with no year baked in (that
+  combined label only ever made sense back when there was nothing else to distinguish one August from another).
+  Both `renderTravel()` and `printTravel()` read `$('travelYearFilter').value` directly now instead of always
+  assuming `new Date().getFullYear()`.
 - **สถานที่เริ่มต้น/สถานที่ปลายทาง share one addable-select pool** (`travelFromSel`/`travelToSel`, both built with the
   existing `makeAddableSelect()` factory the warehouse pages use, both reading `used()` from `data.travel.flatMap(t =>
   [t.fromLocation, t.toLocation])` - i.e. either field, from any trip) - picking a place in either dropdown makes it

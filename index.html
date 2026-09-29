@@ -1212,12 +1212,13 @@
             <div class="filter-bar">
               <input type="text" id="travelSearch" class="filter-control" placeholder="ค้นหาสถานที่, ลูกค้า, รายการปฏิบัติงาน" style="width:240px;">
               <select id="travelMonthFilter" class="filter-control"></select>
+              <select id="travelYearFilter" class="filter-control"></select>
               <button class="btn" id="travelCreateBtn" type="button">+ เพิ่มรายการ</button>
               <button class="btn outline" type="button" id="travelPrintBtn">พิมพ์ PDF</button>
               <button class="btn outline" type="button" id="travelClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note">บันทึกการเดินทางไปพบลูกค้าหรือไปทำงานนอกสถานที่ - เลือกเดือนเพื่อกรองรายการและใช้เป็นหัวเอกสารตอนพิมพ์ (ปีอ้างอิงจากปีปัจจุบันเสมอ) · "ค่า/กม." และ "รวม" คำนวณให้อัตโนมัติ กรอกเองไม่ได้</p>
+          <p class="panel-note">บันทึกการเดินทางไปพบลูกค้าหรือไปทำงานนอกสถานที่ - เลือกเดือนและปีเพื่อกรองรายการและใช้เป็นหัวเอกสารตอนพิมพ์ (ค่าเริ่มต้นคือเดือน/ปีปัจจุบัน) · "ค่า/กม." และ "รวม" คำนวณให้อัตโนมัติ กรอกเองไม่ได้</p>
           <div class="cell-sub" id="travelHeaderPreview" style="font-weight:600; color:var(--ink); margin-bottom:10px;"></div>
           <div class="table-scroll"><table class="m-cards" id="travelTable">
             <thead><tr>
@@ -1978,7 +1979,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.1';
+const APP_VERSION = '1.27.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2446,7 +2447,7 @@ const PAGER_UI = {
   equipment: { el:'equipmentPager', render: () => renderEquipment(),    filters:['equipmentSearch','equipmentTypeFilter','equipmentWarrantyFilter'] },
   warehouse: { el:'warehousePager', render: () => renderWarehouse(),    filters:['warehouseSearch','warehouseBrandFilter','warehouseTypeFilter','warehouseSortFilter'] },
   serviceWarehouse: { el:'serviceWarehousePager', render: () => renderServiceWarehouse(), filters:['serviceWarehouseSearch','serviceWarehouseBrandFilter','serviceWarehouseTypeFilter'] },
-  travel:    { el:'travelPager',    render: () => renderTravel(),       filters:['travelSearch','travelMonthFilter'] },
+  travel:    { el:'travelPager',    render: () => renderTravel(),       filters:['travelSearch','travelMonthFilter','travelYearFilter'] },
   customers: { el:'customersPager', render: () => renderCustomers(),    filters:['customersSearch','customersTypeFilter','customersSortFilter'] },
   catalogs:  { el:'catalogPager',   render: () => renderCatalogs(),     filters:['catalogSearch','catalogBrandFilter'] },
   companies: { el:'companiesPager', render: () => renderCompanies(),    filters:[] },
@@ -2504,7 +2505,7 @@ function filterGroups(){
     { btn:'usersClearBtn',     fields:{ usersSearch:'' }, render: renderUsers },
     { btn:'auditClearBtn',     fields:{ auditSearch:'', auditActionFilter:'all' }, render: renderAudit },
     { btn:'trashClearBtn',     fields:{ trashTypeFilter:'all' }, render: renderTrash },
-    { btn:'travelClearBtn',    fields:{ travelSearch:'', travelMonthFilter: String(new Date().getMonth() + 1) }, render: renderTravel }
+    { btn:'travelClearBtn',    fields:{ travelSearch:'', travelMonthFilter: String(new Date().getMonth() + 1), travelYearFilter: String(new Date().getFullYear()) }, render: renderTravel }
   ];
 }
 function refreshClearButtons(){
@@ -2756,7 +2757,10 @@ auth.onAuthStateChanged(async user => {
   $('sidebar').classList.add('loading-lock');
   $('topbar').style.display = 'flex';
   attachRealtimeListeners();
-  showTab(currentTab);
+  // Always land on แดชบอร์ด right after signing in ("ทุกครั้งที่ Login ให้ไปหน้าแดชบอร์ด...เป็นลำดับแรกเสมอ") - a plain
+  // showTab(currentTab) would otherwise reuse whatever tab was left active from a PRIOR sign-in in the same browser
+  // tab (currentTab is never reset on sign-out), landing back on e.g. ค่าเดินทาง instead of the overview page.
+  showTab('dashboard');
 });
 
 async function resolveUserRole(){
@@ -5223,12 +5227,26 @@ $('travelRoundTrip').addEventListener('change', () => { $('travelReturnFeesField
 // locked header text exactly ("ค่าเดินทางประจำเดือนสิงหาคม ปี2569 ของ..." - no space after "เดือน" either, glued directly to
 // the month name at the call site below).
 function travelMonthLabel(month, year){ return `${MONTH_TH_FULL[month - 1]} ปี${year + 543}`; }
-// Rebuilt every render (not a static const) since "the current year" can roll over while the app stays open in a browser tab.
+// The month filter shows plain month names now - เดือน/ปี used to be one combined dropdown (a month option's own label
+// baked in "the current year," so there was never any way to look at a different year at all); a direct request split
+// them into two independent filters instead, so the year one below is what actually varies.
 function fillTravelMonthFilter(){
-  const sel = $('travelMonthFilter'), year = new Date().getFullYear();
+  const sel = $('travelMonthFilter');
   const prev = sel.value || String(new Date().getMonth() + 1);
-  sel.innerHTML = Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}">${travelMonthLabel(i + 1, year)}</option>`).join('');
+  sel.innerHTML = MONTH_TH_FULL.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
   sel.value = prev;
+}
+// Defaults to the current year ("ตั้งปีปัจจุบันเป็นค่าเริ่มต้น") but stays open-ended - any year that actually has a
+// trip in it is offered too, even outside the usual +/- range around today, so old data is never stuck unreachable.
+function fillTravelYearFilter(){
+  const sel = $('travelYearFilter'), curYear = new Date().getFullYear();
+  const years = new Set();
+  for (let y = curYear - 3; y <= curYear + 1; y++) years.add(y);
+  data.travel.forEach(t => { const y = t.date && Number(t.date.slice(0, 4)); if (y) years.add(y); });
+  const sorted = [...years].sort((a, b) => b - a);
+  const prev = sel.value || String(curYear);
+  sel.innerHTML = sorted.map(y => `<option value="${y}">ปี ${y + 543}</option>`).join('');
+  sel.value = sorted.includes(Number(prev)) ? prev : String(curYear);
 }
 function travelRowsForMonth(month, year){
   return data.travel.filter(t => t.date && t.date.slice(0, 4) === String(year) && Number(t.date.slice(5, 7)) === month)
@@ -5275,7 +5293,9 @@ function travelLegRow(t, num, isReturn){
 }
 function renderTravel(){
   fillTravelMonthFilter();
-  const year = new Date().getFullYear(), month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
+  fillTravelYearFilter();
+  const year = Number($('travelYearFilter').value) || new Date().getFullYear();
+  const month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
   $('travelHeaderPreview').textContent = `ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${currentUserFullNameTH()}`;
   const q = $('travelSearch').value.trim().toLowerCase();
   const rows = travelRowsForMonth(month, year)
@@ -5300,7 +5320,7 @@ function renderTravel(){
       <td style="text-align:right;">${fmtNum(sums.total)}</td><td></td>
     </tr>` : '';
 }
-['travelSearch','travelMonthFilter'].forEach(id => $(id).addEventListener('input', renderTravel));
+['travelSearch','travelMonthFilter','travelYearFilter'].forEach(id => $(id).addEventListener('input', renderTravel));
 
 let editingTravelId = null;
 let travelViewMode = false;
@@ -5445,7 +5465,8 @@ function travelPrintDate(d){
 // Print reads its own fresh month slice (ignoring the search box - a stray search term should never silently truncate a
 // financial report) using the SAME month currently picked in the filter, so what you see on screen is what prints.
 function printTravel(){
-  const year = new Date().getFullYear(), month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
+  const year = Number($('travelYearFilter').value) || new Date().getFullYear();
+  const month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
   const rows = travelRowsForMonth(month, year);
   if (!rows.length){ toast('ไม่มีรายการเดินทางในเดือนนี้ให้พิมพ์'); return; }
   const sums = travelSums(rows);

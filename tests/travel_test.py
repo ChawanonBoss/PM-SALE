@@ -26,6 +26,12 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert f"ค่าเดินทางประจำเดือน{month_th} ปี{year_be} ของAdmin One" == page.inner_text('#travelHeaderPreview')
     assert 'ยังไม่มีรายการเดินทางในเดือนนี้' in page.inner_text('#travelBody')
 
+    # เดือน/ปี are two independent filters now (used to be one combined dropdown) - year defaults to the current one,
+    # and the month dropdown's own options are plain month names with no year baked into the label any more
+    assert page.input_value('#travelYearFilter') == str(page.evaluate("new Date().getFullYear()"))
+    month_opts = page.evaluate("[...document.querySelectorAll('#travelMonthFilter option')].map(o => o.textContent)")
+    assert month_th in month_opts and all('ปี' not in o for o in month_opts), month_opts
+
     # ---------------- add a trip: addable selects (shared from/to pool) + auto-computed rate/total ----------------
     page.click('#travelCreateBtn'); page.wait_for_timeout(300)
     today = page.evaluate("() => new Date().toISOString().slice(0,10)")

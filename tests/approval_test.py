@@ -69,5 +69,18 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     navs = []; page.on("framenavigated", lambda f: navs.append(f.url))
     page.evaluate("db.collection('pm_users').doc('u4').update({status:'approved'})"); page.wait_for_timeout(1200)
     assert navs, "gate should reload once approved"
+    sign_out()
+
+    # 7. every sign-in lands on แดชบอร์ด first, regardless of whichever tab was open when a PRIOR session (in this
+    # same browser tab, no page reload) last signed out - currentTab is never reset on sign-out, so showTab(currentTab)
+    # would otherwise silently reopen wherever u4 happened to be
+    sign_in('u4', 'u4@a.com', 'User Four'); assert page.evaluate("currentTab") == 'dashboard'
+    goto_tab(page, 'travel'); page.wait_for_timeout(200); assert page.evaluate("currentTab") == 'travel'
+    sign_out()
+    sign_in('u4', 'u4@a.com', 'User Four')
+    assert page.evaluate("currentTab") == 'dashboard', "a fresh sign-in must never reopen the previous session's last tab"
+    assert page.locator('.nav-item[data-tab="dashboard"]').get_attribute('class').find('active') >= 0
+    sign_out()
+
     print("errors:", errors); assert not errors
 print("OK")
