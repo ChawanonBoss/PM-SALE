@@ -342,6 +342,13 @@ so most of the choices below are direct translations of that spec, not judgment 
 - **The list's own last row is a live total** (`travelSums()`) summing every numeric column (distance, toll, parking,
   other, total) across the CURRENTLY FILTERED month - "บรรทัดสุดท้ายจะเป็นผลรวมของทุกคอลัมน์ที่เป็นตัวเลข" - computed
   over the full filtered set, not just the current page, so paging never changes what the total row shows.
+- **The on-screen list sorts newest-date-first** ("เรียงจากมากไปน้อย...วันที่ 31-1") - `renderTravel()` builds its own
+  `displayRows` by reversing a COPY of `travelRowsForMonth()`'s ascending result (`[...rows].sort((a,b) =>
+  (b.date||'').localeCompare(a.date||''))`) rather than changing `travelRowsForMonth()` itself, since that function is
+  also what `printTravel()` calls directly for its own fresh slice - the request was explicit that this is screen-only
+  ("เฉพาะแสดงรายการเท่านั้นไม่เกี่ยวกับ PDF"), so print keeps reading chronologically oldest-to-newest, matching a
+  normal claim sheet. ลำดับ numbers are recomputed off `displayRows`' own index, so they naturally follow the reversed
+  visual order too - there's no separate "keep the original numbering" rule to preserve.
 - **Printing** (`printTravel()`) follows the user's own three rules literally: no company letterhead at all (`letterheadHtml()`
   is never called - the print body is just the locked header line plus the table), **A4 landscape** (`setPrintPage('@page{
   size:A4 landscape; ...}')`, matching how `printActionPlan()` already does landscape for a similarly wide table), and the
@@ -389,6 +396,16 @@ so most of the choices below are direct translations of that spec, not judgment 
   "รูปภาพลำดับที่ N" caption placeholders) is a different, coarser artifact - almost certainly just the spreadsheet
   author's own way of noting which photo covers which trip numbers, not a layout spec - so it's the docx's card
   structure that print actually follows, not the xlsx sheet's plain captions.
+- **Both `.pr-travel-photo-page`'s track lists use `minmax(0,1fr)`, never a plain `1fr`** - a real report from an
+  actual attached photo (a tall, portrait-orientation phone screenshot) overflowing its cell and breaking the whole
+  page's layout, tracked down to the exact same "grid track min-content trap" this file already documents for the
+  calendar month grid: a plain `1fr` row's minimum height defaults to its tallest content's own unconstrained size, so
+  one oddly-shaped photo could force that whole grid row taller than the fixed 184mm page, pushing later cells off
+  the page and visually breaking the 2x2 layout. `minmax(0,1fr)` removes that content-based floor so the row is
+  genuinely capped at its share of 184mm regardless of what's inside it. `.pr-travel-photo-cell` itself adds
+  `overflow:hidden` and its `img` uses `flex:1 1 0` (an explicit zero flex-basis, not `auto`) plus `max-width/height:
+  100%` as a second layer of the same fix - together these guarantee the photo is always scaled DOWN to fit its cell
+  (`object-fit:contain` still keeps its aspect ratio) rather than ever being allowed to expand the cell to fit itself.
 - **Photos: exactly ONE per trip, stored inline on the trip's own document** (`photoData` base64 under the same
   900,000-character cap as `pm_photos`, `photoType`) rather than a separate collection or gallery page - a real
   correction after the first version allowed unlimited photos per trip via their own `pm_travelPhotos` collection and a
@@ -399,7 +416,16 @@ so most of the choices below are direct translations of that spec, not judgment 
   is satisfied by construction, not by an extra step). The "+ แนบรูปภาพ" control hides itself once a photo exists - to
   replace one, delete it first, matching the "exactly one" constraint rather than silently overwriting. Purging a trip
   from Trash needs no special-case cleanup any more (unlike `pm_files`/the old `pm_travelPhotos`) since the photo lives
-  on the same document being deleted.
+  on the same document being deleted. **The ADD form itself also has an inline photo picker** (`#travelNewPhotoField`,
+  create-time only - hidden while editing an existing trip, same rule as "ไป-กลับ" below) added after a direct request
+  ("หน้าเพิ่มรายการค่าเดินทาง เพิ่มปุ่มรูปภาพให้หน่อย") so a photo can be attached WHILE creating a brand-new trip
+  instead of having to save first and only then reach the separate `#travelPhotoModal` from the row's own button. Since
+  a new trip has no id yet to `update()` against, the picked photo is held in memory (`travelNewPhotoData`/`Type`,
+  reset by `openTravelForm()` on every open) and folded straight into the CREATE payload on submit
+  (`doc.photoData`/`photoType`, only when `!editingTravelId` and a photo was actually picked) rather than written
+  separately - an existing trip's photo still goes exclusively through the original modal, so there are two entry
+  points for the SAME two fields (`photoData`/`photoType`) but only one is ever active for a given trip at a time
+  (create-time inline picker vs. post-save modal), never both.
 - **"ไป-กลับ" (round trip) is ONE document with a `roundTrip: true` flag, rendered as TWO table rows, not two documents.**
   The first version created a full second record for the return leg; a direct correction said that didn't match what
   was wanted ("ไม่ต้องนำเป็นรายการเพิ่ม...ถือว่าเป็นรายการย่อยแทน" - don't make it an extra list item, treat it as a

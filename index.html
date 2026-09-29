@@ -638,10 +638,17 @@
     /* 2x2 grid: exactly 4 trips per printed page, since print is A4 landscape (297x210mm) - 184mm = the page's own
        content height (210mm - 2x12mm margin, from printTravel()'s own @page rule) so each page's grid genuinely fills
        the whole printable area rather than flowing loosely; a page with fewer than 4 photos just leaves the remaining
-       grid cell(s) blank. */
-    .pr-travel-photo-page{ display:grid; grid-template-columns:repeat(2, 1fr); grid-template-rows:repeat(2, 1fr); gap:3mm; height:184mm; page-break-before:always; page-break-inside:avoid; }
-    .pr-travel-photo-cell{ min-width:0; min-height:0; display:flex; flex-direction:column; padding:2.5mm; box-sizing:border-box; border:0.25mm solid #BFC8D6; border-radius:1mm; }
-    .pr-travel-photo-cell img{ flex:1 1 auto; width:100%; min-height:0; object-fit:contain; display:block; margin-top:1mm; }
+       grid cell(s) blank. minmax(0,1fr) (not a plain 1fr) on both track lists is required, not decorative - the same
+       "grid track min-content trap" documented elsewhere in this file for the calendar month grid: a plain 1fr row's
+       minimum height defaults to its tallest CONTENT's own size, so one portrait-orientation photo (e.g. a phone
+       screenshot) could force that whole row taller than 92mm, pushing the other cells off the fixed 184mm page and
+       breaking the "4 per page" layout - a real report from an actual attached photo, not a theoretical concern.
+       overflow:hidden + min-height:0 + flex-basis:0 on the image itself is the second half of the same fix: without
+       an explicit basis, a flex item's start size is its own intrinsic (unconstrained) size before shrinking, which a
+       very tall source image can still momentarily blow past during layout on some engines. */
+    .pr-travel-photo-page{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); grid-template-rows:repeat(2, minmax(0,1fr)); gap:3mm; height:184mm; page-break-before:always; page-break-inside:avoid; }
+    .pr-travel-photo-cell{ min-width:0; min-height:0; overflow:hidden; display:flex; flex-direction:column; padding:2.5mm; box-sizing:border-box; border:0.25mm solid #BFC8D6; border-radius:1mm; }
+    .pr-travel-photo-cell img{ flex:1 1 0; width:100%; min-height:0; max-width:100%; max-height:100%; object-fit:contain; display:block; margin-top:1mm; }
   }
 
   @media (max-width:900px){
@@ -1720,6 +1727,13 @@
         <div class="field"><label>ค่าที่จอดรถ (บาท)</label><input type="number" id="travelParking" min="0" step="1" value="0" oninput="updateTravelTotal()"></div>
         <div class="field"><label>ค่าอื่นๆ (บาท)</label><input type="number" id="travelOther" min="0" step="1" value="0" oninput="updateTravelTotal()"></div>
         <div class="field"><label>รวม (บาท)</label><input type="text" id="travelTotal" value="0.00" disabled></div>
+        <div class="field full" id="travelNewPhotoField" style="grid-column:1/-1;">
+          <label>รูปภาพ (ถ้ามี)</label>
+          <div class="photo-grid" id="travelNewPhotoGrid" style="grid-template-columns:1fr 1fr; max-width:220px; margin-top:6px;"></div>
+          <label class="btn outline" id="travelNewPhotoAddLabel" style="cursor:pointer; margin-top:10px; display:inline-block;">
+            + แนบรูปภาพ<input type="file" accept="image/*" id="travelNewPhotoInput" style="display:none;">
+          </label>
+        </div>
       </div>
       </fieldset>
       <div class="modal-actions">
@@ -1883,7 +1897,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.26.2';
+const APP_VERSION = '1.26.3';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -5155,9 +5169,13 @@ function renderTravel(){
   const rows = travelRowsForMonth(month, year)
     .filter(t => !q || [t.fromLocation, t.toLocation, t.customerName, t.task].some(v => (v || '').toLowerCase().includes(q)));
   $('travelCount').textContent = rows.length;
-  const view = pageSlice('travel', rows);
-  $('travelBody').innerHTML = rows.length ? view.map(t => {
-    const i = rows.indexOf(t);
+  // On-screen list only, newest date first ("เรียงจากมากไปน้อย...31-1") - a plain reverse of travelRowsForMonth()'s own
+  // ascending order rather than changing that function itself, since printTravel() calls travelRowsForMonth() directly
+  // for its own fresh slice and must keep reading chronologically (oldest-to-newest, matching a normal claim sheet).
+  const displayRows = [...rows].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  const view = pageSlice('travel', displayRows);
+  $('travelBody').innerHTML = displayRows.length ? view.map(t => {
+    const i = displayRows.indexOf(t);
     return travelLegRow(t, i + 1, false) + (t.roundTrip ? travelLegRow(t, null, true) : '');
   }).join('') : `<tr><td colspan="14" class="empty-row">ยังไม่มีรายการเดินทางในเดือนนี้</td></tr>`;
   const sums = travelSums(rows);
@@ -5174,6 +5192,35 @@ function renderTravel(){
 
 let editingTravelId = null;
 let travelViewMode = false;
+// Inline photo picker on the ADD form itself - a direct request ("หน้าเพิ่มรายการค่าเดินทาง เพิ่มปุ่มรูปภาพให้หน่อย") so a
+// photo can be attached while creating a brand-new trip, instead of having to save first and only then reach the
+// separate #travelPhotoModal from the row's own "รูปภาพ" button. Since a new trip has no id yet, the picked photo is
+// held here in memory and folded into the CREATE payload on submit, rather than written to Firestore immediately -
+// editing an EXISTING trip still goes through the separate modal (see openTravelForm()'s own hide-on-edit rule).
+let travelNewPhotoData = null, travelNewPhotoType = null;
+function renderTravelNewPhotoGrid(){
+  $('travelNewPhotoGrid').innerHTML = travelNewPhotoData
+    ? `<div class="photo-item"><img src="data:${travelNewPhotoType || 'image/jpeg'};base64,${travelNewPhotoData}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
+        <button type="button" class="icon-btn delete-btn" onclick="deleteTravelNewPhoto()" aria-label="ลบรูปภาพ">ลบ</button></div>`
+    : '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
+  $('travelNewPhotoAddLabel').style.display = travelNewPhotoData ? 'none' : 'inline-block';
+}
+function deleteTravelNewPhoto(){
+  travelNewPhotoData = null; travelNewPhotoType = null;
+  renderTravelNewPhotoGrid();
+}
+$('travelNewPhotoInput').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type)){ toast(`"${file.name}" ไม่ใช่รูปภาพ`); return; }
+  let dataUrl;
+  try{ dataUrl = await resizeImageToDataUrl(file, 1280, 'image/jpeg', 0.72); }
+  catch(err){ toast(`"${file.name}" อ่านไฟล์รูปไม่สำเร็จ`); return; }
+  const base64 = dataUrl.split(',')[1] || '';
+  if (base64.length > PHOTO_MAX_BYTES){ toast(`"${file.name}" ใหญ่เกินแม้ย่อขนาดแล้ว`); return; }
+  travelNewPhotoData = base64; travelNewPhotoType = 'image/jpeg';
+  renderTravelNewPhotoGrid();
+});
 function openTravelForm(id){
   const t = id ? data.travel.find(x => x.id === id) : null;
   if (id && !t) return;
@@ -5197,6 +5244,11 @@ function openTravelForm(id){
   $('travelRoundTripField').style.display = t ? 'none' : '';
   $('travelReturnToll').value = 0; $('travelReturnParking').value = 0; $('travelReturnOther').value = 0;
   $('travelReturnFeesField').style.display = 'none';
+  // The inline photo picker is create-time only, same reasoning as "ไป-กลับ" above - an existing trip's photo is still
+  // managed through the separate #travelPhotoModal (its own row's "รูปภาพ" button), not duplicated here.
+  travelNewPhotoData = null; travelNewPhotoType = null;
+  renderTravelNewPhotoGrid();
+  $('travelNewPhotoField').style.display = t ? 'none' : '';
   setTravelViewMode(false);
   openModal('travelModal');
 }
@@ -5246,6 +5298,8 @@ $('travelForm').addEventListener('submit', async e => {
       doc.returnParkingFee = Math.max(0, Number($('travelReturnParking').value) || 0);
       doc.returnOtherFee = Math.max(0, Number($('travelReturnOther').value) || 0);
     }
+    // the inline picker's own photo (if any), folded into the create payload - see travelNewPhotoData's own comment above
+    if (travelNewPhotoData){ doc.photoData = travelNewPhotoData; doc.photoType = travelNewPhotoType; }
   }
   $('travelSaveBtn').disabled = true;
   setSync('saving');

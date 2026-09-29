@@ -66,6 +66,33 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     foot = page.inner_text('#travelFoot')
     assert 'รวมทั้งเดือน' in foot and '540' in foot  # 420 + 120 (20km*6)
 
+    # ---------------- on-screen list sorts newest-date-first (31 -> 1); print keeps its own ascending order (checked
+    # separately below via printTravel()'s own fresh travelRowsForMonth() call, untouched by this) ----------------
+    sort_dates = page.evaluate("""() => {
+      const y = new Date().getFullYear(), m = String(new Date().getMonth() + 1).padStart(2, '0');
+      return { early: `${y}-${m}-01`, late: `${y}-${m}-02` };
+    }""")
+    sort_ids = page.evaluate("""async (d) => {
+      const mk = (date, from) => db.collection(COL.travel).add({
+        date, fromLocation: from, toLocation: 'ปลายทางทดสอบเรียง', customerName: '', task: '',
+        distanceKm: 1, rate: 6, tollFee: 0, parkingFee: 0, otherFee: 0, total: 6,
+        name: 'sort test ' + from, createdBy: currentUserUid, createdAt: new Date().toISOString()
+      }).then(r => r.id);
+      return { lateId: await mk(d.late, 'SortLater'), earlyId: await mk(d.early, 'SortEarlier') };
+    }""", sort_dates)
+    page.wait_for_timeout(400)
+    row_texts_sort = page.evaluate("[...document.querySelectorAll('#travelBody tr')].map(tr => tr.textContent)")
+    late_idx = next(i for i, txt in enumerate(row_texts_sort) if 'SortLater' in txt)
+    early_idx = next(i for i, txt in enumerate(row_texts_sort) if 'SortEarlier' in txt)
+    assert late_idx < early_idx, "a later date should render above an earlier one on screen (descending sort)"
+    # clean up (soft-delete) so later count-based assertions in this test aren't thrown off by these 2 extra rows
+    page.evaluate("""async (ids) => {
+      await db.collection(COL.travel).doc(ids.lateId).update({ deletedAt: new Date().toISOString() });
+      await db.collection(COL.travel).doc(ids.earlyId).update({ deletedAt: new Date().toISOString() });
+    }""", sort_ids)
+    page.wait_for_timeout(300)
+    assert len(page.evaluate("data.travel")) == 2
+
     # ---------------- click a row -> read-only view, "แก้ไข" switches it into the editable form in place ----------------
     page.click('#travelBody tr:first-child'); page.wait_for_timeout(200)
     assert page.inner_text('#travelModalTitle') == 'รายละเอียดการเดินทาง'
@@ -254,6 +281,27 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert page.locator('#printArea .pr-travel-photo-cell').count() == 5
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     assert page.inner_html('#printArea') == ''
+
+    # ---------------- the ADD form has its own inline photo picker (create-time only) ----------------
+    before_new_photo = len(page.evaluate("data.travel"))
+    page.click('#travelCreateBtn'); page.wait_for_timeout(300)
+    assert page.is_visible('#travelNewPhotoField'), "a brand-new trip can attach its photo right on the add form"
+    assert 'ยังไม่มีรูปภาพ' in page.inner_text('#travelNewPhotoGrid')
+    page.fill('#travelDate', today)
+    page.select_option('#travelFrom', 'สำนักงานใหญ่'); page.select_option('#travelTo', 'บริษัท ลูกค้า เอ จำกัด')
+    page.fill('#travelDistance', '8')
+    page.set_input_files('#travelNewPhotoInput', TMP_IMG); page.wait_for_timeout(700)
+    assert page.locator('#travelNewPhotoGrid .photo-item').count() == 1, "picked photo previews immediately, before save"
+    page.click('#travelSaveBtn'); page.wait_for_timeout(500)
+    assert len(page.evaluate("data.travel")) == before_new_photo + 1
+    new_trip = page.evaluate("data.travel.find(t => t.distanceKm === 8)")
+    assert new_trip['photoData'] is not None, "the photo picked on the add form was saved together with the new trip"
+
+    # editing an EXISTING trip hides this add-only picker - its photo is still managed via the separate #travelPhotoModal
+    page.evaluate("openTravelView('%s')" % new_trip['id']); page.wait_for_timeout(200)
+    page.click('#travelViewEditBtn'); page.wait_for_timeout(150)
+    assert not page.is_visible('#travelNewPhotoField')
+    page.click('#travelCancelBtn'); page.wait_for_timeout(150)
 
     # ---------------- admin-only: showTab() redirects a non-admin session away ----------------
     page.evaluate("currentUserRole = 'user'; showTab('travel')"); page.wait_for_timeout(200)
