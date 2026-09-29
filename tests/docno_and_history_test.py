@@ -79,7 +79,6 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     R = lambda n, c: f"#prjItemsBody tr:nth-child({n}) td:nth-child({c})"
     page.select_option(f"{R(1,2)} select", 'w1'); page.fill(f"{R(1,7)} input", '2'); page.press(f"{R(1,7)} input", 'Tab')
     page.select_option(f"{R(1,6)} select >> nth=0", 'S2'); page.select_option(f"{R(1,6)} select >> nth=1", 'S3')
-    page.select_option(f"{R(1,8)} select", 'done')
     page.click('#projectSaveBtn'); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     s1 = page.evaluate("data.projects.find(p => p.name === 'ขายใหม่ 1')")
     print(s1['docNo'])
@@ -144,11 +143,12 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     hist = page.inner_text('#serialHistoryBody'); print(hist.replace('\n', ' | '))
     assert 'เบิกออก' in hist and f"SO{YMD}-001" in hist and 'ขายใหม่ 1' in hist and 'S2, S3' in hist and 'Admin One' in hist
     page.click('#serialHistoryBody a'); assert page.is_visible('#projectModal') and page.input_value('#prjName') == 'ขายใหม่ 1'
-    # revert -> a 'return' entry appears (an already-saved job locks/unlocks the warehouse live, before any "บันทึกรายการ" click)
-    page.select_option(f"{R(1,8)} select", 'pending'); page.wait_for_timeout(150)
+    # revert -> a 'return' entry appears (removing the row no longer touches the warehouse until the form is actually saved)
+    page.click(f"{R(1,8)} button"); page.wait_for_timeout(150)
+    assert not page.is_visible('#confirmModal'), "removing a row no longer touches the warehouse right away"
+    page.click('#projectSaveBtn'); page.wait_for_timeout(150)
     assert page.is_visible('#confirmModal')
     page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
-    page.click('#projectCancelBtn')
     page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)')
     hist = page.inner_text('#serialHistoryBody')
     assert 'คืนเข้าโกดัง' in hist and 'เบิกออก' in hist and page.locator('#serialHistoryBody tr').count() == 2

@@ -116,7 +116,6 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     goto_tab(page, 'sales'); page.wait_for_timeout(200)
     page.click('#salesCreateBtn'); page.wait_for_timeout(200)
     page.select_option('#prjItemsBody tr:first-child td:nth-child(2) select', 'w1')
-    page.select_option('#prjItemsBody tr:first-child td:nth-child(8) select', 'done')
     page.click('#prjAddServiceBtn')
     page.select_option('#prjServicesBody tr:first-child td:nth-child(2) select', label=next(o for o in svc_opts if 'SVC-1' in o))
     page.select_option('#prjServicesBody tr:first-child td:nth-child(7) select', 'done')

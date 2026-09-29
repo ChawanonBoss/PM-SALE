@@ -1313,7 +1313,7 @@
       <h4 style="font-size:14px; margin-bottom:8px;">รายละเอียดของงาน</h4>
       <h5 style="font-size:13px; margin:0 0 6px; color:var(--ink-soft);">สินค้า</h5>
       <div class="table-scroll"><table class="items-table m-cards">
-        <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดัง)</th><th>ยี่ห้อ</th><th>ชื่อ</th><th>ประเภท</th><th style="width:160px;">รหัสอุปกรณ์</th><th style="width:80px;">จำนวน</th><th style="width:150px;">สถานะ</th><th style="width:40px;"></th></tr></thead>
+        <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดัง)</th><th>ยี่ห้อ</th><th>ชื่อ</th><th>ประเภท</th><th style="width:160px;">รหัสอุปกรณ์</th><th style="width:80px;">จำนวน</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjItemsBody"></tbody>
       </table></div>
       <button class="btn outline" type="button" id="prjAddItemBtn" style="margin-top:10px;">+ เพิ่มสินค้า</button>
@@ -1740,7 +1740,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.10';
+const APP_VERSION = '1.23.11';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3175,7 +3175,7 @@ let editingItems = [];
 let editingOrigItems = [];   // the lines as last saved, to work out what to take out of / put back into the warehouse
 const MAX_ITEM_SERIAL_BOXES = 20;
 const newRid = () => 'r' + Math.random().toString(36).slice(2, 10);
-const blankItem = () => ({ rid:newRid(), kind:'good', whId:'', part:'', brand:'', name:'', type:'', serials:[], qty:1, status:'pending' });
+const blankItem = () => ({ rid:newRid(), kind:'good', whId:'', part:'', brand:'', name:'', type:'', serials:[], qty:1, status:'done' });
 // A service line reuses the same brand/name/type fields as a goods line (holding ซัพพลายเออร์/ชื่อบริการ/ประเภทงาน instead) so every
 // generic place that already renders an item row (PDF, Excel, this form's own toItemRow) needs no separate handling for it - only
 // stockEffects()/commitProject() care about the difference, and they already key off whId, which a service line never has.
@@ -3295,10 +3295,10 @@ $('prjWarranty').addEventListener('input', updateWarrantyHint);
 /* ---- equipment lines ---- */
 const whLabel = w => `${w.part || '-'} — ${w.brand ? w.brand + ' ' : ''}${w.name} (คงเหลือ ${w.quantity == null ? 0 : w.quantity})`;
 const svcLabel = s => `${s.part || '-'} — ${s.brand ? s.brand + ' ' : ''}${s.name}`;
-// serials already picked by OTHER pending lines for the same warehouse item are not offered again
+// serials already picked by OTHER lines for the same warehouse item in this same form are not offered again
 function pickedElsewhere(i, whId){
   const taken = new Set();
-  editingItems.forEach((r, k) => { if (k !== i && r.whId === whId && r.status !== 'done') r.serials.forEach(sn => sn && taken.add(sn)); });
+  editingItems.forEach((r, k) => { if (k !== i && r.whId === whId) r.serials.forEach(sn => sn && taken.add(sn)); });
   return taken;
 }
 // สินค้า and บริการ are two separate tables (see the "+ เพิ่มสินค้า" / "+ เพิ่มบริการ" buttons) over the one flat editingItems array -
@@ -3311,14 +3311,12 @@ function renderItemRows(){
   const services = editingItems.map((it, i) => ({ it, i })).filter(x => x.it.kind === 'service');
   $('prjItemsBody').innerHTML = goods.length ? goods.map(({ it, i }) => {
     const wh = it.whId ? data.warehouse.find(w => w.id === it.whId) : null;
-    const locked = it.status === 'done';
     const opts = `<option value="">— เลือกอุปกรณ์จากโกดัง —</option>` + whs.map(w => `<option value="${w.id}" ${w.id === it.whId ? 'selected' : ''}>${escapeHtml(whLabel(w))}</option>`).join('')
       + (it.whId && !wh ? `<option value="${escapeHtml(it.whId)}" selected>${escapeHtml(it.part || '-')} (ไม่พบในโกดังแล้ว)</option>` : '');
-    const over = wh && !locked && it.qty > (Number(wh.quantity) || 0);
+    const over = wh && it.qty > (Number(wh.quantity) || 0);
     const hint = wh ? `<div class="cell-sub ${over ? 'over' : ''}">คงเหลือ ${fmtNum(wh.quantity)}${over ? ' — เกินจำนวนในโกดัง' : ''}</div>` : '';
     let ser;
-    if (locked) ser = it.serials.length ? it.serials.map(escapeHtml).join('<br>') : '<span class="cell-sub">-</span>';
-    else if (!wh || !(wh.serials || []).length) ser = it.serials.length ? it.serials.map(escapeHtml).join('<br>') : '<span class="cell-sub">-</span>';
+    if (!wh || !(wh.serials || []).length) ser = it.serials.length ? it.serials.map(escapeHtml).join('<br>') : '<span class="cell-sub">-</span>';
     else {
       const taken = pickedElsewhere(i, it.whId);
       ser = Array.from({ length: Math.min(it.qty, MAX_ITEM_SERIAL_BOXES) }, (_, k) => `<select onchange="setItemSerial(${i},${k},this.value)"><option value="">— เลือก SN —</option>`
@@ -3328,19 +3326,15 @@ function renderItemRows(){
     return `
     <tr>
       <td class="cell-sub">${i+1}</td>
-      <td>${!it.whId && (it.part || it.name) ? `<div><b>${escapeHtml(it.part || '-')}</b></div><div class="cell-sub">ไม่ได้ผูกกับอุปกรณ์ในโกดัง${locked ? '' : ' — เลือกด้านล่างเพื่อผูก'}</div>` : ''}<select ${locked ? 'disabled' : ''} onchange="pickItemWh(${i}, this.value)">${opts}</select>${hint}</td>
+      <td>${!it.whId && (it.part || it.name) ? `<div><b>${escapeHtml(it.part || '-')}</b></div><div class="cell-sub">ไม่ได้ผูกกับอุปกรณ์ในโกดัง — เลือกด้านล่างเพื่อผูก</div>` : ''}<select onchange="pickItemWh(${i}, this.value)">${opts}</select>${hint}</td>
       <td>${escapeHtml(it.brand || '-')}</td>
       <td>${escapeHtml(it.name || '-')}</td>
       <td>${escapeHtml(it.type || '-')}</td>
       <td>${ser}</td>
-      <td><input type="number" min="1" step="1" value="${it.qty}" ${locked ? 'disabled' : ''} onchange="setItemQty(${i}, this.value)"></td>
-      <td><select onchange="setItemStatus(${i}, this.value)">
-        <option value="pending" ${it.status !== 'done' ? 'selected' : ''}>รอดำเนินการ</option>
-        <option value="done" ${it.status === 'done' ? 'selected' : ''}>เลือกแล้ว</option>
-      </select></td>
+      <td><input type="number" min="1" step="1" value="${it.qty}" onchange="setItemQty(${i}, this.value)"></td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="9" class="empty-row">ยังไม่มีรายการสินค้า</td></tr>`;
+  }).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีรายการสินค้า</td></tr>`;
 
   $('prjServicesBody').innerHTML = services.length ? services.map(({ it, i }) => {
     const svc = it.svcId ? data.serviceWarehouse.find(s => s.id === it.svcId) : null;
@@ -3379,14 +3373,15 @@ function pickItemService(i, svcId){
   it.qty = 1;
   renderItemRows();
 }
-// The one place that turns the in-memory editingItems rows into the shape saved on the project doc's items[] - used both by the
-// whole-form "บันทึกรายการ" submit and by the live per-row lock/unlock below (which writes this same full snapshot on every
-// toggle, not just a single row, so a brand-new not-yet-saved row is included too and nothing goes stale between toggles).
+// The one place that turns the in-memory editingItems rows into the shape saved on the project doc's items[] - used by the
+// whole-form "บันทึกรายการ" submit. A goods line has no pending/done choice any more - it's always 'done', so simply having
+// a warehouse item picked (with a quantity and serials) is what makes it count in stockEffects() at save time; a service
+// line keeps its own real pending/done status, since that still tracks whether the work itself is finished, not stock.
 function buildItemsFromEditing(){
   return editingItems.filter(r => r.whId || r.svcId || (r.name || '').trim()).map(r => {
     const qty = Math.max(1, Math.floor(Number(r.qty) || 1));
     const service = r.kind === 'service';
-    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: r.status === 'done' ? 'done' : 'pending' };
+    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: service ? (r.status === 'done' ? 'done' : 'pending') : 'done' };
     return service ? { ...base, svcId: r.svcId || '' } : { ...base, whId: r.whId, serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean) };
   });
 }
@@ -3397,45 +3392,15 @@ function setItemSerial(i, k, v){
   it.serials[k] = v;
   renderItemRows();
 }
-// A goods line's status only locks/unlocks the warehouse LIVE (see lockOrUnlockItem below) when editing a job that has already
-// been saved at least once (editingProjectId set) - a brand-new job has no id/docNo yet for the warehouse's own history entry to
-// point at, so it still waits for its first save like before. A service line has no whId/stock to touch either way.
+// Only a service line still has a real pending/done choice (it tracks work progress, not stock) - see buildItemsFromEditing().
 function setItemStatus(i, st){
-  const it = editingItems[i];
-  const to = st === 'done' ? 'done' : 'pending';
-  if (it.status === to) return;
-  if (editingProjectId && it.kind !== 'service' && it.whId){ lockOrUnlockItem(i, to); return; }
-  it.status = to;
+  editingItems[i].status = st === 'done' ? 'done' : 'pending';
   renderItemRows();
 }
+// Removing a row - goods or service - just drops it from the in-memory list. Any warehouse give-back for a goods line that
+// had already been saved happens through the normal stockEffects() diff at the next "บันทึกรายการ", exactly like adding or
+// changing one does - there's no separate live/instant path any more (see "Item status" in CLAUDE.md).
 function removeItemRow(i){
-  const it = editingItems[i];
-  if (editingProjectId && it.kind !== 'service' && it.whId && it.status === 'done'){
-    const label = [it.part, it.brand, it.name].filter(Boolean).join(' ');
-    const serials = it.serials.filter(Boolean);
-    const effects = new Map([[it.whId, { qty: -it.qty, remove: new Set(), restore: new Set(serials), label }]]);
-    confirmAction('ลบแถวนี้จะคืนสต็อกเข้าโกดังทันที:\n' + describeEffects(effects), async () => {
-      setSync('saving');
-      const idx = editingItems.indexOf(it);
-      try{
-        if (idx !== -1) editingItems.splice(idx, 1);   // remove first so the snapshot below reflects the row really being gone
-        const itemsSnapshot = buildItemsFromEditing();
-        await applyLiveItemChangeTx(effects, itemsSnapshot, warehouseHistoryBase());
-        const orig = editingOrigItems.find(r => r.rid === it.rid);
-        if (orig) orig.status = 'pending';
-        const p = data.projects.find(x => x.id === editingProjectId);
-        if (p) p.items = itemsSnapshot;   // keep the in-memory record in step until the live listener refreshes it anyway
-        logAudit('คืนสต็อกโกดัง (ลบแถว)', label, describeEffects(effects));
-        toast('คืนสต็อกและลบแถวแล้ว');
-        setSync('ok');
-      }catch(err){
-        if (idx !== -1) editingItems.splice(idx, 0, it);   // the write failed - put the row back where it was
-        setSync('error'); toast(err && err.message ? err.message : 'ทำรายการไม่สำเร็จ');
-      }
-      renderItemRows();
-    }, 'ยืนยันคืนสต็อกและลบแถว');
-    return;
-  }
   editingItems.splice(i, 1);   // both tables show their own "ยังไม่มีรายการ..." placeholder when empty, so no auto-refill is needed
   renderItemRows();
 }
@@ -3446,13 +3411,16 @@ $('salesCreateBtn').addEventListener('click', () => openProjectForm(null, 'sale'
 $('projectCancelBtn').addEventListener('click', () => closeModal('projectModal'));
 
 /* ---- what this save must take out of / put back into the warehouse ----
-   Compares the 'done' lines before and after the edit, per warehouse item: quantity to take out (negative = put back), serials to
-   take out, serials to put back. Nothing else in the warehouse is touched. */
+   Compares the goods lines (r.whId set - a service line never has one) before and after the edit, per warehouse item:
+   quantity to take out (negative = put back), serials to take out, serials to put back. Nothing else in the warehouse is
+   touched. Every goods line is always 'done' now (see buildItemsFromEditing()), so a line simply existing - or not - is what
+   decides the effect: adding one takes stock out, removing one (or the whole job) puts it back, changing its quantity or
+   which warehouse item it points to nets out to the right adjustment automatically. */
 function stockEffects(origItems, newItems){
   const agg = rows => {
     const m = new Map();
     rows.forEach(r => {
-      if (!r.whId || r.status !== 'done') return;
+      if (!r.whId) return;
       const e = m.get(r.whId) || { qty: 0, serials: new Set(), label: '' };
       e.qty += Number(r.qty) || 0; r.serials.forEach(sn => sn && e.serials.add(sn));
       e.label = [r.part, r.brand, r.name].filter(Boolean).join(' ');
@@ -3480,9 +3448,8 @@ function describeEffects(effects){
 }
 // Applies one {qty, remove, restore, label} effect (stockEffects()'s own shape) to an already-read warehouse doc snapshot,
 // returning the write patch (or null if there was nothing to apply and the item is simply gone) - throws if the warehouse item
-// no longer exists, doesn't have enough quantity, or is missing a serial being taken out. Shared by the end-of-form batch save
-// (commitProject) and the live per-row lock/unlock below, so there is exactly one place that knows how to turn an effect into a
-// warehouse write.
+// no longer exists, doesn't have enough quantity, or is missing a serial being taken out. Used by commitProject() at
+// "บันทึกรายการ" - the one place a goods line's warehouse effect is ever applied now (see "Item status" in CLAUDE.md).
 function warehouseEffectPatch(snap, e, historyBase){
   if (!snap.exists || snap.data().deletedAt){
     if (e.qty > 0 || e.remove.size) throw new Error(`ไม่พบ ${e.label} ในโกดัง`);
@@ -3497,63 +3464,6 @@ function warehouseEffectPatch(snap, e, historyBase){
   if (e.qty > 0 || e.remove.size) entries.push({ ...historyBase, type:'out', qty: e.qty > 0 ? e.qty : e.remove.size, serials: [...e.remove] });
   if (e.qty < 0 || e.restore.size) entries.push({ ...historyBase, type:'return', qty: e.qty < 0 ? -e.qty : e.restore.size, serials: [...e.restore] });
   return { quantity: newQty, serials, history: [...(Array.isArray(w.history) ? w.history : []), ...entries].slice(-500) };
-}
-// One transaction that (a) applies a Map<whId, effect> to the real warehouse docs (see warehouseEffectPatch) and (b) overwrites
-// the project doc's own items[] with the given snapshot - so the warehouse and the project's own saved items[] never go out of
-// step between one live toggle and the next (a brand-new not-yet-saved row is included in the snapshot too, since it comes
-// straight from buildItemsFromEditing() rather than a per-row patch).
-async function applyLiveItemChangeTx(effects, itemsSnapshot, historyBase){
-  await db.runTransaction(async tx => {
-    const snaps = new Map();
-    for (const whId of effects.keys()) snaps.set(whId, await tx.get(db.collection(COL.warehouse).doc(whId)));
-    effects.forEach((e, whId) => {
-      const patch = warehouseEffectPatch(snaps.get(whId), e, historyBase);
-      if (patch) tx.update(db.collection(COL.warehouse).doc(whId), patch);
-    });
-    tx.update(db.collection(COL.projects).doc(editingProjectId), { items: itemsSnapshot });
-  });
-}
-function warehouseHistoryBase(){
-  const p = data.projects.find(x => x.id === editingProjectId);
-  return { at: new Date().toISOString(), projectId: editingProjectId, docNo: p && p.docNo || '', projectName: p && p.name || '', jobType: p && p.jobType || '', by: currentUserUid, byName: currentUserName || currentUserEmail || '' };
-}
-// "ล็อคของ": on an already-saved job, flipping a goods line's status hits the warehouse AND the project doc's own items[] right
-// away instead of waiting for "บันทึกรายการ", so two people editing at once can't both grab the same units. `editingOrigItems`
-// is updated to match once the write succeeds, so the whole-form save's own stockEffects() diff sees this row as already applied
-// and does not touch it again.
-async function lockOrUnlockItem(i, to){
-  const it = editingItems[i];
-  const w = data.warehouse.find(x => x.id === it.whId);
-  if (!w){ toast('ไม่พบอุปกรณ์นี้ในโกดังแล้ว'); renderItemRows(); return; }
-  const label = [it.part, it.brand, it.name].filter(Boolean).join(' ');
-  const qty = it.qty, serials = it.serials.filter(Boolean);
-  const effects = new Map([[it.whId, to === 'done'
-    ? { qty, remove: new Set(serials), restore: new Set(), label }
-    : { qty: -qty, remove: new Set(), restore: new Set(serials), label }]]);
-  const msg = (to === 'done'
-    ? 'เลือกรายการนี้จะตัดสต็อกออกจากโกดังทันที (ล็อคของ) ไม่ต้องรอกดบันทึกทั้งฟอร์ม:\n'
-    : 'ยกเลิกการเลือกนี้จะคืนสต็อกเข้าโกดังทันที:\n') + describeEffects(effects);
-  renderItemRows();   // reverts the <select> back to its real (still-unchanged) value while the confirm dialog decides
-  confirmAction(msg, async () => {
-    setSync('saving');
-    const from = it.status;
-    try{
-      it.status = to;   // flip first so the snapshot below already reflects it
-      const itemsSnapshot = buildItemsFromEditing();
-      await applyLiveItemChangeTx(effects, itemsSnapshot, warehouseHistoryBase());
-      const orig = editingOrigItems.find(r => r.rid === it.rid);
-      if (orig) orig.status = to; else editingOrigItems.push({ ...it });
-      const p = data.projects.find(x => x.id === editingProjectId);
-      if (p) p.items = itemsSnapshot;   // keep the in-memory record in step until the live listener refreshes it anyway
-      logAudit(to === 'done' ? 'ตัดสต็อกโกดัง (เลือกแล้ว)' : 'คืนสต็อกโกดัง (ยกเลิกเลือก)', label, describeEffects(effects));
-      toast(to === 'done' ? 'ตัดสต็อกแล้ว' : 'คืนสต็อกแล้ว');
-      setSync('ok');
-    }catch(err){
-      it.status = from;   // the write failed - undo the optimistic local flip
-      setSync('error'); toast(err && err.message ? err.message : 'ทำรายการไม่สำเร็จ');
-    }
-    renderItemRows();
-  }, to === 'done' ? 'ยืนยันตัดสต็อกทันที' : 'ยืนยันคืนสต็อก');
 }
 // Document numbers: SO<YYYYMMDD>-<NNN> for a sale, PJ<YYYYMMDD>-<NNN> for a project; the sequence restarts every day.
 // The counter lives in pm_counters/<SO20260921> and is bumped inside the SAME transaction that creates the document, so two people

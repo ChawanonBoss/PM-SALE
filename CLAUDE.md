@@ -386,24 +386,37 @@ one-for-one, reading from `data.serviceWarehouse` instead of `data.warehouse`. `
 this was added: it used to blank out `type` for any line with no `whId` (meant for old freeform/unlinked goods lines), which would have wrongly blanked a
 service line's ประเภทงาน too since a service never has a `whId` either - the condition is now `(it.whId || service)`.
 
-## Item status: live warehouse lock ("เลือกแล้ว")
-Flipping a **goods** line's status between "รอดำเนินการ" and "เลือกแล้ว" (the option used to read "ดำเนินการแล้ว" - renamed since the act of
-picking it now genuinely reserves the stock, not just marks work done) hits `pm_warehouse` immediately when editing a job that has already been
-saved at least once (`editingProjectId` set) - not deferred to "บันทึกรายการ" like everything else on the form, so two people editing different jobs
-at once can't both grab the same units. A brand-new, never-saved job still waits for its first save (there's no id/docNo yet for the warehouse's own
-history entry to point at), and a **service** line is untouched either way (no `whId`, nothing to lock) - `setItemStatus()` only routes into
-`lockOrUnlockItem()` when `editingProjectId && it.kind !== 'service' && it.whId`.
-
-`lockOrUnlockItem(i, to)` re-renders the row **before** opening its own `confirmAction()` (not the end-of-form one) - this snaps the `<select>` back
-to its real, unchanged value for as long as the dialog is up, so cancelling needs no separate revert step. On confirm, one transaction (a) applies the
-effect to the warehouse via `warehouseEffectPatch()` - the same per-item math `commitProject()` uses, extracted so there is exactly one place that
-turns an effect into a warehouse write - and (b) overwrites the project doc's own `items[]` with a **full fresh snapshot** from
-`buildItemsFromEditing()` (not a single-field patch), so a row that's brand new to this editing session (just added, never saved) is captured too, and
-nothing between one live toggle and the next can go stale. `editingOrigItems` is updated to match afterward, so the whole-form save's own
-`stockEffects()` diff sees the row as already applied and never touches it a second time - saving the rest of the form after a live toggle shows no
-stock-effects confirm at all. Deleting a **locked** (`status:'done'`) goods row (`removeItemRow()`) goes through the same live give-back-then-write
-path before splicing it out, for the same reason. A failed transaction (not enough stock, a serial already gone) reverts the row's status locally and
-toasts the error; nothing was written.
+## Item status: removed - a goods line has no status any more
+A **goods** line used to carry its own "รอดำเนินการ"/"เลือกแล้ว" status, and for a while (one session's worth of history, now reverted)
+flipping that status to "เลือกแล้ว" on an already-saved job hit `pm_warehouse` immediately, live, before "บันทึกรายการ" was ever
+clicked - a real screenshot report called this column out directly ("ลบสถานะ ในภาพออก") with the actual principle wanted: pick the
+product, quantity and serials, click confirm, and the warehouse is deducted right then - **no status indicator needed at all**. So
+the whole status concept was removed for goods, not just hidden:
+- The "สถานะ" `<th>`/`<td>` is gone from the goods table entirely (`renderItemRows()` - the services table right below it keeps its
+  own status column unchanged, since a service's status tracks whether the WORK is done, not stock, and was never in scope here).
+- `buildItemsFromEditing()` now writes `status:'done'` **unconditionally** for every goods line (never `'pending'` any more) - a
+  service line keeps its own real pending/done value. Every consumer that reads `item.status === 'done'` elsewhere (the โครงการ/
+  ซื้อขาย list's "สถานะงาน" done-count, the warranty page export, the dashboard) needed no change at all: a goods-only job now simply
+  always reads as fully done the moment it's saved, and only a still-pending SERVICE line can leave a job showing the partial
+  "กำลังดำเนินการ" state.
+- `stockEffects()` no longer gates on status (every goods line - `r.whId` set - counts, since it's always 'done'); the ENTIRE
+  "live lock" mechanism built around that status (`lockOrUnlockItem()`, `applyLiveItemChangeTx()`, `warehouseHistoryBase()`, and
+  the special live give-back branch inside `removeItemRow()`) was deleted outright rather than kept as now-unreachable dead code.
+  What's left is the one mechanism that already existed underneath it: the whole-form "บันทึกรายการ" submit computes
+  `stockEffects(editingOrigItems, items)` and, if anything changed, confirms it ("การบันทึกนี้จะเปลี่ยนจำนวนในโกดัง...") before
+  writing - this now runs unconditionally for a goods line with a warehouse item picked, whether it's a brand-new job's first
+  save or an edit to an already-saved one. Adding a line deducts, removing one gives it back, changing its quantity or which
+  warehouse item it points to nets out to the right adjustment - all through this one diff, at this one moment, exactly what
+  "กดยืนยันแล้ว จะต้องตัดรายการสินค้าของโกดังสินค้าได้เลย" asked for.
+- A side effect worth knowing: the goods row itself is now **never locked/read-only** in the form - `pickedElsewhere()` (which
+  keeps two rows in the same open form from picking the same serial) also dropped its old `status !== 'done'` condition, since
+  every row is equally "not yet committed" until the form is actually saved. This trades away the earlier protection against two
+  people editing *different* jobs grabbing the same physical unit between saves - a deliberate, disclosed trade for removing the
+  status step, not an oversight.
+- A legacy row already saved with `status:'pending'` from before this change (never actually deducted) will read as `'done'`
+  the next time that job is opened, edited in ANY way and saved - `stockEffects()` will then see it appear for the first time in
+  the "after" snapshot and deduct it, since "pending" no longer exists as a concept. That's the intended behavior going
+  forward (nothing stays in limbo any more), just worth knowing if an old record's stock looks untouched until its next edit.
 
 ## ซื้อขาย: ปิดงาน
 `closeJobButton(p)` - ซื้อขาย row-actions only, never on โครงการ - reads "ปิดงาน" until `p.closedAt` is set (then "ปิดงานแล้ว", permanently disabled) and
