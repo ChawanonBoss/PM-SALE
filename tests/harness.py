@@ -89,7 +89,7 @@ NAV_GROUP_OF = {
     "sales": "group1", "projects": "group1",
     "warehouse": "group2", "serviceWarehouse": "group2", "catalog": "group2", "equipment": "group2",
     "customers": "group3", "companies": "group3",
-    "users": "settings", "audit": "settings", "trash": "settings",
+    "users": "settings", "audit": "settings", "trash": "settings", "travel": "settings",
 }
 
 

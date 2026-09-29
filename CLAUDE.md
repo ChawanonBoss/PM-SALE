@@ -281,7 +281,8 @@ installment, or the last one once everything is in - not `installmentNo` directl
 each, 8 per project - a `role:'closing'` one is the ปิดงาน signed document instead, exactly one per job, not one of the 8), `pm_photos` (handover photos, base64 <=900 KB
 each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved),
 `pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable), `pm_appointments` (ปฏิทิน's own นัดหมาย records - see
-"ปฏิทิน (Calendar)" below; no soft delete, a real `.delete()`). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
+"ปฏิทิน (Calendar)" below; no soft delete, a real `.delete()`), `pm_travelExpenses` + `pm_travelPhotos` (ค่าเดินทาง, admin-only -
+see "ค่าเดินทาง (Travel expenses)" below). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
 
 ## Menus
 ซื้อขาย (`tab-sales`, `#salesBody`) and โครงการ (`tab-projects`, `#projectsBody`) are separate menus over the same `pm_projects` collection; `renderJobs(kind)` draws both. There is no job-type select/filter/column any more: `openProjectForm(id, kind)` sets the hidden `#prjJobType` from the menu.
@@ -294,7 +295,7 @@ the scrollable `#railNavScroll` and a plain-absolute popover would get clipped t
 in the sibling BU-ABB app's CLAUDE.md for the original bug this mirrors) listing that group's real pages, built fresh on each click by
 `renderGroupPopover()` from `NAV_GROUPS`/`NAV_ICONS`/`NAV_LABELS`. Groups (names picked freely, per explicit user permission - content was specified,
 labels were not): **ซื้อขาย/โครงการ** (sales, projects), **คลังและอุปกรณ์** (warehouse, serviceWarehouse, catalog, equipment), **ลูกค้าและบริษัท** (customers, companies),
-and **ตั้งค่า** (users, audit, trash - admin-only, name given explicitly by the user). `dashboard` and `actionplan` stay as their own permanent
+and **ตั้งค่า** (travel, users, audit, trash - admin-only, name given explicitly by the user). `dashboard` and `actionplan` stay as their own permanent
 top-level buttons - the user's own grouping list never mentioned moving them. A group button's own badge (`group1NavBadge`/`group2NavBadge`/
 `settingsNavBadge`) is a live aggregate of whatever alert numbers its members would have shown individually (`navAlertCache`, filled by
 `updateNavBadge()`); the same numbers are baked directly into each flyout item's markup when the popover renders, rather than kept as their own
@@ -304,7 +305,75 @@ fetch, not a live listener) used to be wired to a click listener on trash's own 
 itself now calls `loadTrash()` when `tab === 'trash'`, which also makes it more robust to any future `showTab('trash')` call from elsewhere in the
 code. Tests reach a grouped tab through the `goto_tab(page, tab)` helper in `harness.py` (opens the right group first via `NAV_GROUP_OF`, then clicks
 the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any new test that navigates to sales/projects/warehouse/serviceWarehouse/catalog/
-equipment/customers/companies/users/audit/trash, and keep `NAV_GROUP_OF` in sync with `NAV_GROUPS` if a tab ever changes group.
+equipment/customers/companies/users/audit/trash/travel, and keep `NAV_GROUP_OF` in sync with `NAV_GROUPS` if a tab ever changes group.
+
+## ค่าเดินทาง (Travel expenses, admin-only)
+A page in the ตั้งค่า group (admin-only, same as users/audit/trash - its own realtime listener is only attached inside
+`attachRealtimeListeners()`'s existing `if (isAdmin)` bonus-subscription block, alongside `pending`/`audit`/`errors`, and
+`showTab()`'s `ADMIN_ONLY_TABS` guard redirects a non-admin session straight back to the dashboard) for logging trips made
+to visit a customer or work off-site, printable as a monthly PDF claim sheet, with its own photo evidence per trip. Built
+from a fairly detailed user spec (an old reference document, plus an exact column list) rather than an open design brief,
+so most of the choices below are direct translations of that spec, not judgment calls:
+- **`pm_travelExpenses`** is a flat collection of individual trip documents (`date`, `fromLocation`, `toLocation`,
+  `customerName`, `task`, `distanceKm`, `rate` (always `TRAVEL_RATE_PER_KM = 6`), `tollFee`, `parkingFee`, `otherFee`,
+  `total`, `photoCount`, a synthetic `name` for the generic Trash/audit machinery, `createdBy`/`createdAt`, soft-deleted
+  via `deletedAt` like everything else) - **not** one document per month holding an array. The month/year picker above
+  the table (`#travelMonthFilter`) is a FILTER over this flat list (and the source of the print header), the same way
+  every other list page in the app filters a flat collection - introducing a second "one doc holds an editable array"
+  shape (like `plan[]`) purely for this page would have been a new pattern for no real benefit. The year half of that
+  picker was deliberately left with no UI at all - it's always `new Date().getFullYear()` computed fresh on every
+  render/print ("ล็อคปีปัจจุบันไว้เสมอ" - always lock to the current year), only the month is a real `<select>`.
+- **สถานที่เริ่มต้น/สถานที่ปลายทาง share one addable-select pool** (`travelFromSel`/`travelToSel`, both built with the
+  existing `makeAddableSelect()` factory the warehouse pages use, both reading `used()` from `data.travel.flatMap(t =>
+  [t.fromLocation, t.toLocation])` - i.e. either field, from any trip) - picking a place in either dropdown makes it
+  available in BOTH from then on, per the user's own "ข้อ 3 และ 4 สามารถใช้ข้อมูลชุดเดียวกัน". **ชื่อลูกค้า** and
+  **รายการปฏิบัติงาน** each get their own separate addable-select pool instead - grouped with the same "Dropdown
+  แบบเพิ่มเองได้" instruction in the request, but conceptually distinct data, so each reads only its own field across
+  `data.travel`. None of these four pools touch the real `pm_customers` collection - a trip's "customer" is free text
+  here, since travel isn't always tied to a formal registered customer record.
+- **ค่าระยะทาง (rate) and รวม (total) are never user-editable**, exactly as asked ("ข้อ 8 และ 12 ไม่สามารถกรอกเองได้ แต่
+  แสดงข้อมูล") - `#travelRate` is a permanently `disabled` input always showing `6`, and `#travelTotal` is a disabled
+  input recomputed live on every distance/toll/parking/other keystroke (`updateTravelTotal()`, formula `(distanceKm ×
+  6) + tollFee + parkingFee + otherFee`) as well as recomputed again server-side-equivalent inside the form's own
+  submit handler - so a row's stored `total` can never drift from its own numbers regardless of what the disabled
+  field happened to display at save time.
+- **The list's own last row is a live total** (`travelSums()`) summing every numeric column (distance, toll, parking,
+  other, total) across the CURRENTLY FILTERED month - "บรรทัดสุดท้ายจะเป็นผลรวมของทุกคอลัมน์ที่เป็นตัวเลข" - computed
+  over the full filtered set, not just the current page, so paging never changes what the total row shows.
+- **Printing** (`printTravel()`) follows the user's own three rules literally: no company letterhead at all (`letterheadHtml()`
+  is never called - the print body is just the locked header line plus the table), **A4 landscape** (`setPrintPage('@page{
+  size:A4 landscape; ...}')`, matching how `printActionPlan()` already does landscape for a similarly wide table), and the
+  first line is the locked, non-editable format `ค่าเดินทางประจำเดือน {เดือนแบบเต็ม} {ปี พ.ศ.} ของ{TRAVEL_OWNER_NAME}`
+  (`TRAVEL_OWNER_NAME = 'นาย ชวนนท์ ตันชัยฤทธิกุล'`, its own named constant specifically so it's a one-line change if this
+  page is ever handed to someone else) via the existing `.pr-title`/`.pr-items` print CSS classes - both already existed
+  in the shared `@media print` block but were unused by any other page until now, so no new print CSS was needed at all.
+  Print always reads a FRESH month slice off `data.travel` directly (`travelRowsForMonth()`), deliberately ignoring
+  whatever is currently typed into the search box, so a stray search term can never silently truncate a financial
+  report - refuses with a toast if the selected month has no trips at all.
+- **Photos are a separate shared gallery page** (`tab-travelPhotos`, reached via each row's own "รูปภาพ" button, "←
+  กลับ" returns to the list) rather than the ซื้อขาย/โครงการ pattern of one photo page per record - it lists EVERY
+  trip (`#, วันที่, จาก, ถึง, รูปภาพ`, matching the user's own 5-column spec exactly) with its own inline upload
+  control and thumbnail strip per row, so "ต้องเลือกสถานที่ก่อน" is satisfied by construction (each row already
+  identifies its own trip; there's no separate "which trip is this for" step to forget). No sets/equipment-linking
+  like the project photo page - a trip only ever has one flat kind of photo evidence. Storage is its own
+  `pm_travelPhotos` collection (`tripId`, base64 `data` under the same 900,000-character cap as `pm_photos`, `size`,
+  `type`, `createdBy`/`createdAt`) with a `photoCount` on the parent trip kept in sync via `FieldValue.increment(±1)` -
+  `loadTravelPhotoThumbs()` deliberately does NOT gate its query on that cached count (a fresh upload's own increment
+  and the subsequent reload could otherwise race against the realtime listener refreshing `data.travel`), querying
+  `pm_travelPhotos` unconditionally instead since a personal travel log never has enough trips for that to matter.
+  Purging a trip from Trash permanently (`purgeTrash('travel', id)`) also deletes its `pm_travelPhotos` rows first,
+  mirroring how purging a project already cleans up its own `pm_files`.
+- **Firestore rules are the simplest shape in the app** (`allow read, write: if pmIsAdmin();` for `pm_travelExpenses`,
+  the same idea plus the base64-size cap for `pm_travelPhotos`) - there is no non-admin scoping to write at all, since
+  every access path (the nav item, the tab, the realtime listener) is already admin-only end to end.
+- **Everything else about the page is deliberately unremarkable**: registering `travel` in `COL`/`data`/`ENTITY_LABEL`/
+  `NAV_ICONS`/`NAV_LABELS`/`NAV_GROUPS`/`TITLES`/`ADMIN_ONLY_TABS`/`PAGER_UI`/`filterGroups()`/`renderActiveTab()`'s
+  dispatch map is the same short checklist every other list page in this app already follows (see "Service warehouse"
+  above for the same pattern applied to a different page) - the generic Trash/restore/purge/audit-log machinery needed
+  zero travel-specific code beyond that registration, exactly like `serviceWarehouse` needed none either. The one new
+  piece was a synthetic `name` field on every trip doc (`"{fmtDate} {from} → {to}"`) purely so that generic machinery -
+  which reads `x.name` for its confirm dialogs, audit entries and Trash listing - had something sensible to show,
+  since a trip has no natural single "name" field of its own the way a project or customer does.
 
 ## Handover photos: print to PDF
 `#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows

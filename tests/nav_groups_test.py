@@ -34,7 +34,7 @@ with serve_repo() as base, new_page(viewport={"width": 1400, "height": 900}) as 
     page.click('.nav-item[data-group="group3"]')
     assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['customers', 'companies']
     page.click('.nav-item[data-group="settings"]')
-    assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['users', 'audit', 'trash']
+    assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['travel', 'users', 'audit', 'trash']
     assert page.inner_text('.nav-group-title') == 'ตั้งค่า'
 
     # ---- clicking a flyout item navigates there, closes the flyout, and the group button (not any single-item state) shows active ----

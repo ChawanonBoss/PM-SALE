@@ -65,6 +65,18 @@
       allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
     }
 
+    // ค่าเดินทาง (travel expenses): admin-only end to end - the page itself lives in the admin-only "ตั้งค่า" group and
+    // its own realtime listener is only ever attached for an admin session, so there is no non-admin scoping to write here.
+    match /pm_travelExpenses/{id} {
+      allow read, write: if pmIsAdmin();
+    }
+    match /pm_travelPhotos/{id} {
+      allow read: if pmIsAdmin();
+      allow create: if pmIsAdmin() && request.resource.data.data is string && request.resource.data.data.size() < 900000;
+      allow update: if false;
+      allow delete: if pmIsAdmin();
+    }
+
     // Company profiles (letterhead): everyone signed in can read (needed to print), only admin edits.
     match /pm_companies/{id} {
       allow read: if pmIsApproved();
