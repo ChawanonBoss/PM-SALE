@@ -316,8 +316,9 @@ from a fairly detailed user spec (an old reference document, plus an exact colum
 so most of the choices below are direct translations of that spec, not judgment calls:
 - **`pm_travelExpenses`** is a flat collection of individual trip documents (`date`, `fromLocation`, `toLocation`,
   `customerName`, `task`, `distanceKm`, `rate` (always `TRAVEL_RATE_PER_KM = 6`), `tollFee`, `parkingFee`, `otherFee`,
-  `total`, `roundTrip` (see below), `photoData`/`photoType` (see below), a synthetic `name` for the generic Trash/audit
-  machinery, `createdBy`/`createdAt`, soft-deleted via `deletedAt` like everything else) - **not** one document per
+  `total`, `roundTrip` + `returnTollFee`/`returnParkingFee`/`returnOtherFee` (see below), `photoData`/`photoType` (see
+  below), a synthetic `name` for the generic Trash/audit machinery, `createdBy`/`createdAt`, soft-deleted via
+  `deletedAt` like everything else) - **not** one document per
   month holding an array. The month/year picker above
   the table (`#travelMonthFilter`) is a FILTER over this flat list (and the source of the print header), the same way
   every other list page in the app filters a flat collection - introducing a second "one doc holds an editable array"
@@ -344,16 +345,22 @@ so most of the choices below are direct translations of that spec, not judgment 
 - **Printing** (`printTravel()`) follows the user's own three rules literally: no company letterhead at all (`letterheadHtml()`
   is never called - the print body is just the locked header line plus the table), **A4 landscape** (`setPrintPage('@page{
   size:A4 landscape; ...}')`, matching how `printActionPlan()` already does landscape for a similarly wide table), and the
-  first line is the locked, non-editable format `ค่าเดินทางประจำเดือน {เดือนแบบเต็ม} {ปี พ.ศ.} ของ{TRAVEL_OWNER_NAME}`
-  (`TRAVEL_OWNER_NAME = 'นาย ชวนนท์ ตันชัยฤทธิกุล'`, its own named constant specifically so it's a one-line change if this
-  page is ever handed to someone else) via the existing `.pr-title`/`.pr-items` print CSS classes - both already existed
-  in the shared `@media print` block but were unused by any other page until now, so no new print CSS was needed at all.
-  Print always reads a FRESH month slice off `data.travel` directly (`travelRowsForMonth()`), deliberately ignoring
-  whatever is currently typed into the search box, so a stray search term can never silently truncate a financial
-  report - refuses with a toast if the selected month has no trips at all. **Embedding the trip photo into the printed
-  sheet is not done yet** - the user asked for it to match a reference document/image ("ตัวอย่างรูปภาพค่าเดินทางใน
-  โฟลเดอร์ Web") that could not be found in that folder when asked for; print stays data-only until that reference
-  turns up and the exact layout can be matched, rather than guessing at it twice.
+  first line is the locked, non-editable format `` `ค่าเดินทางประจำเดือน${travelMonthLabel(month,year)} ของ${TRAVEL_OWNER_NAME}` ``
+  (`travelMonthLabel()` returns `"{เดือนแบบเต็ม} ปี{ปี พ.ศ.}"`, e.g. `"สิงหาคม ปี2569"`, glued directly onto "เดือน" with
+  no space - this exact spacing, including the "ปี" glued straight onto the year digits with no space of its own, was
+  reverse-engineered from the real reference spreadsheet's own locked header cell rather than guessed; an earlier version
+  had a stray space in both places, wrong on both counts) via the existing `.pr-title`/`.pr-items` print CSS classes -
+  both already existed in the shared `@media print` block but were unused by any other page until this feature, so no
+  new print CSS was needed for the table itself. Print always reads a FRESH month slice off `data.travel` directly
+  (`travelRowsForMonth()`), deliberately ignoring whatever is currently typed into the search box, so a stray search
+  term can never silently truncate a financial report - refuses with a toast if the selected month has no trips at all.
+  **A photo appendix follows the table** for every trip that has its own attached photo: a 2-column captioned grid
+  reusing `buildPhotosPrintHtml()`'s own `.pr-photo-sec`/`.pr-photo-grid`/`.pr-photo-cell`/`.pr-photo-cap` classes
+  verbatim, captioned `"ลำดับที่ N · จาก → ถึง"` matching the main table's own ลำดับ numbering - this layout was
+  reverse-engineered from a reference file the user said was "in the Web folder" but which, after an exhaustive search
+  of that folder turned up nothing, was found instead sitting directly in the PM-SALE project folder itself
+  (`ตัวอย่างค่าเดินทาง.xlsx`'s own "รูปภาพ" sheet, a 2-column grid of "รูปภาพลำดับที่ N" caption placeholders - the
+  sibling `ตัวอย่างรูปภาพค่าเดินทาง.docx` turned out to be an unfilled layout template with no actual embedded images).
 - **Photos: exactly ONE per trip, stored inline on the trip's own document** (`photoData` base64 under the same
   900,000-character cap as `pm_photos`, `photoType`) rather than a separate collection or gallery page - a real
   correction after the first version allowed unlimited photos per trip via their own `pm_travelPhotos` collection and a
@@ -368,21 +375,31 @@ so most of the choices below are direct translations of that spec, not judgment 
 - **"ไป-กลับ" (round trip) is ONE document with a `roundTrip: true` flag, rendered as TWO table rows, not two documents.**
   The first version created a full second record for the return leg; a direct correction said that didn't match what
   was wanted ("ไม่ต้องนำเป็นรายการเพิ่ม...ถือว่าเป็นรายการย่อยแทน" - don't make it an extra list item, treat it as a
-  sub-item instead). `travelLegRow(t, num, isReturn)` builds either row from the SAME document: the "ไป" row (`isReturn:
-  false`) is the record in full with a real ลำดับ number and the "รูปภาพ"/"ลบ" row-actions; the "กลับ" row right under it
-  (`isReturn: true`) has its ลำดับ left blank, `fromLocation`/`toLocation` swapped, and ลูกค้า/รายการปฏิบัติงาน/every
-  numeric cell (distance/rate/fees/total) left blank too - it exists purely to document that a return leg happened, so
-  the trip's own `total` is never doubled and no row-actions appear on it (there's no second record for them to act on).
-  Both `renderTravel()` and `printTravel()` share this same two-row expansion. A new **"ไป/กลับ" column right after ลำดับ**
-  shows which row is which ("สถานะ ไป และ กลับ ต่อจาก ลำดับด้วย") - on-screen only; print deliberately does NOT add this
-  as its own column ("ไม่ต้องเพิ่มคอลัมน์ใน PDF"), relying on the same blank-ลำดับ-plus-swapped-locations convention to
-  read as a return leg without growing the printed table's column count. `travelSums()` (the list's own total row, and
-  print's grand total) still iterates the underlying DOCUMENT array rather than the expanded rows, so a round trip's
-  `total` is only ever counted once regardless of how many rows it renders as - unaffected by this whole rework.
-  `roundTrip` is only ever set at CREATION (`$('travelRoundTrip').checked`, read only when `!editingTravelId`) - the
-  checkbox stays hidden while editing an existing trip, so there's no way to retroactively add or remove the return
-  leg's display from an edit; the field is simply left out of an edit's `update()` payload, so Firestore's merge
-  semantics leave whatever value the document already had untouched.
+  sub-item instead). A SECOND correction then reversed an over-literal reading of "sub-item": the "กลับ" row is not a
+  blank placeholder - per the real reference spreadsheet's own filled example of this exact scenario, a return leg has
+  real numbers of its own. `travelLegRow(t, num, isReturn)` builds either row from the SAME document: the "ไป" row
+  (`isReturn: false`) is the record in full with a real ลำดับ number and the "รูปภาพ"/"ลบ" row-actions; the "กลับ" row
+  right under it (`isReturn: true`) has its ลำดับ left blank and `fromLocation`/`toLocation` swapped, but ระยะทาง and
+  ค่า/กม. are MIRRORED from the "ไป" leg (`t.distanceKm`/`TRAVEL_RATE_PER_KM` again - a return trip covers the same
+  distance at the same locked rate, per the user's own "ไป ระบุไว้ 20 กลับก็ต้อง 20", so these are never re-entered),
+  while ทางด่วน/ที่จอดรถ/อื่นๆ are its OWN independently-entered values (`returnTollFee`/`returnParkingFee`/
+  `returnOtherFee`, only ever set at creation alongside `roundTrip` itself, via three fields shown/hidden together with
+  the checkbox - `#travelReturnFeesField`) and รวม is computed from those (`travelReturnTotal(t)`, the same formula
+  `travelRowTotal()` uses for the "ไป" leg). Only ลูกค้า/รายการปฏิบัติงาน stay blank on the "กลับ" row - a return leg
+  doesn't carry its own customer/task. No row-actions appear on the "กลับ" row (there's no second record for them to
+  act on). Both `renderTravel()` and `printTravel()` share this same two-row expansion. A new **"ไป/กลับ" column right
+  after ลำดับ** shows which row is which ("สถานะ ไป และ กลับ ต่อจาก ลำดับด้วย") - on-screen only; print deliberately
+  does NOT add this as its own column ("ไม่ต้องเพิ่มคอลัมน์ใน PDF"), relying on the same blank-ลำดับ-plus-swapped-locations
+  convention to read as a return leg without growing the printed table's column count. **`travelSums()` (the list's own
+  total row, and print's grand total) sums BOTH legs of a round trip** - distance counted twice (once per leg, matching
+  how the reference spreadsheet's own grand-total row sums each physical row rather than each document), tolls/parking/
+  other summed from each leg's own value, and `travelReturnTotal(t)` added alongside the stored `total` - a return
+  correction from an earlier version that (incorrectly) left the "กลับ" row uncounted, since at the time it was
+  genuinely blank. `roundTrip` (and the three return-leg fee fields) is only ever set at CREATION
+  (`$('travelRoundTrip').checked`, read only when `!editingTravelId`) - the checkbox and its fee fields stay hidden
+  while editing an existing trip, so there's no way to retroactively add, remove or reprice the return leg from an
+  edit; these keys are simply left out of an edit's `update()` payload, so Firestore's merge semantics leave whatever
+  value the document already had untouched.
 - **Firestore rules are the simplest shape in the app** (`allow read, write: if pmIsAdmin();`) - there is no non-admin
   scoping to write at all, since every access path (the nav item, the tab, the realtime listener) is already admin-only
   end to end, and no `hasOnly()` restricts the document's keys, so `roundTrip`/`photoData`/`photoType` needed no rule
@@ -395,14 +412,6 @@ so most of the choices below are direct translations of that spec, not judgment 
   piece was a synthetic `name` field on every trip doc (`"{fmtDate} {from} → {to}"`) purely so that generic machinery -
   which reads `x.name` for its confirm dialogs, audit entries and Trash listing - had something sensible to show,
   since a trip has no natural single "name" field of its own the way a project or customer does.
-- **"ไป-กลับ" (round trip)** - a checkbox (`#travelRoundTrip`) shown only while adding a brand-new trip (hidden entirely,
-  not just unchecked, once editing an existing one - regenerating a return leg from an edit of one specific trip would
-  be ambiguous about which of the two records is "the" one being edited). Checking it and saving writes TWO documents
-  in one action: the trip as entered, then immediately a second one with only `fromLocation`/`toLocation` swapped -
-  date, customer, task, distance and every fee (tollFee/parkingFee/otherFee) carry over unchanged, per the user's own
-  "จะสลับข้อมูลระหว่างสถานที่เริ่มต้นและสถานที่ปลายทาง...ระยะเท่าเดิม" (only the locations swap, distance stays the
-  same) - nothing in that spec said to zero out the return leg's fees, and a real round trip usually costs the same
-  tolls/parking either way, so they're left as typed.
 - **A permission-denied save now says so directly** ("ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses ที่ Firebase
   Console") instead of a generic "บันทึกไม่สำเร็จ" - added after a real "บันทึกไม่ได้" report that traced back to
   exactly that (the rules block above is a reference copy in this repo; it does nothing until pasted into the Console

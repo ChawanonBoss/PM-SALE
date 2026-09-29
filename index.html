@@ -1666,8 +1666,13 @@
         </div>
         <div class="field full" id="travelRoundTripField" style="grid-column:1/-1;">
           <label style="display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer;">
-            <input type="checkbox" id="travelRoundTrip"> ไป-กลับ (สร้างรายการขากลับให้อัตโนมัติ - สลับสถานที่เริ่มต้น/ปลายทาง ระยะทางเท่ากัน)
+            <input type="checkbox" id="travelRoundTrip"> ไป-กลับ (แสดงแถวขากลับเพิ่ม - สลับสถานที่เริ่มต้น/ปลายทาง ระยะทางเท่ากับขาไป แต่กรอกค่าทางด่วน/ที่จอดรถ/อื่นๆ ของขากลับแยกเอง)
           </label>
+        </div>
+        <div class="field full" id="travelReturnFeesField" style="grid-column:1/-1; display:none; grid-template-columns:repeat(3,1fr); gap:14px;">
+          <div class="field"><label>ค่าทางด่วนขากลับ (บาท)</label><input type="number" id="travelReturnToll" min="0" step="1" value="0"></div>
+          <div class="field"><label>ค่าที่จอดรถขากลับ (บาท)</label><input type="number" id="travelReturnParking" min="0" step="1" value="0"></div>
+          <div class="field"><label>ค่าอื่นๆ ขากลับ (บาท)</label><input type="number" id="travelReturnOther" min="0" step="1" value="0"></div>
         </div>
         <div class="field"><label>ชื่อลูกค้า</label>
           <div class="type-row">
@@ -1860,7 +1865,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.25.0';
+const APP_VERSION = '1.26.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -5037,9 +5042,15 @@ $('serviceWarehouseForm').addEventListener('submit', async e => {
    "ไป-กลับ" is a single boolean field on the ONE document (`roundTrip`), not a second document - a real report from the first
    version of this feature said saving two full rows for a round trip didn't match what was actually wanted. A round-trip
    document renders as TWO table rows (`travelLegRow()`) sharing one ลำดับ number: the "ไป" row is the record itself in full,
-   the "กลับ" row underneath has its # left blank, its locations swapped, and every numeric/customer/task cell left blank too -
-   it exists to document that a return leg happened, not to add a second costed line (the total is not doubled). Only the "ไป"
-   row carries the "รูปภาพ"/"ลบ" row-actions, since the "กลับ" row isn't its own record. */
+   the "กลับ" row underneath has its # left blank and its locations swapped, but is NOT a blank line - per the real reference
+   spreadsheet (a filled example of this exact scenario), a return leg has its own real cost: ระยะทาง and ค่า/กม. are MIRRORED
+   from the "ไป" leg (a return trip covers the same distance at the same locked rate, so these are never re-entered), while
+   ทางด่วน/ที่จอดรถ/อื่นๆ are entered independently for the return leg (`returnTollFee`/`returnParkingFee`/`returnOtherFee`,
+   only ever set at creation alongside `roundTrip` itself) since tolls/parking can differ leg to leg. Only ลูกค้า/รายการปฏิบัติงาน
+   stay blank on the "กลับ" row - a return leg doesn't get its own customer/task. `travelReturnTotal(t)` computes the return
+   leg's own รวม the same way `travelRowTotal()` does for the "ไป" leg, and both legs' totals/distance/fees are summed into
+   `travelSums()`'s grand total - the reference spreadsheet's own grand-total row adds every leg, not just the outbound one.
+   Only the "ไป" row carries the "รูปภาพ"/"ลบ" row-actions, since the "กลับ" row isn't its own record. */
 const TRAVEL_RATE_PER_KM = 6;
 const TRAVEL_OWNER_NAME = 'นาย ชวนนท์ ตันชัยฤทธิกุล';
 const travelFromSel = makeAddableSelect({ sel:'travelFrom', addBtn:'travelFromAddBtn', newRow:'travelFromNewRow', newInput:'travelFromNew', ok:'travelFromNewOk', cancel:'travelFromNewCancel',
@@ -5053,13 +5064,21 @@ const travelTaskSel = makeAddableSelect({ sel:'travelTask', addBtn:'travelTaskAd
 function travelRowTotal(distance, toll, parking, other){
   return Math.round((Number(distance || 0) * TRAVEL_RATE_PER_KM + Number(toll || 0) + Number(parking || 0) + Number(other || 0)) * 100) / 100;
 }
+// The return leg's own total: same distance/rate as the "ไป" leg (mirrored, never re-entered), its own independently-entered fees.
+function travelReturnTotal(t){
+  return travelRowTotal(t.distanceKm, t.returnTollFee, t.returnParkingFee, t.returnOtherFee);
+}
 function updateTravelTotal(){
   $('travelTotal').value = travelRowTotal($('travelDistance').value, $('travelToll').value, $('travelParking').value, $('travelOther').value).toFixed(2);
 }
 function syncTravelDateText(){ $('travelDateText').textContent = dateText($('travelDate').value); $('travelDateText').classList.toggle('placeholder', !$('travelDate').value); }
 $('travelDate').addEventListener('input', syncTravelDateText); $('travelDate').addEventListener('change', syncTravelDateText);
+$('travelRoundTrip').addEventListener('change', () => { $('travelReturnFeesField').style.display = $('travelRoundTrip').checked ? 'grid' : 'none'; });
 
-function travelMonthLabel(month, year){ return `${MONTH_TH_FULL[month - 1]} ${year + 543}`; }
+// "สิงหาคม ปี2569" - a space before "ปี" but none between it and the year digits, matching the real reference spreadsheet's own
+// locked header text exactly ("ค่าเดินทางประจำเดือนสิงหาคม ปี2569 ของ..." - no space after "เดือน" either, glued directly to
+// the month name at the call site below).
+function travelMonthLabel(month, year){ return `${MONTH_TH_FULL[month - 1]} ปี${year + 543}`; }
 // Rebuilt every render (not a static const) since "the current year" can roll over while the app stays open in a browser tab.
 function fillTravelMonthFilter(){
   const sel = $('travelMonthFilter'), year = new Date().getFullYear();
@@ -5071,16 +5090,25 @@ function travelRowsForMonth(month, year){
   return data.travel.filter(t => t.date && t.date.slice(0, 4) === String(year) && Number(t.date.slice(5, 7)) === month)
     .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 }
+// A round trip's return leg fully participates in the monthly/grand total (mirrored distance counted again, its own fees, its
+// own computed total) - matching the reference spreadsheet's own grand-total row, which sums every leg, not just the outbound one.
 function travelSums(rows){
   return rows.reduce((s, t) => ({
-    dist: s.dist + Number(t.distanceKm || 0), toll: s.toll + Number(t.tollFee || 0),
-    park: s.park + Number(t.parkingFee || 0), other: s.other + Number(t.otherFee || 0), total: s.total + Number(t.total || 0)
+    dist: s.dist + Number(t.distanceKm || 0) * (t.roundTrip ? 2 : 1),
+    toll: s.toll + Number(t.tollFee || 0) + (t.roundTrip ? Number(t.returnTollFee || 0) : 0),
+    park: s.park + Number(t.parkingFee || 0) + (t.roundTrip ? Number(t.returnParkingFee || 0) : 0),
+    other: s.other + Number(t.otherFee || 0) + (t.roundTrip ? Number(t.returnOtherFee || 0) : 0),
+    total: s.total + Number(t.total || 0) + (t.roundTrip ? travelReturnTotal(t) : 0)
   }), { dist:0, toll:0, park:0, other:0, total:0 });
 }
 // One document renders as ONE row (num set, isReturn false) or TWO rows when roundTrip is set (a second call with num:null,
-// isReturn:true) - see the module comment above for why this is a display split, not a second record.
+// isReturn:true) - see the module comment above for why this is a display split, not a second record. The "กลับ" row shows
+// real ระยะทาง/ค่า-กม./ทางด่วน/ที่จอดรถ/อื่นๆ/รวม (mirrored distance+rate, its own independently-entered fees) - only
+// ลูกค้า/รายการปฏิบัติงาน stay blank, since a return leg doesn't carry its own customer/task.
 function travelLegRow(t, num, isReturn){
   const from = isReturn ? t.toLocation : t.fromLocation, to = isReturn ? t.fromLocation : t.toLocation;
+  const toll = isReturn ? t.returnTollFee : t.tollFee, parking = isReturn ? t.returnParkingFee : t.parkingFee, other = isReturn ? t.returnOtherFee : t.otherFee;
+  const total = isReturn ? travelReturnTotal(t) : t.total;
   return `<tr ${isReturn ? '' : `onclick="if(!event.target.closest('.row-actions')) openTravelView('${t.id}')" title="กดเพื่อดูรายละเอียด"`}>
     <td class="cell-sub">${num != null ? num : ''}</td>
     <td class="cell-sub">${isReturn ? 'กลับ' : 'ไป'}</td>
@@ -5089,12 +5117,12 @@ function travelLegRow(t, num, isReturn){
     <td>${escapeHtml(to || '-')}</td>
     <td>${isReturn ? '' : escapeHtml(t.customerName || '-')}</td>
     <td>${isReturn ? '' : escapeHtml(t.task || '-')}</td>
-    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.distanceKm)}</td>
-    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(TRAVEL_RATE_PER_KM)}</td>
-    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.tollFee)}</td>
-    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.parkingFee)}</td>
-    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.otherFee)}</td>
-    <td style="text-align:right;">${isReturn ? '' : `<b>${fmtNum(t.total)}</b>`}</td>
+    <td class="cell-sub" style="text-align:right;">${fmtNum(t.distanceKm)}</td>
+    <td class="cell-sub" style="text-align:right;">${fmtNum(TRAVEL_RATE_PER_KM)}</td>
+    <td class="cell-sub" style="text-align:right;">${fmtNum(toll)}</td>
+    <td class="cell-sub" style="text-align:right;">${fmtNum(parking)}</td>
+    <td class="cell-sub" style="text-align:right;">${fmtNum(other)}</td>
+    <td style="text-align:right;"><b>${fmtNum(total)}</b></td>
     <td>${isReturn ? '' : `<div class="row-actions">
       <button class="icon-btn" onclick="openTravelPhotoModal('${t.id}')">รูปภาพ${t.photoData ? ' ✓' : ''}</button>
       <button class="icon-btn delete-btn" onclick="deleteEntity('travel','${t.id}')">ลบ</button>
@@ -5104,7 +5132,7 @@ function travelLegRow(t, num, isReturn){
 function renderTravel(){
   fillTravelMonthFilter();
   const year = new Date().getFullYear(), month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
-  $('travelHeaderPreview').textContent = `ค่าเดินทางประจำเดือน ${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}`;
+  $('travelHeaderPreview').textContent = `ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}`;
   const q = $('travelSearch').value.trim().toLowerCase();
   const rows = travelRowsForMonth(month, year)
     .filter(t => !q || [t.fromLocation, t.toLocation, t.customerName, t.task].some(v => (v || '').toLowerCase().includes(q)));
@@ -5149,6 +5177,8 @@ function openTravelForm(id){
   // (which of the two trips is "the" one being edited?), so the checkbox is hidden entirely rather than just unchecked.
   $('travelRoundTrip').checked = false;
   $('travelRoundTripField').style.display = t ? 'none' : '';
+  $('travelReturnToll').value = 0; $('travelReturnParking').value = 0; $('travelReturnOther').value = 0;
+  $('travelReturnFeesField').style.display = 'none';
   setTravelViewMode(false);
   openModal('travelModal');
 }
@@ -5187,9 +5217,18 @@ $('travelForm').addEventListener('submit', async e => {
     // special-casing for this collection, exactly like every other entity type already registered in ENTITY_LABEL
     name: `${fmtDate(date)} ${fromLocation} → ${toLocation}`
   };
-  // roundTrip is only ever SET at creation (the checkbox is hidden while editing - see openTravelForm()); leaving the key out
-  // entirely on an edit's update() means Firestore just keeps whatever value the document already had.
-  if (!editingTravelId) doc.roundTrip = $('travelRoundTrip').checked;
+  // roundTrip (and its own return-leg fees) is only ever SET at creation (the checkbox/fields are hidden while editing - see
+  // openTravelForm()); leaving these keys out entirely on an edit's update() means Firestore just keeps whatever value the
+  // document already had. ระยะทาง/ค่า-กม. for the return leg are never stored separately - they're mirrored from the "ไป"
+  // leg's own distanceKm/TRAVEL_RATE_PER_KM at display/print time instead (see travelLegRow()/travelReturnTotal()).
+  if (!editingTravelId){
+    doc.roundTrip = $('travelRoundTrip').checked;
+    if (doc.roundTrip){
+      doc.returnTollFee = Math.max(0, Number($('travelReturnToll').value) || 0);
+      doc.returnParkingFee = Math.max(0, Number($('travelReturnParking').value) || 0);
+      doc.returnOtherFee = Math.max(0, Number($('travelReturnOther').value) || 0);
+    }
+  }
   $('travelSaveBtn').disabled = true;
   setSync('saving');
   try{
@@ -5198,7 +5237,8 @@ $('travelForm').addEventListener('submit', async e => {
       logAudit('แก้ไขค่าเดินทาง', doc.name, `รวม ${fmtNum(doc.total)} บาท`);
     } else {
       await db.collection(COL.travel).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
-      logAudit('เพิ่มค่าเดินทาง', doc.name, `รวม ${fmtNum(doc.total)} บาท${doc.roundTrip ? ' (ไป-กลับ)' : ''}`);
+      const grandTotal = doc.roundTrip ? doc.total + travelReturnTotal(doc) : doc.total;
+      logAudit('เพิ่มค่าเดินทาง', doc.name, `รวม ${fmtNum(grandTotal)} บาท${doc.roundTrip ? ' (ไป-กลับ)' : ''}`);
     }
     setSync('ok');
     closeModal('travelModal');
@@ -5218,15 +5258,19 @@ function printTravel(){
   const sums = travelSums(rows);
   // No separate "ไป/กลับ" column in print (per the user's own call) - a round trip's return leg is instead a second <tr> whose
   // # is blank and whose locations are swapped, the same visual language the on-screen table uses, just without that one column.
+  // The "กลับ" row shows real ระยะทาง (mirrored)/ค่า-กม. (locked)/ทางด่วน-ที่จอดรถ-อื่นๆ (its own)/รวม (computed) - only
+  // ลูกค้า/รายการปฏิบัติงาน stay blank, matching the on-screen table (travelLegRow()) and the reference spreadsheet's own filled example.
   const legRow = (t, num, isReturn) => {
     const from = isReturn ? t.toLocation : t.fromLocation, to = isReturn ? t.fromLocation : t.toLocation;
+    const toll = isReturn ? t.returnTollFee : t.tollFee, parking = isReturn ? t.returnParkingFee : t.parkingFee, other = isReturn ? t.returnOtherFee : t.otherFee;
+    const total = isReturn ? travelReturnTotal(t) : t.total;
     return `<tr>
       <td class="c">${num != null ? num : ''}</td><td class="c">${fmtDate(t.date)}</td>
       <td>${escapeHtml(from || '-')}</td><td>${escapeHtml(to || '-')}</td>
       <td>${isReturn ? '' : escapeHtml(t.customerName || '-')}</td><td>${isReturn ? '' : escapeHtml(t.task || '-')}</td>
-      <td class="c">${isReturn ? '' : fmtNum(t.distanceKm)}</td><td class="c">${isReturn ? '' : fmtNum(TRAVEL_RATE_PER_KM)}</td>
-      <td class="c">${isReturn ? '' : fmtNum(t.tollFee)}</td><td class="c">${isReturn ? '' : fmtNum(t.parkingFee)}</td><td class="c">${isReturn ? '' : fmtNum(t.otherFee)}</td>
-      <td class="c pr-name">${isReturn ? '' : fmtNum(t.total)}</td>
+      <td class="c">${fmtNum(t.distanceKm)}</td><td class="c">${fmtNum(TRAVEL_RATE_PER_KM)}</td>
+      <td class="c">${fmtNum(toll)}</td><td class="c">${fmtNum(parking)}</td><td class="c">${fmtNum(other)}</td>
+      <td class="c pr-name">${fmtNum(total)}</td>
     </tr>`;
   };
   const body = rows.map((t, i) => legRow(t, i + 1, false) + (t.roundTrip ? legRow(t, null, true) : '')).join('');
@@ -5234,11 +5278,18 @@ function printTravel(){
       <td colspan="6" class="c">รวม</td><td class="c">${fmtNum(sums.dist)}</td><td></td>
       <td class="c">${fmtNum(sums.toll)}</td><td class="c">${fmtNum(sums.park)}</td><td class="c">${fmtNum(sums.other)}</td><td class="c">${fmtNum(sums.total)}</td>
     </tr>`;
-  $('printArea').innerHTML = `<div class="pr-title">ค่าเดินทางประจำเดือน ${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}</div>
+  // Photo appendix: every trip that has its own attached photo (see the travel-photo module below), one caption per photo,
+  // "ลำดับที่ N" matching the main table's own numbering - reusing the exact .pr-photo-grid/.pr-photo-cell/.pr-photo-cap
+  // pattern buildPhotosPrintHtml() already uses for handover photos, per the reference "รูปภาพ" sheet's own 2-column grid layout.
+  const photoRows = rows.map((t, i) => ({ t, num: i + 1 })).filter(r => r.t.photoData);
+  const photoSection = photoRows.length ? `<div class="pr-photo-sec"><div class="pr-title" style="font-size:15pt; text-align:left; border-bottom:0.3mm solid #7F7F7F; padding-bottom:1mm;">รูปภาพประกอบการเดินทาง</div></div>
+    <div class="pr-photo-grid">${photoRows.map(r => `<div class="pr-photo-cell"><img src="data:${r.t.photoType || 'image/jpeg'};base64,${r.t.photoData}" alt="">
+      <div class="pr-photo-cap">ลำดับที่ ${r.num} · ${escapeHtml(r.t.fromLocation || '-')} → ${escapeHtml(r.t.toLocation || '-')}</div></div>`).join('')}</div>` : '';
+  $('printArea').innerHTML = `<div class="pr-title">ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}</div>
     <table class="pr-items"><thead><tr>
       <th>#</th><th>วันที่</th><th>สถานที่เริ่มต้น</th><th>สถานที่ปลายทาง</th><th>ลูกค้า</th><th>รายการปฏิบัติงาน</th>
       <th>ระยะทาง (กม.)</th><th>ค่า/กม. (บาท)</th><th>ทางด่วน (บาท)</th><th>ที่จอดรถ (บาท)</th><th>อื่นๆ (บาท)</th><th>รวม (บาท)</th>
-    </tr></thead><tbody>${body}${foot}</tbody></table>`;
+    </tr></thead><tbody>${body}${foot}</tbody></table>${photoSection}`;
   setPrintPage('@page{ size:A4 landscape; margin:12mm; }');
   const oldTitle = document.title;
   document.title = `ค่าเดินทาง_${travelMonthLabel(month, year)}`.replace(/[\\/:*?"<>|\s]/g, '_');
