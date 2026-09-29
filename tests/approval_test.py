@@ -42,19 +42,19 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
 
     # 4. admin sees them, pending first, with a badge on the users icon
     sign_in('admin1', 'admin@a.com', 'Admin One'); page.wait_for_timeout(500)
-    # ผู้ใช้งาน now lives inside the ตั้งค่า group flyout, not its own rail button - the group button carries the same aggregate badge
-    assert page.inner_text('#settingsNavBadge') == '2' and page.is_visible('#settingsNavBadge')
+    # ผู้ใช้งาน is now its own permanent top-level nav button (not inside the ตั้งค่า group flyout), carrying this count directly
+    assert page.inner_text('#usersNavBadge') == '2' and page.is_visible('#usersNavBadge')
     goto_tab(page, 'users'); page.wait_for_timeout(400)
     rows = page.evaluate("[...document.querySelectorAll('#usersBody tr')].map(r => r.innerText.replace(/\s+/g,' ').trim())")
     assert 'รออนุมัติ' in rows[0] and 'รออนุมัติ' in rows[1], rows
     assert page.locator('#usersBody tr:has-text("User Two") button:has-text("อนุมัติ")').count() >= 1
     # approve u2
     page.locator('#usersBody tr:has-text("User Two") button:text-is("อนุมัติ")').click(); page.wait_for_timeout(500)
-    assert user_doc('u2')['status'] == 'approved' and page.inner_text('#settingsNavBadge') == '1'
+    assert user_doc('u2')['status'] == 'approved' and page.inner_text('#usersNavBadge') == '1'
     # reject u3 (only offered while pending)
     page.locator('#usersBody tr:has-text("User Three") button:text-is("ไม่อนุมัติ")').click(); page.wait_for_timeout(500)
     assert user_doc('u3')['status'] == 'rejected'
-    assert not page.is_visible('#settingsNavBadge')
+    assert not page.is_visible('#usersNavBadge')
     assert page.locator('#usersBody tr:has-text("User Three") button:text-is("อนุมัติ")').count() == 1, "a rejected account can still be approved later"
     audits = page.evaluate("[...window.__mockStore['pm_auditLog'].values()].map(a => a.action)")
     assert 'อนุมัติผู้ใช้' in audits and 'ไม่อนุมัติผู้ใช้' in audits, audits

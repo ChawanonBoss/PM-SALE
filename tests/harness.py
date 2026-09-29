@@ -83,13 +83,15 @@ def new_page(viewport=None, collect_errors=True):
             browser.close()
 
 
-# Which sidebar group flyout a given tab now lives inside (see index.html's NAV_GROUPS) - dashboard/actionplan/photos have no group,
-# they're still plain top-level `.nav-item[data-tab]` buttons. Keep this in sync with NAV_GROUPS if a tab ever moves between groups.
+# Which sidebar group flyout a given tab now lives inside (see index.html's NAV_GROUPS) - dashboard/actionplan/photos/
+# travel/users have no group, they're plain top-level `.nav-item[data-tab]` buttons (travel/users used to live inside
+# the admin-only ตั้งค่า group, moved out once both became personal features open to every approved user, not just
+# admin). Keep this in sync with NAV_GROUPS if a tab ever moves between groups.
 NAV_GROUP_OF = {
     "sales": "group1", "projects": "group1",
     "warehouse": "group2", "serviceWarehouse": "group2", "catalog": "group2", "equipment": "group2",
     "customers": "group3", "companies": "group3",
-    "users": "settings", "audit": "settings", "trash": "settings", "travel": "settings",
+    "audit": "settings", "trash": "settings",
 }
 
 

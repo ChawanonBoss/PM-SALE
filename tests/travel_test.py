@@ -20,8 +20,10 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert page.inner_text('#pageTitle') == 'ค่าเดินทาง'
     month_th = page.evaluate("MONTH_TH_FULL[new Date().getMonth()]")
     year_be = page.evaluate("new Date().getFullYear() + 543")
+    # the name is the CURRENT signed-in user's own (no Thai name set for this admin test account, so it falls back to
+    # their plain `name` field, "Admin One" - see user_profile_test.py for the Thai-name-preferred case)
     # locked header spacing per the real reference spreadsheet: no space after "เดือน", "ปี" glued directly to the year digits
-    assert f"ค่าเดินทางประจำเดือน{month_th} ปี{year_be} ของนาย ชวนนท์ ตันชัยฤทธิกุล" == page.inner_text('#travelHeaderPreview')
+    assert f"ค่าเดินทางประจำเดือน{month_th} ปี{year_be} ของAdmin One" == page.inner_text('#travelHeaderPreview')
     assert 'ยังไม่มีรายการเดินทางในเดือนนี้' in page.inner_text('#travelBody')
 
     # ---------------- add a trip: addable selects (shared from/to pool) + auto-computed rate/total ----------------
@@ -115,7 +117,7 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     # ---------------- print: locked header line + landscape + no letterhead + no separate ไป/กลับ column ----------------
     page.click('#travelPrintBtn'); page.wait_for_timeout(200)
     printed = page.inner_html('#printArea')
-    assert f"ค่าเดินทางประจำเดือน{month_th} ปี{year_be} ของนาย ชวนนท์ ตันชัยฤทธิกุล" in printed
+    assert f"ค่าเดินทางประจำเดือน{month_th} ปี{year_be} ของAdmin One" in printed
     assert 'pr-head' not in printed, "no company letterhead, per the user's own request"
     assert 'ไป/กลับ' not in printed, "no dedicated ไป/กลับ column on the printed sheet"
     assert '540' in printed and printed.count('<tr>') >= 3   # 2 data rows + 1 total row
@@ -305,9 +307,9 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert not page.is_visible('#travelNewPhotoField')
     page.click('#travelCancelBtn'); page.wait_for_timeout(150)
 
-    # ---------------- admin-only: showTab() redirects a non-admin session away ----------------
+    # ---------------- ค่าเดินทาง is a personal log open to every approved user now, not admin-only ----------------
     page.evaluate("currentUserRole = 'user'; showTab('travel')"); page.wait_for_timeout(200)
-    assert page.evaluate("currentTab") == 'dashboard', "a non-admin can never land on ค่าเดินทาง"
+    assert page.evaluate("currentTab") == 'travel', "a non-admin can now reach their own ค่าเดินทาง page (see user_profile_test.py for the full own-createdBy scoping + dynamic name coverage)"
     page.evaluate("currentUserRole = 'admin'")
 
     print("errors:", errors); assert not errors

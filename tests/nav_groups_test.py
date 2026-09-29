@@ -34,7 +34,9 @@ with serve_repo() as base, new_page(viewport={"width": 1400, "height": 900}) as 
     page.click('.nav-item[data-group="group3"]')
     assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['customers', 'companies']
     page.click('.nav-item[data-group="settings"]')
-    assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['travel', 'users', 'audit', 'trash']
+    # travel/users used to live here too, moved out to their own permanent top-level buttons once opened up to every
+    # approved user (see "Sidebar groups" in CLAUDE.md) - only audit/trash are left, still admin-only
+    assert page.evaluate("[...document.querySelectorAll('.nav-group-item')].map(b => b.dataset.tab)") == ['audit', 'trash']
     assert page.inner_text('.nav-group-title') == 'ตั้งค่า'
 
     # ---- clicking a flyout item navigates there, closes the flyout, and the group button (not any single-item state) shows active ----
@@ -51,7 +53,8 @@ with serve_repo() as base, new_page(viewport={"width": 1400, "height": 900}) as 
 
     # ---- badges: a group button aggregates its members' counts, and the same number appears inline in its flyout item ----
     assert page.inner_text('#group1NavBadge').strip() == '1', "1 contract ending soon, surfaced on the ซื้อขาย/โครงการ group"
-    assert page.inner_text('#settingsNavBadge').strip() == '1', "1 pending user, surfaced on the ตั้งค่า group"
+    # ผู้ใช้งาน is its own top-level button now (not inside a group), so its own pending-count badge lives on it directly
+    assert page.inner_text('#usersNavBadge').strip() == '1', "1 pending user, surfaced directly on the ผู้ใช้งาน icon"
     page.click('.nav-item[data-group="group1"]')
     assert page.inner_text('.nav-group-item[data-tab="projects"]').strip().endswith('1')
     assert '1' not in page.inner_text('.nav-group-item[data-tab="sales"]'), "sales itself has no alert of its own"

@@ -279,10 +279,13 @@ installment, or the last one once everything is in - not `installmentNo` directl
 `pm_warehouse` (quantity, serials[], history[] capped 500), `pm_serviceWarehouse` (same shape minus quantity/serials/history - services aren't stocked),
 `pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB
 each, 8 per project - a `role:'closing'` one is the ปิดงาน signed document instead, exactly one per job, not one of the 8), `pm_photos` (handover photos, base64 <=900 KB
-each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved),
-`pm_pendingRoles` (invites), `pm_auditLog`/`pm_errorLog` (immutable), `pm_appointments` (ปฏิทิน's own นัดหมาย records - see
-"ปฏิทิน (Calendar)" below; no soft delete, a real `.delete()`), `pm_travelExpenses` + `pm_travelPhotos` (ค่าเดินทาง, admin-only -
-see "ค่าเดินทาง (Travel expenses)" below). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
+each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved; `thaiFirstName`/
+`thaiLastName`/`engFirstName`/`engLastName`/`phone`/`position`/`avatarBase64` - see "ผู้ใช้งาน" below),
+`pm_pendingRoles` (invites, same extra fields as `pm_users` above - copied over onto the real profile at first sign-in),
+`pm_auditLog`/`pm_errorLog` (immutable), `pm_appointments` (ปฏิทิน's own นัดหมาย records - see
+"ปฏิทิน (Calendar)" below; no soft delete, a real `.delete()`), `pm_travelExpenses` (ค่าเดินทาง - a personal log for every
+approved user, own-`createdBy` scoped like `pm_customers`, its one photo per trip inline on the same document rather than
+a separate collection - see "ค่าเดินทาง" below). Soft delete = `deletedAt`; the Trash tab (admin) restores / purges.
 
 ## Menus
 ซื้อขาย (`tab-sales`, `#salesBody`) and โครงการ (`tab-projects`, `#projectsBody`) are separate menus over the same `pm_projects` collection; `renderJobs(kind)` draws both. There is no job-type select/filter/column any more: `openProjectForm(id, kind)` sets the hidden `#prjJobType` from the menu.
@@ -295,25 +298,36 @@ the scrollable `#railNavScroll` and a plain-absolute popover would get clipped t
 in the sibling BU-ABB app's CLAUDE.md for the original bug this mirrors) listing that group's real pages, built fresh on each click by
 `renderGroupPopover()` from `NAV_GROUPS`/`NAV_ICONS`/`NAV_LABELS`. Groups (names picked freely, per explicit user permission - content was specified,
 labels were not): **ซื้อขาย/โครงการ** (sales, projects), **คลังและอุปกรณ์** (warehouse, serviceWarehouse, catalog, equipment), **ลูกค้าและบริษัท** (customers, companies),
-and **ตั้งค่า** (travel, users, audit, trash - admin-only, name given explicitly by the user). `dashboard` and `actionplan` stay as their own permanent
-top-level buttons - the user's own grouping list never mentioned moving them. A group button's own badge (`group1NavBadge`/`group2NavBadge`/
-`settingsNavBadge`) is a live aggregate of whatever alert numbers its members would have shown individually (`navAlertCache`, filled by
-`updateNavBadge()`); the same numbers are baked directly into each flyout item's markup when the popover renders, rather than kept as their own
-persistent DOM elements - a badge span that only exists while its parent innerHTML happens to be freshly rebuilt would be a fragile thing for
-`setNavBadge()` to keep reaching for on every render tick, so the group button is the one truly-persistent badge. Trash's `loadTrash()` (a one-time
-fetch, not a live listener) used to be wired to a click listener on trash's own permanent nav button; since that button no longer exists, `showTab()`
-itself now calls `loadTrash()` when `tab === 'trash'`, which also makes it more robust to any future `showTab('trash')` call from elsewhere in the
-code. Tests reach a grouped tab through the `goto_tab(page, tab)` helper in `harness.py` (opens the right group first via `NAV_GROUP_OF`, then clicks
-the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any new test that navigates to sales/projects/warehouse/serviceWarehouse/catalog/
-equipment/customers/companies/users/audit/trash/travel, and keep `NAV_GROUP_OF` in sync with `NAV_GROUPS` if a tab ever changes group.
+and **ตั้งค่า** (originally travel, users, audit, trash - admin-only, name given explicitly by the user; now just audit/trash - see below).
+`dashboard` and `actionplan` stay as their own permanent top-level buttons - the user's own grouping list never mentioned moving them. A group
+button's own badge (`group1NavBadge`/`group2NavBadge`) is a live aggregate of whatever alert numbers its members would have shown individually
+(`navAlertCache`, filled by `updateNavBadge()`); the same numbers are baked directly into each flyout item's markup when the popover renders,
+rather than kept as their own persistent DOM elements - a badge span that only exists while its parent innerHTML happens to be freshly rebuilt
+would be a fragile thing for `setNavBadge()` to keep reaching for on every render tick, so the group button is the one truly-persistent badge.
+Trash's `loadTrash()` (a one-time fetch, not a live listener) used to be wired to a click listener on trash's own permanent nav button; since
+that button no longer exists, `showTab()` itself now calls `loadTrash()` when `tab === 'trash'`, which also makes it more robust to any future
+`showTab('trash')` call from elsewhere in the code. Tests reach a grouped tab through the `goto_tab(page, tab)` helper in `harness.py` (opens
+the right group first via `NAV_GROUP_OF`, then clicks the flyout item) rather than clicking `.nav-item[data-tab=...]` directly - use it for any
+new test that navigates to sales/projects/warehouse/serviceWarehouse/catalog/equipment/customers/companies/audit/trash, and keep `NAV_GROUP_OF`
+in sync with `NAV_GROUPS` if a tab ever changes group.
 
-## ค่าเดินทาง (Travel expenses, admin-only)
-A page in the ตั้งค่า group (admin-only, same as users/audit/trash - its own realtime listener is only attached inside
-`attachRealtimeListeners()`'s existing `if (isAdmin)` bonus-subscription block, alongside `pending`/`audit`/`errors`, and
-`showTab()`'s `ADMIN_ONLY_TABS` guard redirects a non-admin session straight back to the dashboard) for logging trips made
-to visit a customer or work off-site, printable as a monthly PDF claim sheet, with its own photo evidence per trip. Built
-from a fairly detailed user spec (an old reference document, plus an exact column list) rather than an open design brief,
-so most of the choices below are direct translations of that spec, not judgment calls:
+**`travel` and `users` were later pulled OUT of the ตั้งค่า group into their own permanent top-level buttons** (right after
+ลูกค้าและบริษัท, before ตั้งค่า) once both stopped being admin-only - a group whose own rail button is hidden entirely for a
+non-admin (`$('navSettingsGroup').style.display = isAdmin ? '' : 'none'`) can never expose an item living inside it to a
+non-admin no matter what `ADMIN_ONLY_TABS` says, so a personal-use page reachable by everyone needs to sit somewhere a
+non-admin's rail actually shows - the same reasoning ปฏิทิน's own permanent icon already documents for "why not fold this
+into a group". `ผู้ใช้งาน`'s badge (`usersNavBadge`, the pending-approval count) used to feed the whole ตั้งค่า group's own
+aggregate badge (`settingsNavBadge`); since `users` left that group, it now carries the same count directly on its own
+button instead, and `settingsNavBadge` was removed outright (audit/trash, all that's left in the group, have no alert
+count of their own to aggregate).
+
+## ค่าเดินทาง (Travel expenses - a personal log for every approved user)
+A permanent top-level page (its own rail icon - see "Sidebar groups" above for why it isn't inside a group) for logging
+trips made to visit a customer or work off-site, printable as a monthly PDF claim sheet, with its own photo evidence per
+trip. Built from a fairly detailed user spec (an old reference document, plus an exact column list) rather than an open
+design brief, so most of the choices below are direct translations of that spec, not judgment calls. **It shipped admin-only
+at first** (the app's one admin using it for their own personal travel log) **and was later opened up to every approved
+user**, each keeping their own separate log - see "Access: personal, not shared" below for exactly what changed and why.
 - **`pm_travelExpenses`** is a flat collection of individual trip documents (`date`, `fromLocation`, `toLocation`,
   `customerName`, `task`, `distanceKm`, `rate` (always `TRAVEL_RATE_PER_KM = 6`), `tollFee`, `parkingFee`, `otherFee`,
   `total`, `roundTrip` + `returnTollFee`/`returnParkingFee`/`returnOtherFee` (see below), `photoData`/`photoType` (see
@@ -463,23 +477,115 @@ so most of the choices below are direct translations of that spec, not judgment 
   while editing an existing trip, so there's no way to retroactively add, remove or reprice the return leg from an
   edit; these keys are simply left out of an edit's `update()` payload, so Firestore's merge semantics leave whatever
   value the document already had untouched.
-- **Firestore rules are the simplest shape in the app** (`allow read, write: if pmIsAdmin();`) - there is no non-admin
-  scoping to write at all, since every access path (the nav item, the tab, the realtime listener) is already admin-only
-  end to end, and no `hasOnly()` restricts the document's keys, so `roundTrip`/`photoData`/`photoType` needed no rule
-  change of their own beyond the base `pm_travelExpenses` block.
+- **Access: personal, not shared.** A direct request ("หน้าเดินทาง แก้ไขเป็น ผู้ใช้งานเห็นได้") turned this from an
+  admin-only page into a personal log every approved user keeps for themselves - not a shared team ledger. Three things
+  changed together, since they're one feature:
+  - **`firestore.rules`' `pm_travelExpenses` block** went from `allow read, write: if pmIsAdmin();` to the exact same
+    own-`createdBy` shape `pm_customers` already uses (`allow read: if pmIsAdmin() || (pmIsApproved() &&
+    resource.data.createdBy == request.auth.uid); allow create: if pmIsApproved() && request.resource.data.createdBy
+    == request.auth.uid; allow update: if pmIsAdmin() || (own createdBy, createdBy unchanged); allow delete: if
+    pmIsAdmin();` - a real delete stays admin-only since the app only ever soft-deletes via an update, matching every
+    other soft-deleted collection). No `hasOnly()` restricts the document's keys, so `roundTrip`/`photoData`/`photoType`
+    /`returnTollFee` etc. still need no rule change of their own beyond this block.
+  - **`attachRealtimeListeners()`'s own travel subscription** moved OUT of the `if (isAdmin)` bonus-subscription block
+    into the main list, using `watch('travel', db.collection(COL.travel).where('createdBy','==',currentUserUid),
+    mapDocs)` - note this is `currentUserUid` directly, NOT the generic `scoped()` helper the file already uses for
+    `pm_customers`/`pm_appointments` (which only filters for a NON-admin, letting admin see everyone's). Travel filters
+    to "my own" for EVERY role, admin included - rules still grant admin a wider read (matching every other collection's
+    own admin override, useful if a "view someone else's log" feature is ever built on top of it later), but nothing in
+    the client queries for that today, so an admin's own travel page only ever shows their own trips, exactly like
+    anyone else's.
+  - **`ADMIN_ONLY_TABS`/`NAV_GROUPS`** - `travel` (and `users`, same change, same reasoning) came out of both; see
+    "Sidebar groups" above for where it landed instead (its own permanent top-level rail icon).
+  - **The claim header/print's owner name is no longer a hardcoded constant** (`TRAVEL_OWNER_NAME` was deleted outright) -
+    it now reads `currentUserFullNameTH()`, which looks up the CURRENTLY signed-in user's own `pm_users` profile and
+    prefers their `thaiFirstName`/`thaiLastName` (added specifically for this - see "ผู้ใช้งาน" below), falling back to
+    the older freeform `name` field, then the account email, so an existing profile that hasn't filled in the new Thai
+    name fields yet never shows "undefined undefined". Since travel is now personal-per-viewer, "whoever is looking at
+    this page" and "whose trips these are" are always the same person, so there's no ambiguity about whose name belongs
+    in the header the way there would be if the list ever mixed multiple people's trips together.
 - **Everything else about the page is deliberately unremarkable**: registering `travel` in `COL`/`data`/`ENTITY_LABEL`/
-  `NAV_ICONS`/`NAV_LABELS`/`NAV_GROUPS`/`TITLES`/`ADMIN_ONLY_TABS`/`PAGER_UI`/`filterGroups()`/`renderActiveTab()`'s
-  dispatch map is the same short checklist every other list page in this app already follows (see "Service warehouse"
-  above for the same pattern applied to a different page) - the generic Trash/restore/purge/audit-log machinery needed
-  zero travel-specific code beyond that registration, exactly like `serviceWarehouse` needed none either. The one new
-  piece was a synthetic `name` field on every trip doc (`"{fmtDate} {from} → {to}"`) purely so that generic machinery -
-  which reads `x.name` for its confirm dialogs, audit entries and Trash listing - had something sensible to show,
-  since a trip has no natural single "name" field of its own the way a project or customer does.
+  `NAV_ICONS`/`NAV_LABELS`/`TITLES`/`PAGER_UI`/`filterGroups()`/`renderActiveTab()`'s dispatch map is the same short
+  checklist every other list page in this app already follows (see "Service warehouse" above for the same pattern
+  applied to a different page) - the generic Trash/restore/purge/audit-log machinery needed zero travel-specific code
+  beyond that registration, exactly like `serviceWarehouse` needed none either. The one new piece was a synthetic
+  `name` field on every trip doc (`"{fmtDate} {from} → {to}"`) purely so that generic machinery - which reads `x.name`
+  for its confirm dialogs, audit entries and Trash listing - had something sensible to show, since a trip has no
+  natural single "name" field of its own the way a project or customer does.
 - **A permission-denied save now says so directly** ("ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses ที่ Firebase
   Console") instead of a generic "บันทึกไม่สำเร็จ" - added after a real "บันทึกไม่ได้" report that traced back to
   exactly that (the rules block above is a reference copy in this repo; it does nothing until pasted into the Console
   and published) - matching the same pattern used for a photo upload's own failure mode, so the toast itself points at
   the fix instead of leaving it to guesswork.
+
+## ผู้ใช้งาน (Users): self-service profile + a proper add-user modal
+Like ค่าเดินทาง above, this page turned from admin-only into something every approved user can open, per the same
+request - see them both under `ADMIN_ONLY_TABS`/`NAV_GROUPS` in "Sidebar groups". `renderUsers()` now branches on
+`currentUserRole`, in the same table rather than two separate pages (a non-admin's row set is just filtered down to
+one):
+- **Admin's view is unchanged**: every user + pending invite, the role `<select>`, อนุมัติ/ไม่อนุมัติ/ลบ, avatar-click-
+  to-replace - all exactly as before, plus a new "แก้ไข" button per row (see the shared edit modal below).
+- **A non-admin sees ONLY their own row** (`rows.filter(u => u.id === currentUserUid)` when `!isAdmin`) - never anyone
+  else's, per "แต่แก้ไขสิทธิ์ไม่ได้" (can edit personal info, but never permissions). The role cell renders as a plain
+  read-only `<span class="badge">`, not a `<select>` at all - not merely a *disabled* one, since a disabled control still
+  renders its own selected `<option>` in the DOM and disabled-ness is a client-side-only guard anyway; the real
+  enforcement was already sitting in `firestore.rules`' `pm_users` update rule (`!(...).affectedKeys().hasAny(['role',
+  'status']))`) for any non-admin, self-or-otherwise - this change just makes the UI stop *offering* something the
+  rules would refuse. อนุมัติ/ไม่อนุมัติ/ลบ are similarly just absent, not disabled. The panel's own admin-facing chrome
+  (`+ เพิ่มผู้ใช้งาน`, the search box, เคลียร์, the "เพิ่มคนไว้ล่วงหน้า..." note) is hidden too - toggled once per
+  login inside `resolveUserRole()`'s existing `isAdmin` setup block (same place `#navSettingsGroup`'s own visibility is
+  already toggled), since a lone row has nothing to search or clear. `#usersPanelTitle` itself swaps between
+  "ผู้ใช้งานทั้งหมด" (admin) and "ข้อมูลของฉัน" (non-admin), recomputed fresh on every `renderUsers()` call.
+- **Two new Thai/English name fields, `thaiFirstName`/`thaiLastName`/`engFirstName`/`engLastName`**, sit alongside the
+  older freeform `name` field rather than replacing it - too much of the app already reads `u.name`/`p.name` (audit
+  log entries, dropdown labels, Trash listings) to retarget every call site. Instead, `userFullNameTH(u)` is the one
+  new shared helper (prefers `thaiFirstName`+`thaiLastName`, falls back to `u.name`) that every display site should go
+  through now - it already backs `renderUsers()`'s own name column, `getUserDisplayName()` (used everywhere for audit
+  entries), and ค่าเดินทาง's own claim header. Saving either name pair also recomputes `name` itself
+  (`` `${thaiFirstName} ${thaiLastName}`.trim() `` in both the edit-form and add-user submit handlers) so anything that
+  still reads the plain field directly stays in sync rather than silently going stale.
+- **"แก้ไข" opens `#userEditModal`** - just the 4 name fields, nothing else (no role, no status, no email - editing
+  those isn't offered here at all, by construction rather than by disabling anything). `openUserEditModal(id)` refuses
+  outright (`id !== currentUserUid && currentUserRole !== 'admin'`) as defense-in-depth, though the UI never actually
+  offers this button for anyone else's row to a non-admin anyway. Works unchanged for admin editing ANY user's name
+  fields too, plain `db.collection(COL.users).doc(id).update({...})` - needs no rules change since a non-admin's own
+  update rule already allows any field except role/status, and admin's update rule has no field restriction at all.
+- **Add-user is now a popup modal (`#userAddModal`), not the old inline collapsible panel** ("เปลี่ยนหน้าต่างเด้งขึ้นมา
+  แทน") - same `db.collection(COL.pending).doc(email).set(doc)` write as before (still an INVITE, not a real account:
+  this is a pure-client Firebase app with no Admin SDK, so an actual sign-in-capable account can only ever be created
+  by that person signing in themselves - seeing "ADD USER" capture a full profile up front doesn't change that
+  constraint, it just means all of it now waits on `pm_pendingRoles` until they do), extended with the fields below.
+  Firestore's `pm_users` `create` rule's own `hasOnly()` list was widened to match, since `resolveUserRole()` now
+  copies these same fields onto the real `pm_users` doc it creates the first time an invited person actually logs in
+  (see below) - the earlier list (`['email','name','role','status']`) would have silently rejected that write once
+  the extra keys were added:
+  - **ชื่อ/นามสกุล (ไทย และอังกฤษ)** - 4 plain text inputs, feeding `thaiFirstName`/`thaiLastName`/`engFirstName`/`engLastName`.
+  - **เบอร์โทรศัพท์** - free typing auto-formats to `xxx-xxx-xxxx` on every keystroke (`formatPhoneInput()`, a new,
+    from-scratch helper - checked the rest of the file first and found no existing masked-input pattern to reuse).
+    Simplest reliable approach: strip to digits, cap at 10, and rebuild the whole displayed value with dashes
+    re-inserted after position 3 and 6 - lets the browser's own cursor/selection/backspace behavior keep working
+    normally rather than trying to manage cursor position by hand.
+  - **อีเมล is built from two pieces**, not one field: a plain local-part `<input>` plus an addable-select for the
+    domain (`addUsrEmailDomainSel`, `makeAddableSelect()`, seeded with `gmail.com` and reading `used()` off every
+    existing user/pending email's own domain half) - "ต่อให้ @ และถัดไปในช่องนี้...ให้เป็น Dropdown ให้เลือก โดยเพิ่มเองได้".
+    The submit handler joins them (`` `${localPart}@${domain}`.toLowerCase() ``) into the SAME single email string the
+    rest of the app already expects (still the `pm_pendingRoles` doc's own id, matching the collection's existing
+    "doc id = lowercased email" shape - no change there).
+  - **ตำแหน่ง** - another `makeAddableSelect()` (`addUsrPositionSel`), reading its own pool from every existing
+    user/pending doc's `position` field, same "+" pattern as warehouse's ยี่ห้อ/ประเภท.
+  - **ปุ่มเพิ่มรูปภาพ** - a single optional photo, held in memory (`addUsrPhotoData`) exactly like ค่าเดินทาง's own
+    `travelNewPhotoData` holds a photo before its record has an id yet (same reasoning: the invited person has no uid
+    to `update()` against until they actually sign in), resized via the same `resizeImageToDataUrl(file, 128,
+    'image/jpeg', 0.85)` call the existing per-account avatar upload (`pickAvatar()`) already uses, stored as
+    `avatarBase64` on the pending doc under that same field name so `resolveUserRole()` can copy it straight across
+    with no renaming.
+  - **สิทธิ์การใช้งาน** (the pre-existing role `<select>`) is kept, unchanged in behavior, just relocated into the new
+    modal alongside everything else.
+  `resolveUserRole()`'s own invite-branch now copies `thaiFirstName`/`thaiLastName`/`engFirstName`/`engLastName`/
+  `phone`/`position`/`avatarBase64` off the pending doc onto the brand-new `pm_users` doc it creates (only the keys
+  that were actually set - an invite created before this feature existed, or one where a field was left blank, won't
+  write `undefined` values), so all of this profile data is already sitting on the account the very first time that
+  person signs in, without them having to fill anything in themselves.
 
 ## Handover photos: print to PDF
 `#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows

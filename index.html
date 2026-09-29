@@ -727,9 +727,19 @@
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         <span class="nav-tooltip">ลูกค้าและบริษัท</span>
       </button>
+      <!-- Personal for every approved user (own travel log / own profile), not admin-only - so unlike group3/settings above,
+           these two are permanent top-level buttons rather than living inside a group whose OWN button is admin-hidden. -->
+      <button class="nav-item" data-tab="travel">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17V9.5a2 2 0 0 1 .6-1.4l2.7-2.7A2 2 0 0 1 7.7 4.7h8.6a2 2 0 0 1 1.4.6l2.7 2.7A2 2 0 0 1 21 9.5V17"/><path d="M3 12h18"/><path d="M5 17h14"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/></svg>
+        <span class="nav-tooltip">ค่าเดินทาง</span>
+      </button>
+      <button class="nav-item" data-tab="users">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <span class="nav-count-badge" id="usersNavBadge" style="display:none;"></span>
+        <span class="nav-tooltip">ผู้ใช้งาน</span>
+      </button>
       <button class="nav-item" data-group="settings" id="navSettingsGroup" style="display:none;">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
-        <span class="nav-count-badge" id="settingsNavBadge" style="display:none;"></span>
         <span class="nav-tooltip">ตั้งค่า</span>
       </button>
     </div>
@@ -1221,36 +1231,97 @@
         </div>
       </div>
 
-      <!-- Users (admin) -->
+      <!-- Users: full admin table + role/status controls for admin; a non-admin sees only their own row here, with just
+           an "แก้ไข" button (no role/status controls at all) - see renderUsers()'s own isAdmin branch. -->
       <div id="tab-users" class="tab-panel" style="display:none;">
-        <div class="panel" id="userCreatePanel" style="display:none;">
-          <div class="panel-head"><h3>เพิ่มผู้ใช้งาน</h3></div>
-          <form id="userForm">
-            <div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">
-              <div class="field"><label>ชื่อ</label><input type="text" id="usrName" placeholder="ไม่บังคับ"></div>
-              <div class="field"><label>อีเมล</label><input type="email" id="usrEmail" placeholder="name@example.com" required></div>
-              <div class="field"><label>สิทธิ์การใช้งาน</label>
-                <select id="usrRole"><option value="user">ผู้ใช้งานทั่วไป</option><option value="admin">ผู้ดูแลระบบ</option></select>
-              </div>
-            </div>
-            <button type="submit" class="btn">บันทึกผู้ใช้งาน</button>
-          </form>
-        </div>
         <div class="panel">
           <div class="panel-head">
-            <h3>ผู้ใช้งานทั้งหมด <span class="count-pill" id="usersCount"></span></h3>
+            <h3 id="usersPanelTitle">ผู้ใช้งานทั้งหมด <span class="count-pill" id="usersCount"></span></h3>
             <div class="filter-bar">
               <input type="text" id="usersSearch" class="filter-control" placeholder="ค้นหาชื่อ, อีเมล" style="width:200px;">
               <button class="btn" id="userCreateToggleBtn" type="button">+ เพิ่มผู้ใช้งาน</button>
               <button class="btn outline" type="button" id="usersClearBtn">เคลียร์</button>
             </div>
           </div>
-          <p class="panel-note">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกโดยไม่มีชื่อในลิสต์จะได้เป็น "ผู้ใช้งานทั่วไป" อัตโนมัติ</p>
+          <p class="panel-note" id="usersPanelNote">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกโดยไม่มีชื่อในลิสต์จะได้เป็น "ผู้ใช้งานทั่วไป" อัตโนมัติ</p>
           <div class="table-scroll"><table class="m-cards">
             <thead><tr><th>รูป</th><th>ชื่อ</th><th>อีเมล</th><th>สิทธิ์การใช้งาน</th><th></th></tr></thead>
             <tbody id="usersBody"></tbody>
           </table></div>
           <div class="pager" id="usersPager"></div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="userAddModal" style="display:none;">
+        <div class="modal" style="max-width:560px;">
+          <h3 class="serif" style="font-size:19px; margin-bottom:4px;">เพิ่มผู้ใช้งาน</h3>
+          <p class="panel-note">เพิ่มคนไว้ล่วงหน้าได้ก่อนเขาจะล็อกอินจริง (ระบบจับคู่ด้วยอีเมล) — คนที่ล็อกอินครั้งแรกจะได้รับสิทธิ์และข้อมูลนี้ทันที</p>
+          <form id="userAddForm">
+            <div class="form-grid">
+              <div class="field"><label>ชื่อ (ไทย)</label><input type="text" id="addUsrThaiFirst" required></div>
+              <div class="field"><label>นามสกุล (ไทย)</label><input type="text" id="addUsrThaiLast" required></div>
+              <div class="field"><label>ชื่อ (อังกฤษ)</label><input type="text" id="addUsrEngFirst"></div>
+              <div class="field"><label>นามสกุล (อังกฤษ)</label><input type="text" id="addUsrEngLast"></div>
+              <div class="field"><label>เบอร์โทรศัพท์</label><input type="text" id="addUsrPhone" placeholder="xxx-xxx-xxxx" inputmode="numeric" maxlength="12" oninput="formatPhoneInput(this)"></div>
+              <div class="field full">
+                <label>อีเมล</label>
+                <div class="type-row" style="align-items:center; gap:6px;">
+                  <input type="text" id="addUsrEmailLocal" placeholder="name" required style="flex:1;">
+                  <span>@</span>
+                  <select id="addUsrEmailDomain" style="flex:1;"></select>
+                  <button type="button" class="serial-add-btn" id="addUsrEmailDomainAddBtn" title="เพิ่มโดเมนใหม่">+</button>
+                </div>
+                <div class="type-new" id="addUsrEmailDomainNewRow" style="display:none;">
+                  <input type="text" id="addUsrEmailDomainNew" placeholder="เช่น company.com" autocomplete="off">
+                  <button type="button" class="icon-btn" id="addUsrEmailDomainNewOk">เพิ่ม</button>
+                  <button type="button" class="icon-btn" id="addUsrEmailDomainNewCancel">ยกเลิก</button>
+                </div>
+              </div>
+              <div class="field"><label>ตำแหน่ง</label>
+                <div class="type-row">
+                  <select id="addUsrPosition"></select>
+                  <button type="button" class="serial-add-btn" id="addUsrPositionAddBtn" title="เพิ่มตำแหน่งใหม่">+</button>
+                </div>
+                <div class="type-new" id="addUsrPositionNewRow" style="display:none;">
+                  <input type="text" id="addUsrPositionNew" placeholder="ตำแหน่งใหม่" autocomplete="off">
+                  <button type="button" class="icon-btn" id="addUsrPositionNewOk">เพิ่ม</button>
+                  <button type="button" class="icon-btn" id="addUsrPositionNewCancel">ยกเลิก</button>
+                </div>
+              </div>
+              <div class="field"><label>สิทธิ์การใช้งาน</label>
+                <select id="usrRole"><option value="user">ผู้ใช้งานทั่วไป</option><option value="admin">ผู้ดูแลระบบ</option></select>
+              </div>
+              <div class="field full">
+                <label>รูปภาพ (ถ้ามี)</label>
+                <div class="photo-grid" id="addUsrPhotoGrid" style="grid-template-columns:1fr 1fr; max-width:220px; margin-top:6px;"></div>
+                <label class="btn outline" id="addUsrPhotoAddLabel" style="cursor:pointer; margin-top:10px; display:inline-block;">
+                  + แนบรูปภาพ<input type="file" accept="image/*" id="addUsrPhotoInput" style="display:none;">
+                </label>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn outline" type="button" id="userAddCancelBtn">ยกเลิก</button>
+              <button class="btn" type="submit">บันทึกผู้ใช้งาน</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="userEditModal" style="display:none;">
+        <div class="modal" style="max-width:420px;">
+          <h3 class="serif" style="font-size:19px; margin-bottom:16px;">แก้ไขข้อมูลผู้ใช้งาน</h3>
+          <form id="userEditForm">
+            <div class="form-grid">
+              <div class="field"><label>ชื่อ (ไทย)</label><input type="text" id="usrEditThaiFirst"></div>
+              <div class="field"><label>นามสกุล (ไทย)</label><input type="text" id="usrEditThaiLast"></div>
+              <div class="field"><label>ชื่อ (อังกฤษ)</label><input type="text" id="usrEditEngFirst"></div>
+              <div class="field"><label>นามสกุล (อังกฤษ)</label><input type="text" id="usrEditEngLast"></div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn outline" type="button" id="userEditCancelBtn">ยกเลิก</button>
+              <button class="btn" type="submit">บันทึก</button>
+            </div>
+          </form>
         </div>
       </div>
 
@@ -1906,7 +1977,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.26.4';
+const APP_VERSION = '1.27.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2273,7 +2344,9 @@ const NAV_GROUPS = {
   group1: { label:'ซื้อขาย/โครงการ', tabs:['sales','projects'] },
   group2: { label:'คลังและอุปกรณ์', tabs:['warehouse','serviceWarehouse','catalog','equipment'] },
   group3: { label:'ลูกค้าและบริษัท', tabs:['customers','companies'] },
-  settings: { label:'ตั้งค่า', tabs:['travel','users','audit','trash'] },
+  // travel/users moved OUT to their own permanent top-level nav buttons (both now open to every approved user, not just
+  // admin - the ตั้งค่า group itself stays admin-only, so anything left inside it must stay admin-only too)
+  settings: { label:'ตั้งค่า', tabs:['audit','trash'] },
 };
 let navAlertCache = { projects:0, equipment:0, users:0 };   // filled by updateNavBadge(); a flyout bakes these numbers in at render time rather than keeping its own live badge elements
 function renderGroupPopover(groupKey){
@@ -2330,7 +2403,9 @@ const TITLES = {
   photos:['รูปภาพการส่งมอบงาน','แนบรูปภาพอุปกรณ์และรูปภาพงานติดตั้ง'],
   travel:['ค่าเดินทาง','บันทึกการเดินทางไปพบลูกค้าหรือไปทำงานนอกสถานที่ คำนวณค่าใช้จ่ายและพิมพ์เป็น PDF รายเดือน']
 };
-const ADMIN_ONLY_TABS = ['users','audit','trash','travel'];
+// ค่าเดินทาง/ผู้ใช้งาน are no longer admin-only (each approved user keeps their own travel log and can see/edit their own
+// profile) - only audit/trash stay admin-only.
+const ADMIN_ONLY_TABS = ['audit','trash'];
 function showTab(tab){
   if (ADMIN_ONLY_TABS.includes(tab) && currentUserRole !== 'admin') tab = 'dashboard';
   currentTab = tab;
@@ -2690,12 +2765,16 @@ async function resolveUserRole(){
     const emailKey = currentUserEmail.toLowerCase();
     const pendingRef = db.collection(COL.pending).doc(emailKey);
     const pendingSnap = await pendingRef.get();
-    let role, name, status;
+    let role, name, status, profileFields = {};
     if (pendingSnap.exists){
-      // pre-invited by an admin: approved at once with the invited role
+      // pre-invited by an admin: approved at once with the invited role, plus whatever profile fields the add-user
+      // modal captured ahead of time (Thai/English name, phone, position, photo) - copied straight onto the real
+      // pm_users doc being created here, since the pending invite is the only place they could have been stored
+      // before this person had a uid of their own to write a real profile doc against.
       const p = pendingSnap.data();
       role = p.role || 'user'; status = 'approved';
       name = p.name || currentUserName;
+      ['thaiFirstName','thaiLastName','engFirstName','engLastName','phone','position','avatarBase64'].forEach(k => { if (p[k]) profileFields[k] = p[k]; });
     } else {
       // first-ever user becomes admin (see firestore.rules for the bootstrap step); anybody else waits for an admin to approve them.
       // Once the rules are published a stranger may not list pm_users, so a refused query simply means "not the first user".
@@ -2705,7 +2784,7 @@ async function resolveUserRole(){
       name = currentUserName;
     }
     // create the user doc BEFORE deleting the pending invite — the rule for a self-created admin doc checks the invite still exists
-    await ref.set({ email: currentUserEmail, name, role, status });
+    await ref.set({ email: currentUserEmail, name, role, status, ...profileFields });
     if (pendingSnap.exists) await pendingRef.delete();
     currentUserRole = role; currentUserStatus = status;
     if (name) currentUserName = name;
@@ -2719,6 +2798,12 @@ async function resolveUserRole(){
   const isAdmin = currentUserRole === 'admin';
   $('navSettingsGroup').style.display = isAdmin ? '' : 'none';
   $('companyCreateBtn').style.display = isAdmin ? '' : 'none';
+  // ผู้ใช้งาน page: a non-admin only ever sees/edits their own row (see renderUsers()), so the admin-only add/search/clear
+  // controls and the admin-facing invite note are all hidden for them - nothing left to search or clear across one row.
+  $('userCreateToggleBtn').style.display = isAdmin ? '' : 'none';
+  $('usersSearch').style.display = isAdmin ? '' : 'none';
+  $('usersClearBtn').style.display = isAdmin ? '' : 'none';
+  $('usersPanelNote').style.display = isAdmin ? '' : 'none';
   document.querySelectorAll('.creator-col').forEach(el => el.style.display = isAdmin ? '' : 'none');
   $('userEmail').textContent = currentUserEmail;
   $('userEmail').title = currentUserEmail;
@@ -2764,6 +2849,10 @@ function attachRealtimeListeners(){
   watch('warehouse', db.collection(COL.warehouse), mapDocs);   // shared stock: not scoped per user
   watch('serviceWarehouse', db.collection(COL.serviceWarehouse), mapDocs);   // shared, same as warehouse but for services
   watch('appointments', scoped(db.collection(COL.appointments)), mapDocs);   // ปฏิทิน's own นัดหมาย records - same createdBy scoping as pm_customers
+  // ค่าเดินทาง is a personal log for EVERY approved user, not just admin - always scoped to "my own" regardless of role
+  // (unlike scoped() above, which only filters for a non-admin) since there's no "view someone else's travel log" feature
+  // built on top of the wider admin read access firestore.rules still grants.
+  watch('travel', db.collection(COL.travel).where('createdBy', '==', currentUserUid), mapDocs);
   // Catalogs are a bonus subscription (not part of the first-load gate, no error toast): if the pm_catalogs rules aren't published yet only the Catalog page says so
   unsubscribers.push(db.collection(COL.catalogs).onSnapshot(
     snap => { catalogsUnavailable = false; data.catalogs = mapDocs(snap); onAnyUpdate(); },
@@ -2775,7 +2864,6 @@ function attachRealtimeListeners(){
     unsubscribers.push(db.collection(COL.pending).onSnapshot(s => { data.pending = raw(s); onAnyUpdate(); }, () => {}));
     unsubscribers.push(db.collection(COL.audit).orderBy('timestamp','desc').limit(300).onSnapshot(s => { data.audit = raw(s); onAnyUpdate(); }, () => {}));
     unsubscribers.push(db.collection(COL.errors).orderBy('timestamp','desc').limit(200).onSnapshot(s => { data.errors = raw(s); onAnyUpdate(); }, () => {}));
-    unsubscribers.push(db.collection(COL.travel).onSnapshot(s => { data.travel = mapDocs(s); onAnyUpdate(); }, () => {}));   // admin-only feature - see "ค่าเดินทาง" in CLAUDE.md
   }
   // Watchdog: every tab already renders progressively as each collection's first snapshot arrives (onAnyUpdate() runs on every single one),
   // so a slow/dropped connection to just ONE of the six gate collections used to leave "กำลังโหลดข้อมูล..." showing forever even though the
@@ -2814,9 +2902,16 @@ function getVisibleCustomers(){
   const sel = getTargetSel();
   return sel === 'all' ? data.customers : data.customers.filter(c => c.createdBy === sel);
 }
+// Prefers the newer thaiFirstName/thaiLastName fields over the older freeform `name` - once someone fills theirs in,
+// every place that names them (audit log entries, the ค่าเดินทาง claim header/PDF, this table) picks it up automatically.
+function userFullNameTH(u){
+  if (!u) return null;
+  const th = `${u.thaiFirstName || ''} ${u.thaiLastName || ''}`.trim();
+  return th || u.name || null;
+}
 function getUserDisplayName(uid){
   const u = data.users.find(x => x.id === uid);
-  return u ? (u.name || u.email || uid) : (uid || '-');
+  return u ? (userFullNameTH(u) || u.email || uid) : (uid || '-');
 }
 function refreshTargetUserFilter(){
   const sel = $('targetUserFilter');
@@ -2936,7 +3031,8 @@ function updateNavBadge(){
   navAlertCache.users = currentUserRole === 'admin' ? data.users.filter(u => (u.status || 'approved') === 'pending').length : 0;
   setNavBadge('group1NavBadge', navAlertCache.projects, false);
   setNavBadge('group2NavBadge', navAlertCache.equipment, false);
-  setNavBadge('settingsNavBadge', navAlertCache.users, false);
+  // ผู้ใช้งาน is now its own top-level button (not inside ตั้งค่า) - it carries this count directly rather than feeding a group aggregate.
+  setNavBadge('usersNavBadge', navAlertCache.users, false);
   if ($('navGroupPopover').style.display !== 'none') renderGroupPopover($('navGroupPopover').dataset.openGroup);   // keep an already-open flyout's numbers live too
 }
 document.querySelectorAll('.subtab-item[data-dashjob]').forEach(btn => btn.addEventListener('click', () => { dashJobFilter = btn.dataset.dashjob; renderDashboard(); }));
@@ -5093,7 +5189,13 @@ $('serviceWarehouseForm').addEventListener('submit', async e => {
    `travelSums()`'s grand total - the reference spreadsheet's own grand-total row adds every leg, not just the outbound one.
    Only the "ไป" row carries the "รูปภาพ"/"ลบ" row-actions, since the "กลับ" row isn't its own record. */
 const TRAVEL_RATE_PER_KM = 6;
-const TRAVEL_OWNER_NAME = 'นาย ชวนนท์ ตันชัยฤทธิกุล';
+// The claim header/print no longer hardcodes one owner's name - every approved user now keeps their own personal travel
+// log (see attachRealtimeListeners()'s own createdBy-scoped query for pm_travelExpenses), so the name shown is always
+// whoever is CURRENTLY signed in, via the shared userFullNameTH() helper (Thai first/last name, falling back to the
+// older freeform `name` field, then the account email - never "undefined undefined" for a profile with nothing filled in).
+function currentUserFullNameTH(){
+  return userFullNameTH(data.users.find(x => x.id === currentUserUid)) || currentUserName || currentUserEmail || 'ผู้ใช้งาน';
+}
 const travelFromSel = makeAddableSelect({ sel:'travelFrom', addBtn:'travelFromAddBtn', newRow:'travelFromNewRow', newInput:'travelFromNew', ok:'travelFromNewOk', cancel:'travelFromNewCancel',
   placeholder:'— เลือกสถานที่ —', noun:'สถานที่', builtin:[], used: () => data.travel.flatMap(t => [t.fromLocation, t.toLocation]) });
 const travelToSel = makeAddableSelect({ sel:'travelTo', addBtn:'travelToAddBtn', newRow:'travelToNewRow', newInput:'travelToNew', ok:'travelToNewOk', cancel:'travelToNewCancel',
@@ -5173,7 +5275,7 @@ function travelLegRow(t, num, isReturn){
 function renderTravel(){
   fillTravelMonthFilter();
   const year = new Date().getFullYear(), month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
-  $('travelHeaderPreview').textContent = `ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}`;
+  $('travelHeaderPreview').textContent = `ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${currentUserFullNameTH()}`;
   const q = $('travelSearch').value.trim().toLowerCase();
   const rows = travelRowsForMonth(month, year)
     .filter(t => !q || [t.fromLocation, t.toLocation, t.customerName, t.task].some(v => (v || '').toLowerCase().includes(q)));
@@ -5390,7 +5492,7 @@ function printTravel(){
   // narrowed, สถานที่เริ่มต้น/ปลายทาง widened so a normal place name has a real chance of staying on one line, per a
   // direct request. Unit-bearing headers wrap onto their own second line (e.g. "ระยะทาง" / "(กม.)") instead of one
   // long single-line label, which is also what makes the narrower numeric columns viable without truncating the header.
-  $('printArea').innerHTML = `<div class="pr-title">ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}</div>
+  $('printArea').innerHTML = `<div class="pr-title">ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${currentUserFullNameTH()}</div>
     <table class="pr-items">
       <colgroup>
         <col style="width:3%"><col style="width:8%"><col style="width:15%"><col style="width:15%">
@@ -6339,51 +6441,142 @@ $('companyForm').addEventListener('submit', async e => {
   }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
 });
 
-/* ====== Users (admin) ====== */
+/* ====== Users: full table + role/status controls for admin; a non-admin sees only their own row, "แก้ไข" only ======
+   Opened up from admin-only to every approved user (personal profile self-service), with a direct instruction that a
+   non-admin must never be able to touch their own role - so the role <select>/approve-reject/delete controls only ever
+   render at all when isAdmin, never merely disabled-but-present for a non-admin (a disabled control can still leak the
+   current role via its own selected option, and disabled-ness itself is a client-side-only guard anyway - the real
+   enforcement is firestore.rules' own pm_users update rule already refusing a non-admin's role/status changes). */
 function renderUsers(){
-  if (currentUserRole !== 'admin') return;
+  const isAdmin = currentUserRole === 'admin';
   const q = $('usersSearch').value.trim().toLowerCase();
   const real = data.users.map(u => ({ ...u, isPending:false, status: u.status || 'approved' }));
   const realEmails = new Set(real.map(u => (u.email||'').toLowerCase()));
-  const pending = data.pending.filter(p => !realEmails.has(p.id)).map(p => ({ id:p.id, email:p.id, name:p.name, role:p.role, isPending:true }));
-  const rows = [...real, ...pending]
-    .filter(u => !q || (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
-    .sort((a,b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || (a.name||a.email||'').localeCompare(b.name||b.email||''));   // accounts waiting for approval first
-  $('usersCount').textContent = rows.length;
+  const pending = isAdmin ? data.pending.filter(p => !realEmails.has(p.id)).map(p => ({ id:p.id, email:p.id, name:p.name, role:p.role, isPending:true })) : [];
+  let rows = [...real, ...pending];
+  if (!isAdmin) rows = rows.filter(u => u.id === currentUserUid);   // a non-admin only ever sees their own row on this page
+  rows = rows.filter(u => !q || (userFullNameTH(u)||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
+    .sort((a,b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || (userFullNameTH(a)||a.email||'').localeCompare(userFullNameTH(b)||b.email||''));   // accounts waiting for approval first
+  $('usersPanelTitle').innerHTML = (isAdmin ? 'ผู้ใช้งานทั้งหมด' : 'ข้อมูลของฉัน') + ` <span class="count-pill" id="usersCount">${rows.length}</span>`;
   $('usersBody').innerHTML = pageSlice('users', rows).map(u => {
-    const initial = (u.name || u.email || '?').trim().charAt(0).toUpperCase();
+    const displayName = userFullNameTH(u);
+    const initial = (displayName || u.email || '?').trim().charAt(0).toUpperCase();
     const avatar = u.isPending ? `<div class="user-avatar" style="cursor:default; background:var(--paper-dim); color:var(--ink-soft);">${escapeHtml(initial)}</div>`
       : `<div class="user-avatar" title="คลิกเพื่อเปลี่ยนรูป" onclick="pickAvatar('${u.id}')">${u.avatarBase64 ? `<img src="${u.avatarBase64}" alt="">` : escapeHtml(initial)}</div>`;
     const isMe = u.id === currentUserUid;
+    const roleCell = isAdmin
+      ? `<select class="filter-control" onchange="setUserRole('${escapeHtml(u.id)}', ${u.isPending}, this.value)" ${isMe ? 'disabled title="ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง"' : ''}>
+          <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>ผู้ใช้งานทั่วไป</option>
+          <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option>
+        </select>`
+      : `<span class="badge ${u.role === 'admin' ? 'role-admin' : ''}">${u.role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานทั่วไป'}</span>`;
+    const editBtn = u.isPending ? '' : `<button class="icon-btn" onclick="openUserEditModal('${u.id}')">แก้ไข</button>`;
+    const actionsCell = isAdmin
+      ? `<div class="row-actions">${!u.isPending && u.status !== 'approved' ? `<button class="icon-btn" onclick="setUserStatus('${escapeHtml(u.id)}', 'approved')">อนุมัติ</button>` : ''}${!u.isPending && u.status === 'pending' ? `<button class="icon-btn" onclick="setUserStatus('${escapeHtml(u.id)}', 'rejected')">ไม่อนุมัติ</button>` : ''}${editBtn}${isMe ? '' : `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.id)}', ${u.isPending})">ลบ</button>`}</div>`
+      : `<div class="row-actions">${editBtn}</div>`;
     return `<tr>
       <td>${avatar}</td>
-      <td>${escapeHtml(u.name || '-')}${isMe ? ' <span class="badge role-admin">คุณ</span>' : ''}${u.isPending ? ' <span class="badge pending">รอเข้าสู่ระบบ</span>' : ''}${u.status === 'pending' ? ' <span class="badge pending">รออนุมัติ</span>' : ''}${u.status === 'rejected' ? ' <span class="badge expired">ไม่อนุมัติ</span>' : ''}</td>
+      <td>${escapeHtml(displayName || '-')}${isMe ? ' <span class="badge role-admin">คุณ</span>' : ''}${u.isPending ? ' <span class="badge pending">รอเข้าสู่ระบบ</span>' : ''}${u.status === 'pending' ? ' <span class="badge pending">รออนุมัติ</span>' : ''}${u.status === 'rejected' ? ' <span class="badge expired">ไม่อนุมัติ</span>' : ''}</td>
       <td>${escapeHtml(u.email || '-')}</td>
-      <td><select class="filter-control" onchange="setUserRole('${escapeHtml(u.id)}', ${u.isPending}, this.value)" ${isMe ? 'disabled title="ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง"' : ''}>
-        <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>ผู้ใช้งานทั่วไป</option>
-        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>ผู้ดูแลระบบ</option>
-      </select></td>
-      <td><div class="row-actions">${!u.isPending && u.status !== 'approved' ? `<button class="icon-btn" onclick="setUserStatus('${escapeHtml(u.id)}', 'approved')">อนุมัติ</button>` : ''}${!u.isPending && u.status === 'pending' ? `<button class="icon-btn" onclick="setUserStatus('${escapeHtml(u.id)}', 'rejected')">ไม่อนุมัติ</button>` : ''}${isMe ? '' : `<button class="icon-btn delete-btn" onclick="deleteUser('${escapeHtml(u.id)}', ${u.isPending})">ลบ</button>`}</div></td>
+      <td>${roleCell}</td>
+      <td>${actionsCell}</td>
     </tr>`;
   }).join('') || `<tr><td colspan="5" class="empty-row">ไม่พบผู้ใช้งาน</td></tr>`;
 }
 $('usersSearch').addEventListener('input', renderUsers);
+// resets the addable-selects/photo preview fresh on every open, mirroring openTravelForm()'s own reset-then-open pattern
 $('userCreateToggleBtn').addEventListener('click', () => {
-  const p = $('userCreatePanel');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  $('userAddForm').reset();
+  addUsrEmailDomainSel.reset(); addUsrEmailDomainSel.fill('');
+  addUsrPositionSel.reset(); addUsrPositionSel.fill('');
+  addUsrPhotoData = null; renderAddUsrPhotoGrid();
+  openModal('userAddModal');
 });
-$('userForm').addEventListener('submit', async e => {
+$('userAddCancelBtn').addEventListener('click', () => closeModal('userAddModal'));
+// xxx-xxx-xxxx as the user types - digits only, capped at 10, dashes re-inserted after position 3 and 6. No existing
+// masked-input pattern in this file to reuse (checked) - the simplest approach that still lets the browser handle
+// backspace/selection normally is to just recompute the WHOLE value from the digits on every keystroke.
+function formatPhoneInput(el){
+  const digits = el.value.replace(/\D/g, '').slice(0, 10);
+  el.value = digits.length > 6 ? `${digits.slice(0,3)}-${digits.slice(3,6)}-${digits.slice(6)}`
+    : digits.length > 3 ? `${digits.slice(0,3)}-${digits.slice(3)}` : digits;
+}
+const addUsrEmailDomainSel = makeAddableSelect({ sel:'addUsrEmailDomain', addBtn:'addUsrEmailDomainAddBtn', newRow:'addUsrEmailDomainNewRow', newInput:'addUsrEmailDomainNew', ok:'addUsrEmailDomainNewOk', cancel:'addUsrEmailDomainNewCancel',
+  placeholder:'— เลือกโดเมน —', noun:'โดเมน', builtin:['gmail.com'],
+  used: () => [...data.users, ...data.pending].map(u => (u.email || u.id || '').split('@')[1]) });
+const addUsrPositionSel = makeAddableSelect({ sel:'addUsrPosition', addBtn:'addUsrPositionAddBtn', newRow:'addUsrPositionNewRow', newInput:'addUsrPositionNew', ok:'addUsrPositionNewOk', cancel:'addUsrPositionNewCancel',
+  placeholder:'— เลือกตำแหน่ง —', noun:'ตำแหน่ง', builtin:[], used: () => [...data.users, ...data.pending].map(u => u.position) });
+// Photo picked on the add-user form - the invited person has no uid yet (their account is only really created the first
+// time they sign in, via resolveUserRole()), so this is held here and stored on the pm_pendingRoles doc instead,
+// exactly like ค่าเดินทาง's own travelNewPhotoData holds a photo before its record has an id yet. resolveUserRole()
+// copies avatarBase64 over onto the real pm_users doc it creates from a pending invite.
+let addUsrPhotoData = null;
+function renderAddUsrPhotoGrid(){
+  $('addUsrPhotoGrid').innerHTML = addUsrPhotoData
+    ? `<div class="photo-item"><img src="${addUsrPhotoData}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
+        <button type="button" class="icon-btn delete-btn" onclick="deleteAddUsrPhoto()" aria-label="ลบรูปภาพ">ลบ</button></div>`
+    : '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
+  $('addUsrPhotoAddLabel').style.display = addUsrPhotoData ? 'none' : 'inline-block';
+}
+function deleteAddUsrPhoto(){ addUsrPhotoData = null; renderAddUsrPhotoGrid(); }
+$('addUsrPhotoInput').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type)){ toast(`"${file.name}" ไม่ใช่รูปภาพ`); return; }
+  try{ addUsrPhotoData = await resizeImageToDataUrl(file, 128, 'image/jpeg', 0.85); }   // same size/quality as the existing per-account avatar upload (pickAvatar())
+  catch(err){ toast(`"${file.name}" อ่านไฟล์รูปไม่สำเร็จ`); return; }
+  renderAddUsrPhotoGrid();
+});
+$('userAddForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const email = $('usrEmail').value.trim().toLowerCase();
-  const name = $('usrName').value.trim();
+  const thaiFirstName = $('addUsrThaiFirst').value.trim(), thaiLastName = $('addUsrThaiLast').value.trim();
+  const engFirstName = $('addUsrEngFirst').value.trim(), engLastName = $('addUsrEngLast').value.trim();
+  const localPart = $('addUsrEmailLocal').value.trim().replace(/@/g, ''), domain = $('addUsrEmailDomain').value;
+  if (!localPart || !domain){ toast('กรุณากรอกอีเมลให้ครบ'); return; }
+  const email = `${localPart}@${domain}`.toLowerCase();
+  const phone = $('addUsrPhone').value.trim();
+  const position = $('addUsrPosition').value;
   const role = $('usrRole').value;
   if (data.users.some(u => (u.email||'').toLowerCase() === email)){ toast('อีเมลนี้เป็นผู้ใช้งานอยู่แล้ว'); return; }
+  const name = `${thaiFirstName} ${thaiLastName}`.trim();
+  const doc = { role, name, thaiFirstName, thaiLastName, engFirstName, engLastName, phone, position };
+  if (addUsrPhotoData) doc.avatarBase64 = addUsrPhotoData;
   try{
-    await db.collection(COL.pending).doc(email).set({ role, name });
+    await db.collection(COL.pending).doc(email).set(doc);
     logAudit('เพิ่มผู้ใช้งาน', email, 'สิทธิ์: ' + (role === 'admin' ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานทั่วไป'));
-    $('userForm').reset();
-    $('userCreatePanel').style.display = 'none';
+    $('userAddForm').reset();
+    addUsrEmailDomainSel.reset(); addUsrPositionSel.reset();
+    addUsrPhotoData = null; renderAddUsrPhotoGrid();
+    closeModal('userAddModal');
     toast('เพิ่มผู้ใช้งานแล้ว');
+  }catch(err){ toast('บันทึกไม่สำเร็จ'); }
+});
+// Self/admin edit of the 4 name fields only - never role/status (a non-admin's own pm_users update rule already blocks
+// those two keys; this modal simply never shows them at all so there's nothing to even try sending).
+let editingUserId = null;
+function openUserEditModal(id){
+  const u = data.users.find(x => x.id === id);
+  if (!u) return;
+  if (id !== currentUserUid && currentUserRole !== 'admin') return;   // defense-in-depth - the UI never offers this for anyone else's row anyway
+  editingUserId = id;
+  $('usrEditThaiFirst').value = u.thaiFirstName || '';
+  $('usrEditThaiLast').value = u.thaiLastName || '';
+  $('usrEditEngFirst').value = u.engFirstName || '';
+  $('usrEditEngLast').value = u.engLastName || '';
+  openModal('userEditModal');
+}
+$('userEditCancelBtn').addEventListener('click', () => closeModal('userEditModal'));
+$('userEditForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!editingUserId) return;
+  const thaiFirstName = $('usrEditThaiFirst').value.trim(), thaiLastName = $('usrEditThaiLast').value.trim();
+  const engFirstName = $('usrEditEngFirst').value.trim(), engLastName = $('usrEditEngLast').value.trim();
+  const name = `${thaiFirstName} ${thaiLastName}`.trim();
+  try{
+    await db.collection(COL.users).doc(editingUserId).update({ thaiFirstName, thaiLastName, engFirstName, engLastName, ...(name ? { name } : {}) });
+    logAudit('แก้ไขข้อมูลผู้ใช้งาน', getUserDisplayName(editingUserId), '');
+    closeModal('userEditModal');
+    toast('บันทึกข้อมูลแล้ว');
   }catch(err){ toast('บันทึกไม่สำเร็จ'); }
 });
 async function setUserStatus(id, status){

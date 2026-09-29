@@ -65,12 +65,21 @@
       allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
     }
 
-    // ค่าเดินทาง (travel expenses): admin-only end to end - the page itself lives in the admin-only "ตั้งค่า" group and
-    // its own realtime listener is only ever attached for an admin session, so there is no non-admin scoping to write here.
-    // Its one photo per trip lives inline on this same document (photoData/photoType) rather than a separate collection -
-    // no hasOnly() here, so those two extra keys needed no rule change of their own.
+    // ค่าเดินทาง (travel expenses): every approved user now keeps their OWN personal travel log (own createdBy read/write,
+    // same shape as pm_customers below) - originally admin-only end to end, opened up to everyone so each person can log
+    // and print their own trips under their own name. Admin additionally sees everyone's (same override every other
+    // collection already gives admin), though the app's own client query only ever asks for "my own" regardless of role -
+    // there's no "view another user's travel log" UI built on top of that wider admin read access (yet). A real delete is
+    // still admin-only (the app only ever soft-deletes via an update, same as pm_customers). Its one photo per trip lives
+    // inline on this same document (photoData/photoType) rather than a separate collection - no hasOnly() here, so those
+    // two extra keys (and roundTrip/returnTollFee/etc.) needed no rule change of their own.
     match /pm_travelExpenses/{id} {
-      allow read, write: if pmIsAdmin();
+      allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
+      allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
+      allow update: if pmIsAdmin()
+        || (pmIsApproved() && resource.data.createdBy == request.auth.uid
+            && request.resource.data.createdBy == resource.data.createdBy);
+      allow delete: if pmIsAdmin();
     }
 
     // Company profiles (letterhead): everyone signed in can read (needed to print), only admin edits.
@@ -159,7 +168,8 @@
       allow list: if pmIsApproved()
         || (request.auth != null && exists(/databases/$(database)/documents/pm_config/bootstrap) && request.query.limit <= 1);
       allow create: if request.auth != null && request.auth.uid == userId
-        && request.resource.data.keys().hasOnly(['email','name','role','status'])
+        && request.resource.data.keys().hasOnly(['email','name','role','status',
+            'thaiFirstName','thaiLastName','engFirstName','engLastName','phone','position','avatarBase64'])
         && (
           (request.resource.data.role == 'user' && request.resource.data.status == 'pending')
           || (
