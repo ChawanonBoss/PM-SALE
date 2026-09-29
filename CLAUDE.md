@@ -358,10 +358,11 @@ so most of the choices below are direct translations of that spec, not judgment 
   reverse-engineered from the real reference spreadsheet's own locked header cell rather than guessed; an earlier version
   had a stray space in both places, wrong on both counts) via the existing `.pr-title`/`.pr-items` print CSS classes -
   both already existed in the shared `@media print` block but were unused by any other page until this feature.
-  **`.pr-items`' own table text is 12pt**, not the `#printArea` document-wide default of 16pt - asked directly
-  ("ลดขนาดฟอนต์ในตารางให้เหลือ 12 อยากให้จบใน 1 หน้ากระดาษ") so a normal month's worth of trips has a real chance of
-  fitting on the ONE page before the photo appendix starts; `.pr-items` is exclusively used by `printTravel()` (no
-  other printed page references that class), so shrinking it doesn't touch any other document. **Column widths are an
+  **`.pr-items`' own table text is 10pt**, not the `#printArea` document-wide default of 16pt - asked directly
+  ("ลดขนาดฟอนต์ในตารางให้เหลือ 12 อยากให้จบใน 1 หน้ากระดาษ", then shrunk further with a direct follow-up "ลดลงเหลือ 10")
+  so a normal month's worth of trips has a real chance of fitting on the ONE page before the photo appendix starts;
+  `.pr-items` is exclusively used by `printTravel()` (no other printed page references that class), so shrinking it
+  doesn't touch any other document. **Column widths are an
   explicit `<colgroup>`** (`table-layout:fixed` otherwise splits all 12 columns evenly) - the numeric/money columns
   (ระยะทาง/ค่า-กม./ทางด่วน/ที่จอดรถ/อื่นๆ/รวม) narrowed to 5-6% each, สถานที่เริ่มต้น/สถานที่ปลายทาง widened to 15%
   each so a normal place name has a real chance of staying on one line - a direct request ("ความกว้างของคอลัมน์ตัวเลข
@@ -374,7 +375,15 @@ so most of the choices below are direct translations of that spec, not judgment 
   already document for why a plain date-only string shouldn't round-trip through UTC. Print always reads a FRESH month
   slice off `data.travel` directly (`travelRowsForMonth()`), deliberately ignoring whatever is currently typed into
   the search box, so a stray search term can never silently truncate a financial report - refuses with a toast if the
-  selected month has no trips at all.
+  selected month has no trips at all. **A requester/approver signature line (`.pr-travel-sign`) sits right below the
+  table** - exactly 2 boxes, "( ผู้ขอเบิก )"/"( ผู้อนุมัติ )", pushed to the page's own right edge
+  (`justify-content:flex-end`, not the spread-across-the-page `.pr-sign` pattern the handover document already uses)
+  with an explicit `gap` between them so they don't sit flush together - a direct request specifying exactly this:
+  right-aligned, two boxes with some breathing room, nothing else. Each box is only 2 visual lines, per that same
+  request ("มี 2 บรรทัดพอ") - the blank space above a box (from `.pr-travel-sign`'s own `margin-top`) plus its
+  `border-top` IS the line to sign above, and the label sits below that border on the second line; this reuses the
+  exact same border-top-as-signature-line convention `.pr-sign` already established elsewhere in this file, just
+  right-aligned and narrower (50mm) instead of centered and spread across the full page width.
   **A photo appendix follows the table**, a 2x2 GRID of exactly FOUR trips per page (`.pr-travel-photo-page`/
   `.pr-travel-photo-cell`, `page-break-before:always` on every page so the appendix never shares a page with the table
   or with the wrong group of trips; a page with fewer than 4 photos just leaves the remaining grid cell(s) blank) -

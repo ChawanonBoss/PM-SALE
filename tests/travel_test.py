@@ -124,6 +124,8 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert expected_print_date in printed, (expected_print_date, printed)
     # unit-bearing numeric headers wrap onto their own second line, centered, with explicit narrower <col> widths
     assert '<colgroup>' in printed and 'ระยะทาง<br>(กม.)' in printed and 'รวม<br>(บาท)' in printed
+    # a requester/approver signature line sits right below the table, right-aligned
+    assert 'pr-travel-sign' in printed and '( ผู้ขอเบิก )' in printed and '( ผู้อนุมัติ )' in printed
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     assert page.inner_html('#printArea') == ''
 
