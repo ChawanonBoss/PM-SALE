@@ -116,6 +116,29 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     goto_tab(page, 'travel'); page.wait_for_timeout(300)
     assert len(page.evaluate("data.travel")) == 2
 
+    # ---------------- ไป-กลับ: checking it on a NEW trip creates a second, reversed-location trip in one save ----------------
+    before = len(page.evaluate("data.travel"))
+    page.click('#travelCreateBtn'); page.wait_for_timeout(300)
+    assert page.is_visible('#travelRoundTripField'), "only offered while adding, not editing"
+    page.fill('#travelDate', today)
+    page.select_option('#travelFrom', 'สำนักงานใหญ่'); page.select_option('#travelTo', 'บริษัท ลูกค้า เอ จำกัด')
+    page.fill('#travelDistance', '30'); page.fill('#travelToll', '15')
+    page.check('#travelRoundTrip')
+    page.click('#travelSaveBtn'); page.wait_for_timeout(500)
+    assert 'บันทึกรายการเดินทางไป-กลับแล้ว 2 รายการ' in page.inner_text('#toast')
+    assert len(page.evaluate("data.travel")) == before + 2
+    pair = page.evaluate("data.travel.filter(t => t.distanceKm === 30 && t.tollFee === 15)")
+    assert len(pair) == 2
+    fwd = next(t for t in pair if t['fromLocation'] == 'สำนักงานใหญ่')
+    back = next(t for t in pair if t['fromLocation'] == 'บริษัท ลูกค้า เอ จำกัด')
+    assert fwd['toLocation'] == 'บริษัท ลูกค้า เอ จำกัด' and back['toLocation'] == 'สำนักงานใหญ่'
+    assert fwd['distanceKm'] == back['distanceKm'] == 30 and fwd['total'] == back['total'], "same distance/total both ways"
+    # editing an existing trip never shows the checkbox (regenerating a return leg from an edit wouldn't make sense)
+    page.click('#travelBody tr:first-child'); page.wait_for_timeout(200)
+    page.click('#travelViewEditBtn'); page.wait_for_timeout(150)
+    assert not page.is_visible('#travelRoundTripField')
+    page.click('#travelCancelBtn'); page.wait_for_timeout(150)
+
     # ---------------- admin-only: showTab() redirects a non-admin session away ----------------
     page.evaluate("currentUserRole = 'user'; showTab('travel')"); page.wait_for_timeout(200)
     assert page.evaluate("currentTab") == 'dashboard', "a non-admin can never land on ค่าเดินทาง"

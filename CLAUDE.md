@@ -374,6 +374,19 @@ so most of the choices below are direct translations of that spec, not judgment 
   piece was a synthetic `name` field on every trip doc (`"{fmtDate} {from} → {to}"`) purely so that generic machinery -
   which reads `x.name` for its confirm dialogs, audit entries and Trash listing - had something sensible to show,
   since a trip has no natural single "name" field of its own the way a project or customer does.
+- **"ไป-กลับ" (round trip)** - a checkbox (`#travelRoundTrip`) shown only while adding a brand-new trip (hidden entirely,
+  not just unchecked, once editing an existing one - regenerating a return leg from an edit of one specific trip would
+  be ambiguous about which of the two records is "the" one being edited). Checking it and saving writes TWO documents
+  in one action: the trip as entered, then immediately a second one with only `fromLocation`/`toLocation` swapped -
+  date, customer, task, distance and every fee (tollFee/parkingFee/otherFee) carry over unchanged, per the user's own
+  "จะสลับข้อมูลระหว่างสถานที่เริ่มต้นและสถานที่ปลายทาง...ระยะเท่าเดิม" (only the locations swap, distance stays the
+  same) - nothing in that spec said to zero out the return leg's fees, and a real round trip usually costs the same
+  tolls/parking either way, so they're left as typed.
+- **A permission-denied save now says so directly** ("ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses ที่ Firebase
+  Console") instead of a generic "บันทึกไม่สำเร็จ" - added after a real "บันทึกไม่ได้" report that traced back to
+  exactly that (the rules block above is a reference copy in this repo; it does nothing until pasted into the Console
+  and published) - matching the same pattern `addTravelPhotos()`/other newer features already used for the same
+  failure mode, so the toast itself points at the fix instead of leaving it to guesswork.
 
 ## Handover photos: print to PDF
 `#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows

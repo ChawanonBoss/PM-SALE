@@ -1679,6 +1679,11 @@
             <button type="button" class="icon-btn" id="travelToNewCancel">ยกเลิก</button>
           </div>
         </div>
+        <div class="field full" id="travelRoundTripField" style="grid-column:1/-1;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer;">
+            <input type="checkbox" id="travelRoundTrip"> ไป-กลับ (สร้างรายการขากลับให้อัตโนมัติ - สลับสถานที่เริ่มต้น/ปลายทาง ระยะทางเท่ากัน)
+          </label>
+        </div>
         <div class="field"><label>ชื่อลูกค้า</label>
           <div class="type-row">
             <select id="travelCustomer"></select>
@@ -1856,7 +1861,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.24.0';
+const APP_VERSION = '1.24.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -5129,6 +5134,10 @@ function openTravelForm(id){
   $('travelParking').value = t ? t.parkingFee || 0 : 0;
   $('travelOther').value = t ? t.otherFee || 0 : 0;
   updateTravelTotal();
+  // "ไป-กลับ" only makes sense while creating a brand-new trip - regenerating a return leg off an edit would be confusing
+  // (which of the two trips is "the" one being edited?), so the checkbox is hidden entirely rather than just unchecked.
+  $('travelRoundTrip').checked = false;
+  $('travelRoundTripField').style.display = t ? 'none' : '';
   setTravelViewMode(false);
   openModal('travelModal');
 }
@@ -5167,6 +5176,7 @@ $('travelForm').addEventListener('submit', async e => {
     // special-casing for this collection, exactly like every other entity type already registered in ENTITY_LABEL
     name: `${fmtDate(date)} ${fromLocation} → ${toLocation}`
   };
+  const roundTrip = !editingTravelId && $('travelRoundTrip').checked;
   $('travelSaveBtn').disabled = true;
   setSync('saving');
   try{
@@ -5176,11 +5186,22 @@ $('travelForm').addEventListener('submit', async e => {
     } else {
       await db.collection(COL.travel).add({ ...doc, photoCount:0, createdBy: currentUserUid, createdAt: new Date().toISOString() });
       logAudit('เพิ่มค่าเดินทาง', doc.name, `รวม ${fmtNum(doc.total)} บาท`);
+      // "ไป-กลับ": the return leg swaps only fromLocation/toLocation - date, customer, task, distance and every fee carry
+      // over unchanged (the user's own spec only called out the locations swapping and the distance staying the same;
+      // nothing said to zero out tolls/parking, and a real round trip usually costs the same either way).
+      if (roundTrip){
+        const back = { ...doc, fromLocation: doc.toLocation, toLocation: doc.fromLocation, name: `${fmtDate(date)} ${doc.toLocation} → ${doc.fromLocation}` };
+        await db.collection(COL.travel).add({ ...back, photoCount:0, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+        logAudit('เพิ่มค่าเดินทาง (ขากลับ)', back.name, `รวม ${fmtNum(back.total)} บาท`);
+      }
     }
     setSync('ok');
     closeModal('travelModal');
-    toast('บันทึกรายการเดินทางแล้ว');
-  }catch(err){ setSync('error'); toast('บันทึกไม่สำเร็จ'); }
+    toast(roundTrip ? 'บันทึกรายการเดินทางไป-กลับแล้ว 2 รายการ' : 'บันทึกรายการเดินทางแล้ว');
+  }catch(err){
+    setSync('error');
+    toast(err && /permission|insufficient/i.test(err.message || '') ? 'บันทึกไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses ที่ Firebase Console' : 'บันทึกไม่สำเร็จ');
+  }
   $('travelSaveBtn').disabled = false;
 });
 // Print reads its own fresh month slice (ignoring the search box - a stray search term should never silently truncate a
