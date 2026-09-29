@@ -553,7 +553,10 @@
     .pr-info td{ border:none; padding:0.2mm 3mm 0.2mm 0; vertical-align:top; font-size:16pt; line-height:1.1; }
     .pr-info td:first-child{ width:46mm; font-weight:700; white-space:nowrap; }
     .pr-items{ width:100%; border-collapse:separate; border-spacing:0; table-layout:fixed; margin-top:2mm; border-top:0.3mm solid #000; border-left:0.3mm solid #000; }
-    .pr-items th, .pr-items td{ border:none; border-right:0.3mm solid #000; border-bottom:0.3mm solid #000; padding:1.8mm 2.4mm; font-size:16pt; line-height:1.25; color:#000; background:none; vertical-align:top; overflow-wrap:anywhere; }
+    /* 12pt, not the document-wide 16pt #printArea default - ค่าเดินทาง's own table specifically, asked to be small enough
+       that a normal month's worth of trips fits on the ONE page before the photo appendix (.pr-items is only ever used
+       by printTravel(), so this doesn't touch any other printed table). */
+    .pr-items th, .pr-items td{ border:none; border-right:0.3mm solid #000; border-bottom:0.3mm solid #000; padding:1.2mm 2mm; font-size:12pt; line-height:1.15; color:#000; background:none; vertical-align:top; overflow-wrap:anywhere; }
     .pr-items th{ background:#E6E6E6 !important; text-align:center; font-weight:700; vertical-align:middle; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     .pr-items tr{ page-break-inside:avoid; }
     .pr-items .c{ text-align:center; }
@@ -624,6 +627,20 @@
     .pr-photo-cell{ break-inside:avoid; border:0.25mm solid #BFC8D6; border-radius:1mm; padding:2mm; }
     .pr-photo-cell img{ width:100%; height:75mm; object-fit:contain; display:block; }
     .pr-photo-cap{ font-size:11pt; color:#595959; text-align:center; margin-top:1mm; overflow-wrap:anywhere; }
+    /* ค่าเดินทาง's own photo card - a labeled ลำดับ/วันที่/จาก/ถึง info table above the photo, per the user's own
+       reference file (ตัวอย่างรูปภาพค่าเดินทาง.docx), not just a one-line caption under the image. */
+    .pr-travel-photo-info{ width:100%; border-collapse:collapse; margin-bottom:2mm; }
+    .pr-travel-photo-info td{ border:0.2mm solid #BFC8D6; padding:1mm 2mm; font-size:10pt; }
+    .pr-travel-photo-info td:first-child{ font-weight:600; width:38%; background:#F4F6F9; }
+    .pr-travel-photo-label{ font-weight:600; font-size:10pt; margin-bottom:1mm; }
+    /* Book-style spread: exactly 2 trips per printed page, left half/right half, since print is A4 landscape (297x210mm) -
+       184mm = the page's own content height (210mm - 2x12mm margin, from printTravel()'s own @page rule) so each spread
+       fills the whole page rather than flowing loosely; a lone odd-numbered last trip still only takes the left half,
+       leaving the right blank, the same way a real book can end mid-spread. */
+    .pr-travel-photo-page{ display:flex; height:184mm; page-break-before:always; page-break-inside:avoid; }
+    .pr-travel-photo-half{ flex:1 1 50%; min-width:0; display:flex; flex-direction:column; padding:4mm; box-sizing:border-box; }
+    .pr-travel-photo-half + .pr-travel-photo-half{ border-left:0.3mm dashed #7F7F7F; }
+    .pr-travel-photo-half img{ flex:1 1 auto; width:100%; min-height:0; object-fit:contain; display:block; margin-top:1mm; }
   }
 
   @media (max-width:900px){
@@ -1865,7 +1882,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.26.0';
+const APP_VERSION = '1.26.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -5278,13 +5295,24 @@ function printTravel(){
       <td colspan="6" class="c">รวม</td><td class="c">${fmtNum(sums.dist)}</td><td></td>
       <td class="c">${fmtNum(sums.toll)}</td><td class="c">${fmtNum(sums.park)}</td><td class="c">${fmtNum(sums.other)}</td><td class="c">${fmtNum(sums.total)}</td>
     </tr>`;
-  // Photo appendix: every trip that has its own attached photo (see the travel-photo module below), one caption per photo,
-  // "ลำดับที่ N" matching the main table's own numbering - reusing the exact .pr-photo-grid/.pr-photo-cell/.pr-photo-cap
-  // pattern buildPhotosPrintHtml() already uses for handover photos, per the reference "รูปภาพ" sheet's own 2-column grid layout.
+  // Photo appendix: every trip that has its own attached photo, one CARD per trip laid out like the user's own
+  // reference file (ตัวอย่างรูปภาพค่าเดินทาง.docx) - a labeled # ลำดับ/วันที่/สถานที่เริ่มต้น/สถานที่ปลายทาง info table
+  // above a "รูปภาพ"-labeled photo, not just a one-line caption under the image. Since print is A4 LANDSCAPE, cards are
+  // grouped into book-style spreads of exactly 2 per page (.pr-travel-photo-page/-half, see the CSS) rather than
+  // letting them flow freely - a direct request for "2 รายการต่อ 1 หน้ากระดาษ...แบบแบ่งครึ่งซ้ายขวา เหมือนหนังสือ".
   const photoRows = rows.map((t, i) => ({ t, num: i + 1 })).filter(r => r.t.photoData);
-  const photoSection = photoRows.length ? `<div class="pr-photo-sec"><div class="pr-title" style="font-size:15pt; text-align:left; border-bottom:0.3mm solid #7F7F7F; padding-bottom:1mm;">รูปภาพประกอบการเดินทาง</div></div>
-    <div class="pr-photo-grid">${photoRows.map(r => `<div class="pr-photo-cell"><img src="data:${r.t.photoType || 'image/jpeg'};base64,${r.t.photoData}" alt="">
-      <div class="pr-photo-cap">ลำดับที่ ${r.num} · ${escapeHtml(r.t.fromLocation || '-')} → ${escapeHtml(r.t.toLocation || '-')}</div></div>`).join('')}</div>` : '';
+  const travelPhotoHalf = r => `<div class="pr-travel-photo-half">
+      <table class="pr-travel-photo-info"><tr><td># ลำดับ</td><td>${r.num}</td></tr>
+        <tr><td>วันที่</td><td>${fmtDate(r.t.date)}</td></tr>
+        <tr><td>สถานที่เริ่มต้น</td><td>${escapeHtml(r.t.fromLocation || '-')}</td></tr>
+        <tr><td>สถานที่ปลายทาง</td><td>${escapeHtml(r.t.toLocation || '-')}</td></tr></table>
+      <div class="pr-travel-photo-label">รูปภาพ</div>
+      <img src="data:${r.t.photoType || 'image/jpeg'};base64,${r.t.photoData}" alt="">
+    </div>`;
+  let photoSection = '';
+  for (let i = 0; i < photoRows.length; i += 2){
+    photoSection += `<div class="pr-travel-photo-page">${travelPhotoHalf(photoRows[i])}${photoRows[i + 1] ? travelPhotoHalf(photoRows[i + 1]) : ''}</div>`;
+  }
   $('printArea').innerHTML = `<div class="pr-title">ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}</div>
     <table class="pr-items"><thead><tr>
       <th>#</th><th>วันที่</th><th>สถานที่เริ่มต้น</th><th>สถานที่ปลายทาง</th><th>ลูกค้า</th><th>รายการปฏิบัติงาน</th>

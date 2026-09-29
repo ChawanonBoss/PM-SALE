@@ -184,15 +184,29 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert not page.is_visible('#travelRoundTripField')
     page.click('#travelCancelBtn'); page.wait_for_timeout(150)
 
-    # ---------------- print: photo appendix reuses .pr-photo-grid, captioned "ลำดับที่ N" ----------------
+    # ---------------- print: photo appendix is a book-style spread, exactly 2 trips per page (left/right halves), each
+    # a card with a labeled ลำดับ/วันที่/จาก/ถึง info table above a "รูปภาพ"-labeled photo ----------------
     trip_id = trip['id']
     page.evaluate("openTravelPhotoModal('%s')" % trip_id); page.wait_for_timeout(300)
     page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
     page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
     page.click('#travelPrintBtn'); page.wait_for_timeout(200)
     printed2 = page.inner_html('#printArea')
-    assert 'pr-photo-grid' in printed2 and 'pr-photo-cell' in printed2, "photo appendix reuses the handover-photos print CSS"
-    assert 'ลำดับที่' in printed2, "captioned by the main table's own ลำดับ numbering"
+    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "only 1 photo so far -> one spread, with the second half left empty"
+    assert page.locator('#printArea .pr-travel-photo-half').count() == 1
+    assert 'pr-travel-photo-info' in printed2, "each card has its own labeled info table, per the reference docx"
+    assert '# ลำดับ' in printed2 and 'วันที่' in printed2 and 'สถานที่เริ่มต้น' in printed2 and 'สถานที่ปลายทาง' in printed2
+    assert 'รูปภาพ' in printed2, "the photo area itself is labeled รูปภาพ, matching the reference docx"
+    assert f">{trip['fromLocation']}<" in printed2 and f">{trip['toLocation']}<" in printed2
+
+    # attach a second photo (to the first non-round-trip trip) -> now 2 photos -> both fill ONE spread's two halves
+    other_id = page.evaluate("data.travel.find(t => t.id !== '%s' && !t.deletedAt).id" % trip_id)
+    page.evaluate("openTravelPhotoModal('%s')" % other_id); page.wait_for_timeout(300)
+    page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
+    page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
+    page.click('#travelPrintBtn'); page.wait_for_timeout(200)
+    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "2 photos still fit on one spread (2 per page)"
+    assert page.locator('#printArea .pr-travel-photo-half').count() == 2
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     assert page.inner_html('#printArea') == ''
 
