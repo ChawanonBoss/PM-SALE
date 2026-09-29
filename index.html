@@ -628,19 +628,20 @@
     .pr-photo-cell img{ width:100%; height:75mm; object-fit:contain; display:block; }
     .pr-photo-cap{ font-size:11pt; color:#595959; text-align:center; margin-top:1mm; overflow-wrap:anywhere; }
     /* ค่าเดินทาง's own photo card - a labeled ลำดับ/วันที่/จาก/ถึง info table above the photo, per the user's own
-       reference file (ตัวอย่างรูปภาพค่าเดินทาง.docx), not just a one-line caption under the image. */
-    .pr-travel-photo-info{ width:100%; border-collapse:collapse; margin-bottom:2mm; }
-    .pr-travel-photo-info td{ border:0.2mm solid #BFC8D6; padding:1mm 2mm; font-size:10pt; }
+       reference file (ตัวอย่างรูปภาพค่าเดินทาง.docx), not just a one-line caption under the image. Sized for a 2x2
+       grid cell (roughly quarter-page), so the info table stays compact (9pt, tight padding) leaving most of the
+       cell's height for the photo itself. */
+    .pr-travel-photo-info{ width:100%; border-collapse:collapse; margin-bottom:1mm; }
+    .pr-travel-photo-info td{ border:0.2mm solid #BFC8D6; padding:0.6mm 1.5mm; font-size:9pt; line-height:1.15; }
     .pr-travel-photo-info td:first-child{ font-weight:600; width:38%; background:#F4F6F9; }
-    .pr-travel-photo-label{ font-weight:600; font-size:10pt; margin-bottom:1mm; }
-    /* Book-style spread: exactly 2 trips per printed page, left half/right half, since print is A4 landscape (297x210mm) -
-       184mm = the page's own content height (210mm - 2x12mm margin, from printTravel()'s own @page rule) so each spread
-       fills the whole page rather than flowing loosely; a lone odd-numbered last trip still only takes the left half,
-       leaving the right blank, the same way a real book can end mid-spread. */
-    .pr-travel-photo-page{ display:flex; height:184mm; page-break-before:always; page-break-inside:avoid; }
-    .pr-travel-photo-half{ flex:1 1 50%; min-width:0; display:flex; flex-direction:column; padding:4mm; box-sizing:border-box; }
-    .pr-travel-photo-half + .pr-travel-photo-half{ border-left:0.3mm dashed #7F7F7F; }
-    .pr-travel-photo-half img{ flex:1 1 auto; width:100%; min-height:0; object-fit:contain; display:block; margin-top:1mm; }
+    .pr-travel-photo-label{ font-weight:600; font-size:9pt; margin-bottom:0.5mm; }
+    /* 2x2 grid: exactly 4 trips per printed page, since print is A4 landscape (297x210mm) - 184mm = the page's own
+       content height (210mm - 2x12mm margin, from printTravel()'s own @page rule) so each page's grid genuinely fills
+       the whole printable area rather than flowing loosely; a page with fewer than 4 photos just leaves the remaining
+       grid cell(s) blank. */
+    .pr-travel-photo-page{ display:grid; grid-template-columns:repeat(2, 1fr); grid-template-rows:repeat(2, 1fr); gap:3mm; height:184mm; page-break-before:always; page-break-inside:avoid; }
+    .pr-travel-photo-cell{ min-width:0; min-height:0; display:flex; flex-direction:column; padding:2.5mm; box-sizing:border-box; border:0.25mm solid #BFC8D6; border-radius:1mm; }
+    .pr-travel-photo-cell img{ flex:1 1 auto; width:100%; min-height:0; object-fit:contain; display:block; margin-top:1mm; }
   }
 
   @media (max-width:900px){
@@ -1882,7 +1883,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.26.1';
+const APP_VERSION = '1.26.2';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -5266,6 +5267,15 @@ $('travelForm').addEventListener('submit', async e => {
   }
   $('travelSaveBtn').disabled = false;
 });
+// The print table's own date format - "01/09/2569" (DD/MM/ปี พ.ศ., zero-padded) rather than fmtDate()'s abbreviated-month
+// style used everywhere else in the app - asked for specifically on this one printed sheet. Splits the stored YYYY-MM-DD
+// string directly instead of going through Date/toISOString, the same reasoning calYMD()/calParseYMD() already document:
+// a plain date-only string has no time-of-day to round-trip through UTC without risking an off-by-one day.
+function travelPrintDate(d){
+  if (!d) return '-';
+  const [y, m, day] = d.split('-');
+  return `${day}/${m}/${Number(y) + 543}`;
+}
 // Print reads its own fresh month slice (ignoring the search box - a stray search term should never silently truncate a
 // financial report) using the SAME month currently picked in the filter, so what you see on screen is what prints.
 function printTravel(){
@@ -5282,7 +5292,7 @@ function printTravel(){
     const toll = isReturn ? t.returnTollFee : t.tollFee, parking = isReturn ? t.returnParkingFee : t.parkingFee, other = isReturn ? t.returnOtherFee : t.otherFee;
     const total = isReturn ? travelReturnTotal(t) : t.total;
     return `<tr>
-      <td class="c">${num != null ? num : ''}</td><td class="c">${fmtDate(t.date)}</td>
+      <td class="c">${num != null ? num : ''}</td><td class="c">${travelPrintDate(t.date)}</td>
       <td>${escapeHtml(from || '-')}</td><td>${escapeHtml(to || '-')}</td>
       <td>${isReturn ? '' : escapeHtml(t.customerName || '-')}</td><td>${isReturn ? '' : escapeHtml(t.task || '-')}</td>
       <td class="c">${fmtNum(t.distanceKm)}</td><td class="c">${fmtNum(TRAVEL_RATE_PER_KM)}</td>
@@ -5298,10 +5308,10 @@ function printTravel(){
   // Photo appendix: every trip that has its own attached photo, one CARD per trip laid out like the user's own
   // reference file (ตัวอย่างรูปภาพค่าเดินทาง.docx) - a labeled # ลำดับ/วันที่/สถานที่เริ่มต้น/สถานที่ปลายทาง info table
   // above a "รูปภาพ"-labeled photo, not just a one-line caption under the image. Since print is A4 LANDSCAPE, cards are
-  // grouped into book-style spreads of exactly 2 per page (.pr-travel-photo-page/-half, see the CSS) rather than
-  // letting them flow freely - a direct request for "2 รายการต่อ 1 หน้ากระดาษ...แบบแบ่งครึ่งซ้ายขวา เหมือนหนังสือ".
+  // grouped into a 2x2 grid of exactly 4 per page (.pr-travel-photo-page/-cell, see the CSS) rather than letting them
+  // flow freely - a direct request for "4 รายการแทน" (replacing an earlier 2-per-page book-style spread).
   const photoRows = rows.map((t, i) => ({ t, num: i + 1 })).filter(r => r.t.photoData);
-  const travelPhotoHalf = r => `<div class="pr-travel-photo-half">
+  const travelPhotoCard = r => `<div class="pr-travel-photo-cell">
       <table class="pr-travel-photo-info"><tr><td># ลำดับ</td><td>${r.num}</td></tr>
         <tr><td>วันที่</td><td>${fmtDate(r.t.date)}</td></tr>
         <tr><td>สถานที่เริ่มต้น</td><td>${escapeHtml(r.t.fromLocation || '-')}</td></tr>
@@ -5310,13 +5320,23 @@ function printTravel(){
       <img src="data:${r.t.photoType || 'image/jpeg'};base64,${r.t.photoData}" alt="">
     </div>`;
   let photoSection = '';
-  for (let i = 0; i < photoRows.length; i += 2){
-    photoSection += `<div class="pr-travel-photo-page">${travelPhotoHalf(photoRows[i])}${photoRows[i + 1] ? travelPhotoHalf(photoRows[i + 1]) : ''}</div>`;
+  for (let i = 0; i < photoRows.length; i += 4){
+    photoSection += `<div class="pr-travel-photo-page">${photoRows.slice(i, i + 4).map(travelPhotoCard).join('')}</div>`;
   }
+  // Explicit <colgroup> widths (table-layout:fixed otherwise splits all 12 columns evenly) - numeric/money columns
+  // narrowed, สถานที่เริ่มต้น/ปลายทาง widened so a normal place name has a real chance of staying on one line, per a
+  // direct request. Unit-bearing headers wrap onto their own second line (e.g. "ระยะทาง" / "(กม.)") instead of one
+  // long single-line label, which is also what makes the narrower numeric columns viable without truncating the header.
   $('printArea').innerHTML = `<div class="pr-title">ค่าเดินทางประจำเดือน${travelMonthLabel(month, year)} ของ${TRAVEL_OWNER_NAME}</div>
-    <table class="pr-items"><thead><tr>
+    <table class="pr-items">
+      <colgroup>
+        <col style="width:3%"><col style="width:8%"><col style="width:15%"><col style="width:15%">
+        <col style="width:12%"><col style="width:13%"><col style="width:6%"><col style="width:6%">
+        <col style="width:6%"><col style="width:6%"><col style="width:5%"><col style="width:5%">
+      </colgroup>
+      <thead><tr>
       <th>#</th><th>วันที่</th><th>สถานที่เริ่มต้น</th><th>สถานที่ปลายทาง</th><th>ลูกค้า</th><th>รายการปฏิบัติงาน</th>
-      <th>ระยะทาง (กม.)</th><th>ค่า/กม. (บาท)</th><th>ทางด่วน (บาท)</th><th>ที่จอดรถ (บาท)</th><th>อื่นๆ (บาท)</th><th>รวม (บาท)</th>
+      <th>ระยะทาง<br>(กม.)</th><th>ค่า/กม.<br>(บาท)</th><th>ทางด่วน<br>(บาท)</th><th>ที่จอดรถ<br>(บาท)</th><th>อื่นๆ<br>(บาท)</th><th>รวม<br>(บาท)</th>
     </tr></thead><tbody>${body}${foot}</tbody></table>${photoSection}`;
   setPrintPage('@page{ size:A4 landscape; margin:12mm; }');
   const oldTitle = document.title;

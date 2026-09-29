@@ -92,6 +92,11 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert 'pr-head' not in printed, "no company letterhead, per the user's own request"
     assert 'ไป/กลับ' not in printed, "no dedicated ไป/กลับ column on the printed sheet"
     assert '540' in printed and printed.count('<tr>') >= 3   # 2 data rows + 1 total row
+    # the print table's own date format is DD/MM/ปีพ.ศ. (zero-padded), not fmtDate()'s abbreviated-month style
+    expected_print_date = f"{today[8:10]}/{today[5:7]}/{int(today[0:4]) + 543}"
+    assert expected_print_date in printed, (expected_print_date, printed)
+    # unit-bearing numeric headers wrap onto their own second line, centered, with explicit narrower <col> widths
+    assert '<colgroup>' in printed and 'ระยะทาง<br>(กม.)' in printed and 'รวม<br>(บาท)' in printed
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     assert page.inner_html('#printArea') == ''
 
@@ -184,29 +189,69 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert not page.is_visible('#travelRoundTripField')
     page.click('#travelCancelBtn'); page.wait_for_timeout(150)
 
-    # ---------------- print: photo appendix is a book-style spread, exactly 2 trips per page (left/right halves), each
-    # a card with a labeled ลำดับ/วันที่/จาก/ถึง info table above a "รูปภาพ"-labeled photo ----------------
+    # ---------------- print: photo appendix is a 2x2 grid, exactly 4 trips per page, each a card with a labeled
+    # ลำดับ/วันที่/จาก/ถึง info table above a "รูปภาพ"-labeled photo ----------------
     trip_id = trip['id']
     page.evaluate("openTravelPhotoModal('%s')" % trip_id); page.wait_for_timeout(300)
     page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
     page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
     page.click('#travelPrintBtn'); page.wait_for_timeout(200)
     printed2 = page.inner_html('#printArea')
-    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "only 1 photo so far -> one spread, with the second half left empty"
-    assert page.locator('#printArea .pr-travel-photo-half').count() == 1
+    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "only 1 photo so far -> one page, 3 grid cells left empty"
+    assert page.locator('#printArea .pr-travel-photo-cell').count() == 1
     assert 'pr-travel-photo-info' in printed2, "each card has its own labeled info table, per the reference docx"
     assert '# ลำดับ' in printed2 and 'วันที่' in printed2 and 'สถานที่เริ่มต้น' in printed2 and 'สถานที่ปลายทาง' in printed2
     assert 'รูปภาพ' in printed2, "the photo area itself is labeled รูปภาพ, matching the reference docx"
     assert f">{trip['fromLocation']}<" in printed2 and f">{trip['toLocation']}<" in printed2
 
-    # attach a second photo (to the first non-round-trip trip) -> now 2 photos -> both fill ONE spread's two halves
+    # attach a second photo (to the first non-round-trip trip) -> now 2 photos, still one page (cap is 4 per page)
     other_id = page.evaluate("data.travel.find(t => t.id !== '%s' && !t.deletedAt).id" % trip_id)
     page.evaluate("openTravelPhotoModal('%s')" % other_id); page.wait_for_timeout(300)
     page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
     page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
     page.click('#travelPrintBtn'); page.wait_for_timeout(200)
-    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "2 photos still fit on one spread (2 per page)"
-    assert page.locator('#printArea .pr-travel-photo-half').count() == 2
+    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "2 photos still fit on one 2x2 page"
+    assert page.locator('#printArea .pr-travel-photo-cell').count() == 2
+
+    # two more minimal trips (created directly, not through the form - already covered elsewhere) push the count to
+    # exactly 4 -> still one page, filling all 4 grid cells
+    extra_ids = page.evaluate("""async () => {
+      const ids = [];
+      for (let i = 0; i < 2; i++){
+        const ref = await db.collection(COL.travel).add({
+          date: new Date().toISOString().slice(0,10), fromLocation: 'สำนักงานใหญ่', toLocation: 'บริษัท ลูกค้า เอ จำกัด',
+          customerName: '', task: '', distanceKm: 5, rate: 6, tollFee: 0, parkingFee: 0, otherFee: 0, total: 30,
+          name: 'extra trip ' + i, createdBy: currentUserUid, createdAt: new Date().toISOString()
+        });
+        ids.push(ref.id);
+      }
+      return ids;
+    }""")
+    page.wait_for_timeout(300)
+    for eid in extra_ids:
+        page.evaluate("openTravelPhotoModal('%s')" % eid); page.wait_for_timeout(300)
+        page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
+        page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
+    page.click('#travelPrintBtn'); page.wait_for_timeout(200)
+    assert page.locator('#printArea .pr-travel-photo-page').count() == 1, "4 photos exactly fill one 2x2 page"
+    assert page.locator('#printArea .pr-travel-photo-cell').count() == 4
+
+    # a 5th photo overflows onto a second page (still 4 cells on page 1, 1 cell on page 2)
+    fifth_id = page.evaluate("""async () => {
+      const ref = await db.collection(COL.travel).add({
+        date: new Date().toISOString().slice(0,10), fromLocation: 'สำนักงานใหญ่', toLocation: 'บริษัท ลูกค้า เอ จำกัด',
+        customerName: '', task: '', distanceKm: 5, rate: 6, tollFee: 0, parkingFee: 0, otherFee: 0, total: 30,
+        name: 'extra trip 5', createdBy: currentUserUid, createdAt: new Date().toISOString()
+      });
+      return ref.id;
+    }""")
+    page.wait_for_timeout(300)
+    page.evaluate("openTravelPhotoModal('%s')" % fifth_id); page.wait_for_timeout(300)
+    page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
+    page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
+    page.click('#travelPrintBtn'); page.wait_for_timeout(200)
+    assert page.locator('#printArea .pr-travel-photo-page').count() == 2, "a 5th photo overflows onto a second page"
+    assert page.locator('#printArea .pr-travel-photo-cell').count() == 5
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     assert page.inner_html('#printArea') == ''
 

@@ -354,31 +354,41 @@ so most of the choices below are direct translations of that spec, not judgment 
   **`.pr-items`' own table text is 12pt**, not the `#printArea` document-wide default of 16pt - asked directly
   ("ลดขนาดฟอนต์ในตารางให้เหลือ 12 อยากให้จบใน 1 หน้ากระดาษ") so a normal month's worth of trips has a real chance of
   fitting on the ONE page before the photo appendix starts; `.pr-items` is exclusively used by `printTravel()` (no
-  other printed page references that class), so shrinking it doesn't touch any other document. Print always reads a
-  FRESH month slice off `data.travel` directly (`travelRowsForMonth()`), deliberately ignoring whatever is currently
-  typed into the search box, so a stray search term can never silently truncate a financial report - refuses with a
-  toast if the selected month has no trips at all.
-  **A photo appendix follows the table**, one page per TWO trips, laid out as a book-style spread (left half/right
-  half - `.pr-travel-photo-page`/`.pr-travel-photo-half`, `page-break-before:always` on every page so the appendix
-  never shares a page with the table or with the wrong pair of trips; a lone odd trip out just leaves the right half
-  blank, the same way a real book can end mid-spread) rather than letting cards flow freely down the page - a direct
-  request ("2 รายการต่อ 1 หน้ากระดาษ...แบบแบ่งครึ่งซ้ายขวา รูปแบบเหมือนหนังสือ") that replaced an earlier version
-  reusing the generic `.pr-photo-grid` 2-per-ROW (not per-PAGE) layout. `.pr-travel-photo-half{ height:184mm }`'s own
-  fixed height is computed directly from `printTravel()`'s own `@page{ size:A4 landscape; margin:12mm }` rule (210mm
-  page height minus 12mm top+bottom), so each spread genuinely fills the whole printable page rather than an
-  arbitrary guessed height. Each half is still a CARD laid out exactly like the user's own reference file
-  `ตัวอย่างรูปภาพค่าเดินทาง.docx` (found, after an exhaustive search of a "Web folder" that turned out not to be where
-  it actually was, sitting directly in the PM-SALE project folder itself): reading that docx's own two example tables
-  with `python-docx` showed each trip as a labeled info card - a 2-column `# ลำดับ`/`วันที่`/`สถานที่เริ่มต้น`/
-  `สถานที่ปลายทาง` table (label cell | value cell, `.pr-travel-photo-info`) followed by a `รูปภาพ`-labeled
-  (`.pr-travel-photo-label`) row for the photo itself, with the image itself given `flex:1` so it grows to fill
-  whatever height the info table above it leaves in the 184mm column - NOT a bare photo with a one-line caption
-  underneath, which is what an even earlier pass had built (reusing `buildPhotosPrintHtml()`'s plain caption pattern)
-  before a direct report that the print output still didn't reflect that reference file at all. The sibling
-  `ตัวอย่างค่าเดินทาง.xlsx`'s own "รูปภาพ" sheet (a 2-column grid of "รูปภาพลำดับที่ N" caption placeholders) is a
-  different, coarser artifact - almost certainly just the spreadsheet author's own way of noting which photo covers
-  which trip numbers, not a layout spec - so it's the docx's card structure that print actually follows, not the
-  xlsx sheet's plain captions.
+  other printed page references that class), so shrinking it doesn't touch any other document. **Column widths are an
+  explicit `<colgroup>`** (`table-layout:fixed` otherwise splits all 12 columns evenly) - the numeric/money columns
+  (ระยะทาง/ค่า-กม./ทางด่วน/ที่จอดรถ/อื่นๆ/รวม) narrowed to 5-6% each, สถานที่เริ่มต้น/สถานที่ปลายทาง widened to 15%
+  each so a normal place name has a real chance of staying on one line - a direct request ("ความกว้างของคอลัมน์ตัวเลข
+  ปรับให้แคบกว่านี้ ส่วน...สถานที่ก็กว้างกว่านี้"). Freeing up that width only works alongside **unit-bearing headers
+  wrapping onto their own second line** (`ระยะทาง<br>(กม.)` etc, centered like every other `.pr-items th`) instead of
+  one long single-line label that would otherwise force the column wider again. **The date column uses its own format,
+  `travelPrintDate()`** - `"01/09/2569"` (zero-padded DD/MM/ปี พ.ศ.), not `fmtDate()`'s abbreviated-Thai-month style
+  used everywhere else in the app - asked for on this one printed sheet specifically; it splits the stored `YYYY-MM-DD`
+  string directly rather than going through `Date`/`toISOString()`, the same reasoning `calYMD()`/`calParseYMD()`
+  already document for why a plain date-only string shouldn't round-trip through UTC. Print always reads a FRESH month
+  slice off `data.travel` directly (`travelRowsForMonth()`), deliberately ignoring whatever is currently typed into
+  the search box, so a stray search term can never silently truncate a financial report - refuses with a toast if the
+  selected month has no trips at all.
+  **A photo appendix follows the table**, a 2x2 GRID of exactly FOUR trips per page (`.pr-travel-photo-page`/
+  `.pr-travel-photo-cell`, `page-break-before:always` on every page so the appendix never shares a page with the table
+  or with the wrong group of trips; a page with fewer than 4 photos just leaves the remaining grid cell(s) blank) -
+  a direct request ("เปลี่ยนรูปแบบเป็น 4 รายการแทน") that replaced an earlier 2-per-page "book-style" left/right-half
+  spread, which itself had replaced an even earlier `.pr-photo-grid` 2-per-ROW (not per-PAGE) layout - three iterations
+  before landing on the current shape. `.pr-travel-photo-page{ height:184mm }`'s own fixed height is computed directly
+  from `printTravel()`'s own `@page{ size:A4 landscape; margin:12mm }` rule (210mm page height minus 12mm top+bottom),
+  so each page's grid genuinely fills the whole printable page rather than an arbitrary guessed height. Each grid cell
+  is still a CARD laid out like the user's own reference file `ตัวอย่างรูปภาพค่าเดินทาง.docx` (found, after an
+  exhaustive search of a "Web folder" that turned out not to be where it actually was, sitting directly in the
+  PM-SALE project folder itself): reading that docx's own two example tables with `python-docx` showed each trip as
+  a labeled info card - a 2-column `# ลำดับ`/`วันที่`/`สถานที่เริ่มต้น`/`สถานที่ปลายทาง` table (label cell | value
+  cell, `.pr-travel-photo-info`, now 9pt/tighter padding than the 2-per-page version since a quarter-page cell is
+  smaller than a half-page one) followed by a `รูปภาพ`-labeled (`.pr-travel-photo-label`) row for the photo itself,
+  with the image itself given `flex:1` so it grows to fill whatever height the info table above it leaves in the
+  cell - NOT a bare photo with a one-line caption underneath, which is what an even earlier pass had built (reusing
+  `buildPhotosPrintHtml()`'s plain caption pattern) before a direct report that the print output still didn't reflect
+  that reference file at all. The sibling `ตัวอย่างค่าเดินทาง.xlsx`'s own "รูปภาพ" sheet (a 2-column grid of
+  "รูปภาพลำดับที่ N" caption placeholders) is a different, coarser artifact - almost certainly just the spreadsheet
+  author's own way of noting which photo covers which trip numbers, not a layout spec - so it's the docx's card
+  structure that print actually follows, not the xlsx sheet's plain captions.
 - **Photos: exactly ONE per trip, stored inline on the trip's own document** (`photoData` base64 under the same
   900,000-character cap as `pm_photos`, `photoType`) rather than a separate collection or gallery page - a real
   correction after the first version allowed unlimited photos per trip via their own `pm_travelPhotos` collection and a
