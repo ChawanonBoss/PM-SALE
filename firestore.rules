@@ -1,18 +1,24 @@
-// PM-SALE — Firestore rules (reference copy; must be pasted into Firebase Console → Firestore → Rules by hand).
+// PM-SALE — Firestore rules. PM-SALE now has its OWN Firebase project ("pm-sale-d9f3d", see FIREBASE_CONFIG in
+// index.html) rather than sharing "bu-abb" with the BU-ABB app, so this file is a complete, standalone, directly-
+// pasteable ruleset - paste the WHOLE file into Firebase Console -> Firestore Database -> Rules -> Publish, no
+// merging with another app's rules needed any more. The "===== PM-SALE: begin/end =====" markers are kept purely
+// for historical/doc continuity (this session's own notes and CLAUDE.md refer to "the block between the markers");
+// they don't mean anything needs inserting into a bigger file any more.
 //
-// PM-SALE shares the Firebase project "bu-abb" with BU-ABB but uses its own pm_-prefixed collections.
-// Firestore rules are ONE file per project, so this file is NOT pasteable on its own (it has no service/match wrapper):
-// insert the block between the two "PM-SALE" markers INSIDE the existing `match /databases/{database}/documents { ... }`
-// (before its closing brace) next to the BU-ABB rules, then Publish. Placed after that closing brace, the Console fails
-// with "Unexpected 'match'". The same block is already merged into the live rules in the Console.
-//
-// First admin (one-time): rules cannot prove "the users collection is empty", so before the very first PM-SALE
-// sign-in, create a document  pm_config/bootstrap  in the Console (any field, e.g. open: true). The first person to
-// sign in then becomes admin. DELETE pm_config/bootstrap right afterwards — while it exists, any new sign-up could
-// self-create an admin profile.
+// First admin (one-time, per project): rules cannot prove "the users collection is empty", so before the very
+// first sign-in on a fresh project, create a document  pm_config/bootstrap  in the Console (any field, any value -
+// the rule only checks that the document exists). The first person to sign in then becomes admin. DELETE
+// pm_config/bootstrap right afterwards — while it exists, any new sign-up could self-create an admin profile.
 //
 // Client queries in index.html and these rules must change together: a non-admin's pm_projects / pm_customers
 // listeners use .where('createdBy','==',uid) to match the createdBy conditions below.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===== PM-SALE: begin =====
     function pmIsAdmin() {
@@ -211,3 +217,5 @@
       allow update, delete: if false;
     }
     // ===== PM-SALE: end =====
+  }
+}

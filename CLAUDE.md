@@ -1,11 +1,15 @@
 # PM-SALE - working notes
 
-Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by pushing to `main` (GitHub Pages). Firebase project `bu-abb`, collections `pm_*`.
+Single-file app: everything lives in `index.html` (HTML + CSS + JS). Deployed by pushing to `main` (GitHub Pages). Firebase project `pm-sale-d9f3d` (its own, since the split below), collections `pm_*`.
 
 ## Rules of the road
 - **Version**: bump `APP_VERSION` on every push. Not structural -> last digit; structural (new page/collection/data field) -> middle digit, last reset to 0.
-- **Firestore rules** live in the Console, not in this repo. `firestore.rules` here is the PM-SALE block only; the full file to paste is `Web/firestore.rules` in the BU-ABB working copy. Client queries and rules change together
-  (a non-admin's listeners use `.where('createdBy','==',uid)`; `pm_files` queries add `ownerId`). Always tell the user to publish the rules after changing them, and re-test with throw-away `pmtest.*@example.com` accounts.
+- **Firestore rules** live in the Console, not in this repo. `firestore.rules` here IS the full, directly-pasteable file now (paste the whole thing, Publish) - PM-SALE used to share Firebase project `bu-abb`
+  with the sibling BU-ABB app (one physical ruleset, PM-SALE's own rules living as a marker-delimited block merged into BU-ABB's working copy at `Web/firestore.rules`), until split out onto its own
+  project (`pm-sale-d9f3d`, `FIREBASE_CONFIG` in `index.html`) specifically so rules changes never need reconciling with another app's file again. A brand-new project needs a one-time
+  `pm_config/bootstrap` doc created by hand in the Console BEFORE the very first sign-in (any field/value - the rule only checks it exists), so that person becomes admin instead of stuck "pending" with
+  no admin able to approve them - delete it again right after. Client queries and rules change together (a non-admin's listeners use `.where('createdBy','==',uid)`; `pm_files` queries add `ownerId`).
+  Always tell the user to publish the rules after changing them, and re-test with throw-away `pmtest.*@example.com` accounts.
 - Reply in Thai, short. Decide instead of asking when a sensible default exists; confirm before destructive actions on real data.
 - Patch `index.html` with small Python scripts that assert exact match counts; avoid bash heredocs with mixed quotes (write files with the editor tools). After a big edit run `python tests/static_test.py` (a bad replace once left `class="tab-panel"...` visible on the dashboard).
 

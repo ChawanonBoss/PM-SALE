@@ -1965,19 +1965,20 @@
 
 <script>
 /* ====== Firebase ======
-   Uses the same Firebase project as BU-ABB (shared sign-in accounts) but its own `pm_`-prefixed
-   collections, so the two sites' data, roles and rules never mix. To move PM-SALE to a project of
-   its own, just replace FIREBASE_CONFIG below (and publish PM-SALE/firestore.rules there). */
+   PM-SALE's own Firebase project ("pm-sale-d9f3d"), separate from BU-ABB's "bu-abb" project - it used to
+   share that project (own pm_-prefixed collections, but one physical ruleset merged with BU-ABB's own
+   rules) until split out here so each app's Firestore rules are a fully standalone, directly-pasteable
+   file with no merge-markers or cross-app reconciling needed any more (see firestore.rules in this repo). */
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBQPnX541zoj8kCCyqgFXhR-DDwbAG7YQ8",
-  authDomain: "bu-abb.firebaseapp.com",
-  projectId: "bu-abb",
-  storageBucket: "bu-abb.firebasestorage.app",
-  messagingSenderId: "217323290836",
-  appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
+  apiKey: "AIzaSyDN_t0yYMsRzXdpM6MaOABp_t_uUmL5Q2k",
+  authDomain: "pm-sale-d9f3d.firebaseapp.com",
+  projectId: "pm-sale-d9f3d",
+  storageBucket: "pm-sale-d9f3d.firebasestorage.app",
+  messagingSenderId: "731171924728",
+  appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.0';
+const APP_VERSION = '1.27.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
