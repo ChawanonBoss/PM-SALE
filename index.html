@@ -509,9 +509,9 @@
   .cal-chip.cat-appointment{ background:var(--cal-plum-tint); border-color:var(--cal-plum); color:var(--cal-plum-ink); }
   .cal-day-empty{ font-size:11.5px; color:var(--ink-soft); opacity:.6; text-align:center; padding-top:10px; }
 
-  .cal-month-grid{ display:grid; grid-template-columns:repeat(7,1fr); background:var(--card); border-radius:20px; box-shadow:var(--shadow-ext); overflow:hidden; }
-  .cal-month-dow{ display:grid; grid-template-columns:repeat(7,1fr); text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.05em; color:var(--ink-soft); text-transform:uppercase; padding-bottom:8px; }
-  .cal-month-cell{ min-height:104px; border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px; }
+  .cal-month-grid{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); background:var(--card); border-radius:20px; box-shadow:var(--shadow-ext); overflow:hidden; }
+  .cal-month-dow{ display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); text-align:center; font-size:10.5px; font-weight:700; letter-spacing:.05em; color:var(--ink-soft); text-transform:uppercase; padding-bottom:8px; }
+  .cal-month-cell{ min-height:104px; min-width:0; border-right:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px; }
   .cal-month-cell.other-month{ background:rgba(var(--sh-lo),0.06); }
   .cal-month-date{ font-family:var(--font-display); font-size:13px; font-weight:700; color:var(--ink); width:22px; height:22px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin-bottom:4px; }
   .cal-month-cell.other-month .cal-month-date{ color:var(--ink-soft); opacity:.5; }
@@ -1283,7 +1283,7 @@
       </div>
     </div>
     <form id="projectForm">
-      <fieldset id="prjFormFieldset" style="border:none; margin:0; padding:0;">
+      <fieldset id="prjFormFieldset" style="border:none; margin:0; padding:0; min-width:0;">
       <div class="form-grid">
         <input type="hidden" id="prjJobType" value="project">
         <div class="field"><label id="prjNameLabel">ชื่อโครงการ *</label><input type="text" id="prjName" required></div>
@@ -1564,7 +1564,7 @@
       </div>
     </div>
     <form id="serviceWarehouseForm">
-      <fieldset id="svcFormFieldset" style="border:none; margin:0; padding:0;">
+      <fieldset id="svcFormFieldset" style="border:none; margin:0; padding:0; min-width:0;">
       <div class="form-grid">
         <div class="field"><label>Part *</label><input type="text" id="svcPart" required></div>
         <div class="field"><label>ซัพพลายเออร์</label>
@@ -1740,7 +1740,7 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.23.11';
+const APP_VERSION = '1.23.12';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -1862,7 +1862,11 @@ $('railMenuVersion').textContent = 'Version ' + APP_VERSION;
 const I18N_EN = {
   // Nav / rail
   'แดชบอร์ด':'Dashboard', 'ปฏิทิน':'Calendar', 'ซื้อขาย/โครงการ':'Sales/Projects', 'แผนดำเนินการ':'Action Plan',
-  'แผนดำเนินงานโครงการ':'Action Plan', 'ยังไม่มีแผนดำเนินการ':'No Action Plan yet',
+  'แผนดำเนินงานโครงการ':'Action Plan', 'ยังไม่มีแผนดำเนินการ':'No Action Plan yet', 'ประกันหมดอายุ':'Warranty expiry',
+  'ไม่ได้ผูกกับอุปกรณ์ในโกดัง — เลือกด้านล่างเพื่อผูก':'Not linked to a warehouse item — pick one below to link',
+  'ไม่ได้ผูกกับบริการในโกดังบริการ — เลือกด้านล่างเพื่อผูก':'Not linked to a service in the service warehouse — pick one below to link',
+  'ไม่ได้ผูกกับบริการในโกดังบริการ':'Not linked to a service in the service warehouse',
+  'ยังไม่มีไฟล์แนบ':'No attachments yet',
   'คลังและอุปกรณ์':'Warehouse & Equipment', 'ลูกค้าและบริษัท':'Customers & Companies', 'ตั้งค่า':'Settings', 'เมนู':'Menu',
   'ซิงก์แล้ว':'Synced', 'กำลังบันทึก...':'Saving...', 'ผิดพลาด':'Error',
   'โหมดมืด':'Dark mode', 'โหมดสว่าง':'Light mode', 'English':'ไทย', 'ออกจากระบบ':'Sign out',
@@ -2956,7 +2960,7 @@ function renderCalMonth(byDate){
   const dowRow = '<div class="cal-month-dow">' + dowMonFirst.map(x => `<span>${x}</span>`).join('') + '</div>';
   const grid = Array.from({ length: 42 }, (_, i) => calAddDays(gridStart, i)).map(d => {
     const ymd = calYMD(d), evs = byDate[ymd] || [], otherMonth = d.getMonth() !== m, isToday = ymd === today;
-    const shown = evs.slice(0, 3), more = evs.length > 3 ? `<div class="cal-month-more">+${evs.length - 3} เพิ่มเติม</div>` : '';
+    const shown = evs.slice(0, 3), more = evs.length > 3 ? `<div class="cal-month-more">+${evs.length - 3} ${currentLang === 'en' ? 'more' : 'เพิ่มเติม'}</div>` : '';
     return `<div class="cal-month-cell ${otherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}">
       <div class="cal-month-date">${d.getDate()}</div>${shown.map(e => calChip(e, true)).join('')}${more}
     </div>`;
@@ -3132,9 +3136,10 @@ function renderJobs(kind){
   const view = pageSlice(k, rows);
   $(k + 'Body').innerHTML = rows.length ? view.map(p => {
     const its = p.items || [], done = its.filter(i => i.status === 'done').length;
-    const itemsCell = `<td data-col="items">${its.length} รายการ${its.length ? `<div class="cell-sub">ดำเนินการแล้ว ${done}/${its.length}</div>` : ''}</td>`;
+    const en = currentLang === 'en';
+    const itemsCell = `<td data-col="items">${en ? `${its.length} items` : `${its.length} รายการ`}${its.length ? `<div class="cell-sub">${en ? `Done ${done}/${its.length}` : `ดำเนินการแล้ว ${done}/${its.length}`}</div>` : ''}</td>`;
     const total = Number(p.installmentTotal) || 0, delivered = lastDelivered(p);
-    const instCell = sale ? '' : `<td data-col="inst">${total ? `<span class="docno">${delivered}/${total}</span><div class="cell-sub">${delivered >= total ? 'ครบทุกงวด' : 'รอส่งงวดที่ ' + (delivered + 1)}</div>` : '<span class="cell-sub">-</span>'}</td>`;
+    const instCell = sale ? '' : `<td data-col="inst">${total ? `<span class="docno">${delivered}/${total}</span><div class="cell-sub">${delivered >= total ? (en ? 'All delivered' : 'ครบทุกงวด') : (en ? `Awaiting installment ${delivered + 1}` : 'รอส่งงวดที่ ' + (delivered + 1))}</div>` : '<span class="cell-sub">-</span>'}</td>`;
     const middle = sale
       ? `<td data-col="po">${escapeHtml(p.poNo || '-')}</td><td data-col="orderDate" style="white-space:nowrap;">${fmtDate(p.startDate)}</td>`
       : `<td data-col="contract">${escapeHtml(p.contractNo || '-')}${p.poNo ? `<div class="cell-sub">PO ${escapeHtml(p.poNo)}</div>` : ''}</td><td data-col="period" style="white-space:nowrap;">${fmtDate(p.startDate)}<div class="cell-sub">ถึง ${fmtDate(p.endDate)}</div></td>`;
@@ -3768,6 +3773,7 @@ function sampleActionPlanSteps(dayOffset){
   });
 }
 $('projectsAddSampleBtn').addEventListener('click', () => {
+  if (currentUserRole !== 'admin') return;   // the button is admin-only visually; this is the matching JS-side guard (defense-in-depth - the rules don't gate pm_projects/pm_customers creation by role)
   const names = new Set([...SALE_SAMPLE_DEFS, ...PROJECT_SAMPLE_DEFS.map(d => d[0])].map(n => `[ตัวอย่าง] ${n}`));
   if (data.projects.some(p => names.has(p.name))){ toast('มีข้อมูลตัวอย่างชุดนี้อยู่แล้ว'); return; }
   confirmAction('เพิ่มข้อมูลตัวอย่างชุดเต็ม (ซื้อขาย 5, โครงการ 5, แผนดำเนินการครบ, ลูกค้า 3, โกดังสินค้า 5, โกดังบริการ 5) ใช่หรือไม่?', async () => {
@@ -4253,7 +4259,7 @@ function renderPlanList(projects){
       <div class="plan-card-top"><b>${escapeHtml(pr.name)}</b>${statusBadge(projectStatus(pr))}</div>
       <div class="cell-sub">${pr.docNo ? `<span class="docno">${escapeHtml(pr.docNo)}</span> ` : ''}${escapeHtml(pr.customerName || '-')}${pr.contractNo ? ' · ' + escapeHtml(pr.contractNo) : ''}</div>
       ${sm.steps
-        ? `<div class="cell-sub">${sm.steps} หัวข้อ · ดำเนินการแล้ว ${sm.done}/${sm.total} (<b style="color:var(--ink);">${sm.progress}%</b>)</div>${planTrackHtml(pr)}`
+        ? `<div class="cell-sub">${currentLang === 'en' ? `${sm.steps} topics · Done ${sm.done}/${sm.total}` : `${sm.steps} หัวข้อ · ดำเนินการแล้ว ${sm.done}/${sm.total}`} (<b style="color:var(--ink);">${sm.progress}%</b>)</div>${planTrackHtml(pr)}`
         : `<div class="dash-empty" style="padding:6px 0 0;">ยังไม่มีแผนดำเนินการ</div>`}
     </div>`;
   }).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${projects.length ? 'ไม่พบโครงการตามเงื่อนไข' : 'ยังไม่มีโครงการ — สร้างโครงการที่หน้า "โครงการ" แล้วจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ'}</div>`;
@@ -4682,6 +4688,7 @@ async function seedSampleWarehouseSet(){
   return true;
 }
 $('warehouseAddSampleBtn').addEventListener('click', () => {
+  if (currentUserRole !== 'admin') return;   // matches the button's own admin-only visibility; the rules already block the extra sample/history keys for a non-admin too
   const parts = new Set(SAMPLE_WAREHOUSE_SET.map(r => r[0]));
   if (data.warehouse.some(w => parts.has(w.part))){ toast('มีข้อมูลตัวอย่างชุดนี้อยู่แล้วในโกดัง'); return; }
   confirmAction('เพิ่มข้อมูลตัวอย่างในโกดังสินค้า 5 รายการ (กล้องวงจรปิด 3, สวิตช์ 2) ใช่หรือไม่?', async () => {
@@ -5091,7 +5098,7 @@ function deleteProjectFile(id){
    both for an older sale saved before this feature existed. photoCounts{equipment,install} on the parent doc is kept in sync via
    FieldValue.increment() on every add/delete - it's what the โครงการ list's read-only "สถานะงาน" checkboxes read from, so a project/sale never
    needs its own photos loaded just to show whether photos exist. */
-const PHOTO_MAX_BYTES = 900 * 1024;   // base64 stays under Firestore's 1MB document limit, mirroring the pm_files cap
+const PHOTO_MAX_BYTES = 900000;   // must match firestore.rules' pm_photos/pm_files cap EXACTLY (900*1024=921600 would pass this check then get rejected by the rule)
 let photosProjectId = null;
 let projectPhotos = [];   // both sets, for whichever record is currently open
 let photosBackToView = false;   // "←กลับ" reopens the read-only view modal instead of landing bare on the list, when รูปภาพ was opened from there

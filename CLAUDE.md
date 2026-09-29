@@ -572,3 +572,65 @@ after a direct report that one line was "too few when testing":
   click if either set is already there), while the warehouse/service-warehouse pieces guard themselves independently -
   so re-running this after already using `#warehouseAddSampleBtn` on its own tops up only what's missing instead of
   duplicating or refusing outright.
+
+## Health-check pass (security-reviewer / performance / ux-reviewer)
+Run at the user's own request ("check the overall picture, what needs fixing or watching out for") after a run of
+feature work, not tied to one diff. Three subagents reviewed the live app independently; fixed what was concrete and
+low-risk, left two items as disclosed, deliberate non-fixes below.
+
+**Fixed:**
+- **Calendar month grid broke completely on phone width once a real (long) project name was in it.**
+  `.cal-month-grid`/`.cal-month-dow` used `grid-template-columns:repeat(7,1fr)` - without `minmax(0,1fr)`, a grid
+  track's minimum width defaults to its content's own min-content size, so one cell with a long unbroken chip title
+  could force that whole COLUMN wider than 1/7, pushing the other 6 off-screen with no scrollbar to reach them (the
+  grid uses `overflow:hidden`). Fixed to `repeat(7,minmax(0,1fr))` on both, plus `min-width:0` on `.cal-month-cell`
+  itself (a grid item's default `min-width:auto` can still refuse to shrink below its content otherwise, even once the
+  track allows it) - `.cal-chip-mini` already had `text-overflow:ellipsis`, it just never got the chance to apply.
+- **The whole ซื้อขาย/โครงการ item-entry form overflowed sideways on phone width, not just its items table.**
+  `#prjFormFieldset`/`#svcFormFieldset` (wraps the entire form for the view/edit-mode `disabled` toggle - see
+  "click-a-row to view, edit-in-place" above) is a `<fieldset>`, and a bare `<fieldset>` has a browser-default
+  `min-width:min-content` - the classic "fieldset trap." A wide item-table row (product select + 3 serial dropdowns)
+  was enough to force the ENTIRE fieldset - and therefore every other field in the form, not just the table - out to
+  ~747px inside a 343px modal, with no visual hint that the page needed to scroll sideways to see it. Fixed with an
+  inline `min-width:0` on both fieldsets.
+- **`PHOTO_MAX_BYTES` (900\*1024 = 921,600) didn't match `firestore.rules`' own `pm_photos`/`pm_files` cap
+  (exactly 900000).** A photo that passed the client-side size check between those two numbers would still get
+  rejected by the rule at save time (`permission-denied`) - a real, reachable UX bug, not just a theoretical mismatch.
+  Changed the constant to `900000` exactly.
+- **A non-admin job owner could reopen their own closed ซื้อขาย.** `closeJobButton`'s "a closed sale can never be
+  deleted" guarantee (see "ซื้อขาย: ปิดงาน" above) was only ever enforced by `deleteEntity()` checking
+  `!x.closedAt` client-side - nothing stopped the owner from calling
+  `db.collection('pm_projects').doc(id).update({closedAt: firebase.firestore.FieldValue.delete()})` directly, then
+  deleting the now-"unclosed" job. `firestore.rules`' `pm_projects` update rule now lets a non-admin owner set
+  `closedAt`/`closedBy` for the first time (the real ปิดงาน action still works), but once `closedAt` is already set,
+  only an admin may change or clear either field - **this reference copy needs pasting into the Firebase Console and
+  re-testing with a throw-away `pmtest.*@example.com` account before it's actually enforced**, per the standing rule
+  for any `firestore.rules` change in this repo.
+- **`#projectsAddSampleBtn`/`#warehouseAddSampleBtn` had no JS-side admin check**, only the button's own hidden
+  visibility - a non-admin could still call the click handler directly from the console. The rules already block the
+  warehouse-seeding half for a non-admin (extra `sample`/`history` keys fail `hasOnly()`), so the real exposure was
+  narrow (creating fake ซื้อขาย/โครงการ/customers under their own `createdBy`, which they could already do through
+  the normal form anyway), but added `if (currentUserRole !== 'admin') return;` to both handlers as defense-in-depth.
+- **A handful of composite/hardcoded strings still showed Thai in English mode**, caught by screenshot rather than a
+  DOM check: the Action Plan list card's "N หัวข้อ · ดำเนินการแล้ว X/Y" line, the ซื้อขาย/โครงการ list's "Items"
+  column ("N รายการ" / "ดำเนินการแล้ว X/Y") and its "งวดงาน" sub-line ("ครบทุกงวด" / "รอส่งงวดที่ N"), the
+  calendar's own "+N เพิ่มเติม" month-cell overflow chip, and the item-form's "not linked to a warehouse/service"
+  hint text. The first four are composite strings (mix a fixed word with live data) so they now pick their own
+  English/Thai wording off `currentLang` directly, same pattern as `renderPager()`; the calendar warranty-expiry
+  event's `meta:'ประกันหมดอายุ'` and the item-form hint strings are static, so those just needed a dictionary entry.
+
+**Left as disclosed, deliberate non-fixes (not silently ignored - flagged to the user directly):**
+- **`commitProject()` never re-reads the `pm_projects` document itself inside its own transaction** before
+  overwriting it with `tx.set`/`tx.update(ref, full)` - it transactionally reads/writes the WAREHOUSE docs it touches,
+  but the project document's own update is a blind overwrite of whatever was in the form when it was opened. Two
+  people editing the same job at once could have the second save silently clobber the first's changes, and the second
+  save's own `stockEffects()` diff is computed against the stale `editingOrigItems` snapshot from when THEIR form was
+  opened, not the other person's already-saved state. This got a little more exposed by the "Item status" removal
+  above (stock changes used to also apply instantly per-row for an already-open job; now everything waits for one
+  whole-form save, widening the window a real concurrent edit has to collide in) - real fix would need either an
+  optimistic-concurrency read/check inside the transaction or narrowing to field-level updates, both bigger changes
+  than this pass's scope. Flagged for the user to decide priority on, not fixed here.
+- **`pm_warehouse` update rule lets any approved user directly edit any warehouse item's quantity/serials/history**,
+  with no check that the change matches a real effect from an actual `pm_projects` save - this is an existing,
+  already-documented trust model (shared warehouse, not per-transaction verified), not something this session's
+  changes made worse, so left alone rather than redesigned as part of a health-check pass.

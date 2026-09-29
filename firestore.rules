@@ -32,9 +32,16 @@
     match /pm_projects/{id} {
       allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
       allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
+      // A non-admin owner may set closedAt/closedBy for the first time (the real "ปิดงาน" action), but once a job is
+      // closed, only an admin may change or clear those two fields - otherwise the owner could reopen a closed sale
+      // themselves (bypassing the app's own "a closed sale can never be deleted" rule, since deleteEntity() only checks
+      // client-side that closedAt is unset) by clearing closedAt directly, then deleting it.
       allow update: if pmIsAdmin()
         || (pmIsApproved() && resource.data.createdBy == request.auth.uid
-            && request.resource.data.createdBy == resource.data.createdBy);
+            && request.resource.data.createdBy == resource.data.createdBy
+            && (resource.data.get('closedAt', null) == null
+                || (request.resource.data.get('closedAt', null) == resource.data.get('closedAt', null)
+                    && request.resource.data.get('closedBy', null) == resource.data.get('closedBy', null))));
       allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
