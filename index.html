@@ -1177,28 +1177,13 @@
           <div class="cell-sub" id="travelHeaderPreview" style="font-weight:600; color:var(--ink); margin-bottom:10px;"></div>
           <div class="table-scroll"><table class="m-cards" id="travelTable">
             <thead><tr>
-              <th>#</th><th>วันที่</th><th>จาก</th><th>ถึง</th><th>ลูกค้า</th><th>รายการปฏิบัติงาน</th>
+              <th>#</th><th>ไป/กลับ</th><th>วันที่</th><th>จาก</th><th>ถึง</th><th>ลูกค้า</th><th>รายการปฏิบัติงาน</th>
               <th>ระยะทาง (กม.)</th><th>ค่า/กม. (บาท)</th><th>ทางด่วน</th><th>ที่จอดรถ</th><th>อื่นๆ</th><th>รวม (บาท)</th><th></th>
             </tr></thead>
             <tbody id="travelBody"></tbody>
             <tfoot id="travelFoot"></tfoot>
           </table></div>
           <div class="pager" id="travelPager"></div>
-        </div>
-      </div>
-
-      <!-- Travel expenses: photo gallery per trip -->
-      <div id="tab-travelPhotos" class="tab-panel" style="display:none;">
-        <div class="panel">
-          <div class="plan-head">
-            <button class="btn outline" type="button" id="travelPhotosBackBtn">← กลับ</button>
-            <h3 style="margin:0;">รูปภาพการเดินทาง</h3>
-          </div>
-          <p class="panel-note">กด "+ เพิ่มรูป" ในแถวของการเดินทางนั้นๆ เพื่อแนบรูป (ต้องเลือกรายการเดินทางก่อนเสมอ - รูปจะผูกกับแถวนั้นโดยตรง)</p>
-          <div class="table-scroll"><table class="m-cards">
-            <thead><tr><th>#</th><th>วันที่</th><th>จาก</th><th>ถึง</th><th>รูปภาพ</th></tr></thead>
-            <tbody id="travelPhotosBody"></tbody>
-          </table></div>
         </div>
       </div>
 
@@ -1722,6 +1707,20 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="travelPhotoModal" style="display:none;">
+  <div class="modal" style="max-width:380px;">
+    <h3 class="serif" style="font-size:19px; margin-bottom:6px;">รูปภาพการเดินทาง</h3>
+    <div class="cell-sub" id="travelPhotoMeta" style="margin-bottom:12px;"></div>
+    <div class="photo-grid" id="travelPhotoGrid" style="grid-template-columns:1fr 1fr; max-width:220px;"></div>
+    <label class="btn outline" id="travelPhotoAddLabel" style="cursor:pointer; margin-top:14px; display:inline-block;">
+      + แนบรูปภาพ<input type="file" accept="image/*" id="travelPhotoInput" style="display:none;">
+    </label>
+    <div class="modal-actions">
+      <button class="btn outline" type="button" id="travelPhotoCloseBtn">ปิด</button>
+    </div>
+  </div>
+</div>
+
 <!-- Serial numbers viewer -->
 <div class="modal-overlay" id="serialModal" style="display:none;">
   <div class="modal" style="max-width:780px;">
@@ -1861,13 +1860,13 @@ const FIREBASE_CONFIG = {
   appId: "1:217323290836:web:a2861aa575a5c0e1027b41"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.24.1';
+const APP_VERSION = '1.25.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
   projects:'pm_projects', customers:'pm_customers', companies:'pm_companies',
   warehouse:'pm_warehouse', serviceWarehouse:'pm_serviceWarehouse', files:'pm_files', photos:'pm_photos', catalogs:'pm_catalogs', catalogChunks:'pm_catalogChunks', counters:'pm_counters', users:'pm_users', pending:'pm_pendingRoles', audit:'pm_auditLog', errors:'pm_errorLog', appointments:'pm_appointments',
-  travel:'pm_travelExpenses', travelPhotos:'pm_travelPhotos'
+  travel:'pm_travelExpenses'
 };
 const LOGIN_TS_KEY = 'pm-sale-login-ts';
 const SESSION_MAX_AGE_MS = 4 * 60 * 60 * 1000;
@@ -2283,10 +2282,9 @@ const TITLES = {
   audit:['ประวัติของระบบ','บันทึกการแก้ไขและข้อผิดพลาด'],
   trash:['ถังขยะ','กู้คืนหรือลบถาวร'],
   photos:['รูปภาพการส่งมอบงาน','แนบรูปภาพอุปกรณ์และรูปภาพงานติดตั้ง'],
-  travel:['ค่าเดินทาง','บันทึกการเดินทางไปพบลูกค้าหรือไปทำงานนอกสถานที่ คำนวณค่าใช้จ่ายและพิมพ์เป็น PDF รายเดือน'],
-  travelPhotos:['รูปภาพการเดินทาง','แนบรูปภาพประกอบการเดินทางแต่ละรายการ']
+  travel:['ค่าเดินทาง','บันทึกการเดินทางไปพบลูกค้าหรือไปทำงานนอกสถานที่ คำนวณค่าใช้จ่ายและพิมพ์เป็น PDF รายเดือน']
 };
-const ADMIN_ONLY_TABS = ['users','audit','trash','travel','travelPhotos'];
+const ADMIN_ONLY_TABS = ['users','audit','trash','travel'];
 function showTab(tab){
   if (ADMIN_ONLY_TABS.includes(tab) && currentUserRole !== 'admin') tab = 'dashboard';
   currentTab = tab;
@@ -2308,7 +2306,7 @@ document.querySelectorAll('.nav-item[data-tab]').forEach(btn => btn.addEventList
 function renderActiveTab(){
   const fn = {
     dashboard:renderDashboard, calendar:renderCalendar, sales:renderSales, projects:renderProjects, actionplan:renderActionPlan, equipment:renderEquipment, warehouse:renderWarehouse, serviceWarehouse:renderServiceWarehouse, catalog:renderCatalogs,
-    customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit, photos:renderPhotos, travel:renderTravel, travelPhotos:renderTravelPhotos
+    customers:renderCustomers, companies:renderCompanies, users:renderUsers, audit:renderAudit, photos:renderPhotos, travel:renderTravel
   }[currentTab];
   if (fn) fn();
   updateNavBadge();
@@ -5035,7 +5033,13 @@ $('serviceWarehouseForm').addEventListener('submit', async e => {
    รายการปฏิบัติงาน each have their own separate pool - all four use the same makeAddableSelect() factory the warehouse pages do.
    ค่าระยะทาง (TRAVEL_RATE_PER_KM) and a row's รวม are never user-editable - "ผลรวม" is always recomputed from the other fields,
    both live in the form (updateTravelTotal()) and again server-side-equivalent at save time, so a row can never be saved with a
-   total that doesn't match its own numbers. */
+   total that doesn't match its own numbers.
+   "ไป-กลับ" is a single boolean field on the ONE document (`roundTrip`), not a second document - a real report from the first
+   version of this feature said saving two full rows for a round trip didn't match what was actually wanted. A round-trip
+   document renders as TWO table rows (`travelLegRow()`) sharing one ลำดับ number: the "ไป" row is the record itself in full,
+   the "กลับ" row underneath has its # left blank, its locations swapped, and every numeric/customer/task cell left blank too -
+   it exists to document that a return leg happened, not to add a second costed line (the total is not doubled). Only the "ไป"
+   row carries the "รูปภาพ"/"ลบ" row-actions, since the "กลับ" row isn't its own record. */
 const TRAVEL_RATE_PER_KM = 6;
 const TRAVEL_OWNER_NAME = 'นาย ชวนนท์ ตันชัยฤทธิกุล';
 const travelFromSel = makeAddableSelect({ sel:'travelFrom', addBtn:'travelFromAddBtn', newRow:'travelFromNewRow', newInput:'travelFromNew', ok:'travelFromNewOk', cancel:'travelFromNewCancel',
@@ -5073,6 +5077,30 @@ function travelSums(rows){
     park: s.park + Number(t.parkingFee || 0), other: s.other + Number(t.otherFee || 0), total: s.total + Number(t.total || 0)
   }), { dist:0, toll:0, park:0, other:0, total:0 });
 }
+// One document renders as ONE row (num set, isReturn false) or TWO rows when roundTrip is set (a second call with num:null,
+// isReturn:true) - see the module comment above for why this is a display split, not a second record.
+function travelLegRow(t, num, isReturn){
+  const from = isReturn ? t.toLocation : t.fromLocation, to = isReturn ? t.fromLocation : t.toLocation;
+  return `<tr ${isReturn ? '' : `onclick="if(!event.target.closest('.row-actions')) openTravelView('${t.id}')" title="กดเพื่อดูรายละเอียด"`}>
+    <td class="cell-sub">${num != null ? num : ''}</td>
+    <td class="cell-sub">${isReturn ? 'กลับ' : 'ไป'}</td>
+    <td style="white-space:nowrap;">${fmtDate(t.date)}</td>
+    <td>${escapeHtml(from || '-')}</td>
+    <td>${escapeHtml(to || '-')}</td>
+    <td>${isReturn ? '' : escapeHtml(t.customerName || '-')}</td>
+    <td>${isReturn ? '' : escapeHtml(t.task || '-')}</td>
+    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.distanceKm)}</td>
+    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(TRAVEL_RATE_PER_KM)}</td>
+    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.tollFee)}</td>
+    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.parkingFee)}</td>
+    <td class="cell-sub" style="text-align:right;">${isReturn ? '' : fmtNum(t.otherFee)}</td>
+    <td style="text-align:right;">${isReturn ? '' : `<b>${fmtNum(t.total)}</b>`}</td>
+    <td>${isReturn ? '' : `<div class="row-actions">
+      <button class="icon-btn" onclick="openTravelPhotoModal('${t.id}')">รูปภาพ${t.photoData ? ' ✓' : ''}</button>
+      <button class="icon-btn delete-btn" onclick="deleteEntity('travel','${t.id}')">ลบ</button>
+    </div>`}</td>
+  </tr>`;
+}
 function renderTravel(){
   fillTravelMonthFilter();
   const year = new Date().getFullYear(), month = Number($('travelMonthFilter').value) || (new Date().getMonth() + 1);
@@ -5084,28 +5112,11 @@ function renderTravel(){
   const view = pageSlice('travel', rows);
   $('travelBody').innerHTML = rows.length ? view.map(t => {
     const i = rows.indexOf(t);
-    return `<tr onclick="if(!event.target.closest('.row-actions')) openTravelView('${t.id}')" title="กดเพื่อดูรายละเอียด">
-      <td class="cell-sub">${i + 1}</td>
-      <td style="white-space:nowrap;">${fmtDate(t.date)}</td>
-      <td>${escapeHtml(t.fromLocation || '-')}</td>
-      <td>${escapeHtml(t.toLocation || '-')}</td>
-      <td>${escapeHtml(t.customerName || '-')}</td>
-      <td>${escapeHtml(t.task || '-')}</td>
-      <td class="cell-sub" style="text-align:right;">${fmtNum(t.distanceKm)}</td>
-      <td class="cell-sub" style="text-align:right;">${fmtNum(TRAVEL_RATE_PER_KM)}</td>
-      <td class="cell-sub" style="text-align:right;">${fmtNum(t.tollFee)}</td>
-      <td class="cell-sub" style="text-align:right;">${fmtNum(t.parkingFee)}</td>
-      <td class="cell-sub" style="text-align:right;">${fmtNum(t.otherFee)}</td>
-      <td style="text-align:right;"><b>${fmtNum(t.total)}</b></td>
-      <td><div class="row-actions">
-        <button class="icon-btn" onclick="openTravelPhotosPage('${t.id}')">รูปภาพ${t.photoCount ? ` (${t.photoCount})` : ''}</button>
-        <button class="icon-btn delete-btn" onclick="deleteEntity('travel','${t.id}')">ลบ</button>
-      </div></td>
-    </tr>`;
-  }).join('') : `<tr><td colspan="13" class="empty-row">ยังไม่มีรายการเดินทางในเดือนนี้</td></tr>`;
+    return travelLegRow(t, i + 1, false) + (t.roundTrip ? travelLegRow(t, null, true) : '');
+  }).join('') : `<tr><td colspan="14" class="empty-row">ยังไม่มีรายการเดินทางในเดือนนี้</td></tr>`;
   const sums = travelSums(rows);
   $('travelFoot').innerHTML = rows.length ? `<tr style="font-weight:700;">
-      <td colspan="6" style="text-align:right;">รวมทั้งเดือน</td>
+      <td colspan="7" style="text-align:right;">รวมทั้งเดือน</td>
       <td style="text-align:right;">${fmtNum(sums.dist)}</td><td></td>
       <td style="text-align:right;">${fmtNum(sums.toll)}</td>
       <td style="text-align:right;">${fmtNum(sums.park)}</td>
@@ -5176,7 +5187,9 @@ $('travelForm').addEventListener('submit', async e => {
     // special-casing for this collection, exactly like every other entity type already registered in ENTITY_LABEL
     name: `${fmtDate(date)} ${fromLocation} → ${toLocation}`
   };
-  const roundTrip = !editingTravelId && $('travelRoundTrip').checked;
+  // roundTrip is only ever SET at creation (the checkbox is hidden while editing - see openTravelForm()); leaving the key out
+  // entirely on an edit's update() means Firestore just keeps whatever value the document already had.
+  if (!editingTravelId) doc.roundTrip = $('travelRoundTrip').checked;
   $('travelSaveBtn').disabled = true;
   setSync('saving');
   try{
@@ -5184,20 +5197,12 @@ $('travelForm').addEventListener('submit', async e => {
       await db.collection(COL.travel).doc(editingTravelId).update(doc);
       logAudit('แก้ไขค่าเดินทาง', doc.name, `รวม ${fmtNum(doc.total)} บาท`);
     } else {
-      await db.collection(COL.travel).add({ ...doc, photoCount:0, createdBy: currentUserUid, createdAt: new Date().toISOString() });
-      logAudit('เพิ่มค่าเดินทาง', doc.name, `รวม ${fmtNum(doc.total)} บาท`);
-      // "ไป-กลับ": the return leg swaps only fromLocation/toLocation - date, customer, task, distance and every fee carry
-      // over unchanged (the user's own spec only called out the locations swapping and the distance staying the same;
-      // nothing said to zero out tolls/parking, and a real round trip usually costs the same either way).
-      if (roundTrip){
-        const back = { ...doc, fromLocation: doc.toLocation, toLocation: doc.fromLocation, name: `${fmtDate(date)} ${doc.toLocation} → ${doc.fromLocation}` };
-        await db.collection(COL.travel).add({ ...back, photoCount:0, createdBy: currentUserUid, createdAt: new Date().toISOString() });
-        logAudit('เพิ่มค่าเดินทาง (ขากลับ)', back.name, `รวม ${fmtNum(back.total)} บาท`);
-      }
+      await db.collection(COL.travel).add({ ...doc, createdBy: currentUserUid, createdAt: new Date().toISOString() });
+      logAudit('เพิ่มค่าเดินทาง', doc.name, `รวม ${fmtNum(doc.total)} บาท${doc.roundTrip ? ' (ไป-กลับ)' : ''}`);
     }
     setSync('ok');
     closeModal('travelModal');
-    toast(roundTrip ? 'บันทึกรายการเดินทางไป-กลับแล้ว 2 รายการ' : 'บันทึกรายการเดินทางแล้ว');
+    toast('บันทึกรายการเดินทางแล้ว');
   }catch(err){
     setSync('error');
     toast(err && /permission|insufficient/i.test(err.message || '') ? 'บันทึกไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses ที่ Firebase Console' : 'บันทึกไม่สำเร็จ');
@@ -5211,14 +5216,20 @@ function printTravel(){
   const rows = travelRowsForMonth(month, year);
   if (!rows.length){ toast('ไม่มีรายการเดินทางในเดือนนี้ให้พิมพ์'); return; }
   const sums = travelSums(rows);
-  const body = rows.map((t, i) => `<tr>
-      <td class="c">${i + 1}</td><td class="c">${fmtDate(t.date)}</td>
-      <td>${escapeHtml(t.fromLocation || '-')}</td><td>${escapeHtml(t.toLocation || '-')}</td>
-      <td>${escapeHtml(t.customerName || '-')}</td><td>${escapeHtml(t.task || '-')}</td>
-      <td class="c">${fmtNum(t.distanceKm)}</td><td class="c">${fmtNum(TRAVEL_RATE_PER_KM)}</td>
-      <td class="c">${fmtNum(t.tollFee)}</td><td class="c">${fmtNum(t.parkingFee)}</td><td class="c">${fmtNum(t.otherFee)}</td>
-      <td class="c pr-name">${fmtNum(t.total)}</td>
-    </tr>`).join('');
+  // No separate "ไป/กลับ" column in print (per the user's own call) - a round trip's return leg is instead a second <tr> whose
+  // # is blank and whose locations are swapped, the same visual language the on-screen table uses, just without that one column.
+  const legRow = (t, num, isReturn) => {
+    const from = isReturn ? t.toLocation : t.fromLocation, to = isReturn ? t.fromLocation : t.toLocation;
+    return `<tr>
+      <td class="c">${num != null ? num : ''}</td><td class="c">${fmtDate(t.date)}</td>
+      <td>${escapeHtml(from || '-')}</td><td>${escapeHtml(to || '-')}</td>
+      <td>${isReturn ? '' : escapeHtml(t.customerName || '-')}</td><td>${isReturn ? '' : escapeHtml(t.task || '-')}</td>
+      <td class="c">${isReturn ? '' : fmtNum(t.distanceKm)}</td><td class="c">${isReturn ? '' : fmtNum(TRAVEL_RATE_PER_KM)}</td>
+      <td class="c">${isReturn ? '' : fmtNum(t.tollFee)}</td><td class="c">${isReturn ? '' : fmtNum(t.parkingFee)}</td><td class="c">${isReturn ? '' : fmtNum(t.otherFee)}</td>
+      <td class="c pr-name">${isReturn ? '' : fmtNum(t.total)}</td>
+    </tr>`;
+  };
+  const body = rows.map((t, i) => legRow(t, i + 1, false) + (t.roundTrip ? legRow(t, null, true) : '')).join('');
   const foot = `<tr style="font-weight:700;">
       <td colspan="6" class="c">รวม</td><td class="c">${fmtNum(sums.dist)}</td><td></td>
       <td class="c">${fmtNum(sums.toll)}</td><td class="c">${fmtNum(sums.park)}</td><td class="c">${fmtNum(sums.other)}</td><td class="c">${fmtNum(sums.total)}</td>
@@ -5237,69 +5248,55 @@ function printTravel(){
 }
 $('travelPrintBtn').addEventListener('click', printTravel);
 
-/* ---- Travel photos: one shared gallery page listing every trip, each with its own inline upload + thumbnail strip - "เลือก
-   สถานที่ก่อน" just means picking which trip's OWN uploader you use, there's no separate selection step since every row already
-   identifies its own trip. No sets/equipment-linking like the ซื้อขาย/โครงการ photo page - a trip only ever has one kind of photo. ---- */
-function openTravelPhotosPage(){ showTab('travelPhotos'); }
-$('travelPhotosBackBtn').addEventListener('click', () => showTab('travel'));
-function renderTravelPhotos(){
-  const rows = [...data.travel].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  $('travelPhotosBody').innerHTML = rows.length ? rows.map((t, i) => `
-    <tr>
-      <td class="cell-sub">${i + 1}</td>
-      <td style="white-space:nowrap;">${fmtDate(t.date)}</td>
-      <td>${escapeHtml(t.fromLocation || '-')}</td>
-      <td>${escapeHtml(t.toLocation || '-')}</td>
-      <td>
-        <div class="photo-grid" id="travelPhotoGrid_${t.id}" style="margin-bottom:8px;"></div>
-        <label class="btn outline" style="cursor:pointer; font-size:12.5px; padding:4px 10px; display:inline-block;">+ เพิ่มรูป
-          <input type="file" accept="image/*" multiple style="display:none;" onchange="addTravelPhotos('${t.id}', this.files); this.value='';">
-        </label>
-      </td>
-    </tr>`).join('') : `<tr><td colspan="5" class="empty-row">ยังไม่มีรายการเดินทาง - เพิ่มที่หน้า "ค่าเดินทาง" ก่อน</td></tr>`;
-  rows.forEach(t => loadTravelPhotoThumbs(t.id));
+/* ---- Travel photos: exactly ONE photo per trip, stored directly on the pm_travelExpenses document itself (photoData/photoType)
+   rather than a separate collection/gallery page - "แนบได้แค่ 1 รูปสำหรับ 1 รายการเท่านั้น โดยอ้างอิงจากรายการหลัก". A small
+   modal (#travelPhotoModal) opened from the main record's own "รูปภาพ" row-action is the only place a photo is added/replaced/
+   removed; there is no separate "which trip" selection step since the modal is always opened FROM that specific row already. ---- */
+let travelPhotoTripId = null;
+function openTravelPhotoModal(id){
+  const t = data.travel.find(x => x.id === id);
+  if (!t) return;
+  travelPhotoTripId = id;
+  $('travelPhotoMeta').textContent = `${fmtDate(t.date)} · ${t.fromLocation} → ${t.toLocation}`;
+  renderTravelPhotoGrid();
+  openModal('travelPhotoModal');
 }
-function loadTravelPhotoThumbs(tripId){
-  const grid = $('travelPhotoGrid_' + tripId);
-  if (!grid) return;
-  // Always queries (never gated on the cached photoCount) - a just-uploaded photo's increment() and this call can race against
-  // the realtime listener updating data.travel, and a trip's photo count is small enough that querying unconditionally is cheap.
-  db.collection(COL.travelPhotos).where('tripId', '==', tripId).get().then(snap => {
-    const g = $('travelPhotoGrid_' + tripId);
-    if (!g) return;   // navigated away meanwhile
-    g.innerHTML = snap.docs.map(d => {
-      const p = d.data();
-      return `<div class="photo-item"><img src="data:${p.type || 'image/jpeg'};base64,${p.data}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
-        <button type="button" class="icon-btn delete-btn" onclick="deleteTravelPhoto('${d.id}','${tripId}')" aria-label="ลบรูปภาพ">ลบ</button></div>`;
-    }).join('');
-  }).catch(() => {});
+function renderTravelPhotoGrid(){
+  const t = data.travel.find(x => x.id === travelPhotoTripId);
+  $('travelPhotoGrid').innerHTML = t && t.photoData
+    ? `<div class="photo-item"><img src="data:${t.photoType || 'image/jpeg'};base64,${t.photoData}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
+        <button type="button" class="icon-btn delete-btn" onclick="deleteTravelPhoto()" aria-label="ลบรูปภาพ">ลบ</button></div>`
+    : '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
+  // only one photo per trip - hide "+ แนบรูปภาพ" once one exists; delete first to replace it
+  $('travelPhotoAddLabel').style.display = (t && t.photoData) ? 'none' : 'inline-block';
 }
-async function addTravelPhotos(tripId, files){
-  const t = data.travel.find(x => x.id === tripId);
-  if (!t || !files.length) return;
-  let added = 0;
+$('travelPhotoCloseBtn').addEventListener('click', () => closeModal('travelPhotoModal'));
+$('travelPhotoInput').addEventListener('change', async e => {
+  const file = e.target.files[0]; e.target.value = '';
+  const t = data.travel.find(x => x.id === travelPhotoTripId);
+  if (!file || !t) return;
+  if (!/^image\//.test(file.type)){ toast(`"${file.name}" ไม่ใช่รูปภาพ`); return; }
+  let dataUrl;
+  try{ dataUrl = await resizeImageToDataUrl(file, 1280, 'image/jpeg', 0.72); }
+  catch(err){ toast(`"${file.name}" อ่านไฟล์รูปไม่สำเร็จ`); return; }
+  const base64 = dataUrl.split(',')[1] || '';
+  if (base64.length > PHOTO_MAX_BYTES){ toast(`"${file.name}" ใหญ่เกินแม้ย่อขนาดแล้ว`); return; }
   try{
-    for (const f of files){
-      if (!/^image\//.test(f.type)){ toast(`"${f.name}" ไม่ใช่รูปภาพ`); continue; }
-      let dataUrl;
-      try{ dataUrl = await resizeImageToDataUrl(f, 1280, 'image/jpeg', 0.72); }
-      catch(e){ toast(`"${f.name}" อ่านไฟล์รูปไม่สำเร็จ`); continue; }
-      const base64 = dataUrl.split(',')[1] || '';
-      if (base64.length > PHOTO_MAX_BYTES){ toast(`"${f.name}" ใหญ่เกินแม้ย่อขนาดแล้ว`); continue; }
-      await db.collection(COL.travelPhotos).add({ tripId, name: f.name, size: base64.length, type:'image/jpeg', data: base64, createdBy: currentUserUid, createdAt: new Date().toISOString() });
-      await db.collection(COL.travel).doc(tripId).update({ photoCount: firebase.firestore.FieldValue.increment(1) });
-      added++;
-    }
-    if (added){ logAudit('แนบรูปภาพการเดินทาง', t.name, `${added} รูป`); toast(`แนบรูปภาพ ${added} รูปแล้ว`); }
-    loadTravelPhotoThumbs(tripId);
-  }catch(err){ toast(err && /permission|insufficient/i.test(err.message || '') ? 'แนบไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelPhotos' : 'แนบรูปภาพไม่สำเร็จ'); }
-}
-function deleteTravelPhoto(id, tripId){
+    await db.collection(COL.travel).doc(travelPhotoTripId).update({ photoData: base64, photoType: 'image/jpeg' });
+    t.photoData = base64; t.photoType = 'image/jpeg';   // optimistic - the realtime listener confirms the same state right after
+    logAudit('แนบรูปภาพค่าเดินทาง', t.name, '');
+    toast('แนบรูปภาพแล้ว');
+    renderTravelPhotoGrid();
+  }catch(err){ toast(err && /permission|insufficient/i.test(err.message || '') ? 'แนบไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses' : 'แนบรูปภาพไม่สำเร็จ'); }
+});
+function deleteTravelPhoto(){
+  const t = data.travel.find(x => x.id === travelPhotoTripId);
+  if (!t) return;
   confirmAction('ลบรูปภาพนี้ถาวรใช่หรือไม่?', async () => {
     try{
-      await db.collection(COL.travelPhotos).doc(id).delete();
-      await db.collection(COL.travel).doc(tripId).update({ photoCount: firebase.firestore.FieldValue.increment(-1) });
-      loadTravelPhotoThumbs(tripId);
+      await db.collection(COL.travel).doc(travelPhotoTripId).update({ photoData: firebase.firestore.FieldValue.delete(), photoType: firebase.firestore.FieldValue.delete() });
+      delete t.photoData; delete t.photoType;
+      renderTravelPhotoGrid();
       toast('ลบรูปภาพแล้ว');
     }catch(err){ toast('ลบไม่สำเร็จ'); }
   }, 'ลบรูปภาพ');
@@ -6386,8 +6383,7 @@ function purgeTrash(type, id){
     try{
       if (type === 'catalogs' && x) await Promise.all(Array.from({ length: x.chunks || 0 }, (_, n) => db.collection(COL.catalogChunks).doc(`${id}_${n}`).delete().catch(() => {})));   // the PDF's stored pieces go too
       if (type === 'projects') (await db.collection(COL.files).where('projectId', '==', id).get()).docs.forEach(d => db.collection(COL.files).doc(d.id).delete().catch(() => {}));   // its attachments go too
-      if (type === 'travel') (await db.collection(COL.travelPhotos).where('tripId', '==', id).get()).docs.forEach(d => db.collection(COL.travelPhotos).doc(d.id).delete().catch(() => {}));   // its photos go too
-      await db.collection(COL[type]).doc(id).delete();
+      await db.collection(COL[type]).doc(id).delete();   // ค่าเดินทาง's own photo (if any) lives inline on this same document, so it's gone automatically
       logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
       trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
       trashSel.delete(type + ':' + id);

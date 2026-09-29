@@ -43,7 +43,8 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     t = page.evaluate("data.travel[0]")
     assert t['distanceKm'] == 50 and t['rate'] == 6 and t['tollFee'] == 90 and t['parkingFee'] == 20 and t['otherFee'] == 10 and t['total'] == 420
     assert t['fromLocation'] == 'สำนักงานใหญ่' and t['toLocation'] == 'บริษัท ลูกค้า เอ จำกัด'
-    assert t['photoCount'] == 0
+    assert not t.get('roundTrip')
+    assert not t.get('photoData')
 
     # a second trip re-picking the SAME from/to pool (shared between the two dropdowns) - options should already include both places
     page.click('#travelCreateBtn'); page.wait_for_timeout(300)
@@ -55,6 +56,10 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     page.fill('#travelDate', today); page.fill('#travelDistance', '20')
     page.click('#travelSaveBtn'); page.wait_for_timeout(500)
     assert len(page.evaluate("data.travel")) == 2
+
+    # every row shows the ไป/กลับ column and only a real ("ไป") row is clickable/has row-actions
+    legs = page.evaluate("[...document.querySelectorAll('#travelBody tr td:nth-child(2)')].map(td => td.textContent.trim())")
+    assert legs == ['ไป', 'ไป'], legs
 
     # ---------------- list: totals row sums every numeric column across the filtered month ----------------
     foot = page.inner_text('#travelFoot')
@@ -79,31 +84,40 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     assert 'ไม่มีรายการเดินทางในเดือนนี้ให้พิมพ์' in page.inner_text('#toast')
     page.select_option('#travelMonthFilter', str(page.evaluate("new Date().getMonth() + 1"))); page.wait_for_timeout(200)
 
-    # ---------------- print: locked header line + landscape + no letterhead ----------------
+    # ---------------- print: locked header line + landscape + no letterhead + no separate ไป/กลับ column ----------------
     page.click('#travelPrintBtn'); page.wait_for_timeout(200)
     printed = page.inner_html('#printArea')
     assert f"ค่าเดินทางประจำเดือน {month_th} {year_be} ของนาย ชวนนท์ ตันชัยฤทธิกุล" in printed
     assert 'pr-head' not in printed, "no company letterhead, per the user's own request"
+    assert 'ไป/กลับ' not in printed, "no dedicated ไป/กลับ column on the printed sheet"
     assert '540' in printed and printed.count('<tr>') >= 3   # 2 data rows + 1 total row
     page.evaluate("window.dispatchEvent(new Event('afterprint'))")
     assert page.inner_html('#printArea') == ''
 
-    # ---------------- photos: a dedicated gallery page, one uploader per trip ----------------
+    # ---------------- photos: exactly ONE photo per trip, attached via a small modal off the main row's own button ----------------
     row0_id = page.evaluate("data.travel[0].id")
-    page.click('#travelBody tr:first-child .row-actions button:has-text("รูปภาพ")'); page.wait_for_timeout(400)
-    assert page.is_visible('#tab-travelPhotos') and page.inner_text('#pageTitle') == 'รูปภาพการเดินทาง'
-    assert page.locator('#travelPhotosBody tr').count() == 2
-    file_input = page.locator(f'tr:has(#travelPhotoGrid_{row0_id}) input[type=file]')
-    file_input.set_input_files(TMP_IMG); page.wait_for_timeout(700)
-    assert page.locator(f'#travelPhotoGrid_{row0_id} .photo-item').count() == 1
-    assert page.evaluate(f"(async () => (await db.collection('pm_travelPhotos').where('tripId','==','{row0_id}').get()).docs.length)()") == 1
-    assert page.evaluate("data.travel.find(t => t.id === '%s').photoCount" % row0_id) == 1
-    page.click(f'#travelPhotoGrid_{row0_id} .photo-item .delete-btn'); page.wait_for_timeout(200)
-    page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
-    assert page.locator(f'#travelPhotoGrid_{row0_id} .photo-item').count() == 0
-    assert page.evaluate("data.travel.find(t => t.id === '%s').photoCount" % row0_id) == 0
-    page.click('#travelPhotosBackBtn'); page.wait_for_timeout(300)
-    assert page.is_visible('#tab-travel')
+    assert page.inner_text('#travelBody tr:first-child .row-actions button:has-text("รูปภาพ")').strip() == 'รูปภาพ', "no checkmark before any photo exists"
+    page.click('#travelBody tr:first-child .row-actions button:has-text("รูปภาพ")'); page.wait_for_timeout(300)
+    assert page.is_visible('#travelPhotoModal')
+    assert 'ยังไม่มีรูปภาพ' in page.inner_text('#travelPhotoGrid')
+    assert page.is_visible('#travelPhotoAddLabel')
+    page.set_input_files('#travelPhotoInput', TMP_IMG); page.wait_for_timeout(700)
+    assert page.locator('#travelPhotoGrid .photo-item').count() == 1
+    assert page.evaluate("data.travel.find(t => t.id === '%s').photoData" % row0_id) is not None
+    assert not page.is_visible('#travelPhotoAddLabel'), "only one photo allowed - the add control hides once one exists"
+    page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
+    assert page.inner_text('#travelBody tr:first-child .row-actions button:has-text("รูปภาพ")').strip() == 'รูปภาพ ✓'
+
+    # delete it -> back to empty, add control reappears
+    page.click('#travelBody tr:first-child .row-actions button:has-text("รูปภาพ")'); page.wait_for_timeout(300)
+    page.click('#travelPhotoGrid .photo-item .delete-btn'); page.wait_for_timeout(200)
+    page.click('#confirmModalOkBtn'); page.wait_for_timeout(400)
+    assert 'ยังไม่มีรูปภาพ' in page.inner_text('#travelPhotoGrid')
+    assert page.is_visible('#travelPhotoAddLabel')
+    assert page.evaluate("data.travel.find(t => t.id === '%s').photoData" % row0_id) is None
+    page.click('#travelPhotoCloseBtn'); page.wait_for_timeout(200)
+
+    # only the MAIN row (never a "กลับ" sub-row) carries รูปภาพ/ลบ row-actions - verified fully below in the ไป-กลับ section
 
     # ---------------- delete -> Trash -> restore, via the fully generic ENTITY_LABEL/COL mechanism ----------------
     page.click('#travelBody tr:first-child .row-actions button:has-text("ลบ")'); page.wait_for_timeout(150)
@@ -116,7 +130,7 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     goto_tab(page, 'travel'); page.wait_for_timeout(300)
     assert len(page.evaluate("data.travel")) == 2
 
-    # ---------------- ไป-กลับ: checking it on a NEW trip creates a second, reversed-location trip in one save ----------------
+    # ---------------- ไป-กลับ: ONE document, rendered as TWO rows sharing one ลำดับ number ----------------
     before = len(page.evaluate("data.travel"))
     page.click('#travelCreateBtn'); page.wait_for_timeout(300)
     assert page.is_visible('#travelRoundTripField'), "only offered while adding, not editing"
@@ -125,16 +139,30 @@ with new_page(viewport={"width": 1500, "height": 950}) as (page, errors):
     page.fill('#travelDistance', '30'); page.fill('#travelToll', '15')
     page.check('#travelRoundTrip')
     page.click('#travelSaveBtn'); page.wait_for_timeout(500)
-    assert 'บันทึกรายการเดินทางไป-กลับแล้ว 2 รายการ' in page.inner_text('#toast')
-    assert len(page.evaluate("data.travel")) == before + 2
-    pair = page.evaluate("data.travel.filter(t => t.distanceKm === 30 && t.tollFee === 15)")
-    assert len(pair) == 2
-    fwd = next(t for t in pair if t['fromLocation'] == 'สำนักงานใหญ่')
-    back = next(t for t in pair if t['fromLocation'] == 'บริษัท ลูกค้า เอ จำกัด')
-    assert fwd['toLocation'] == 'บริษัท ลูกค้า เอ จำกัด' and back['toLocation'] == 'สำนักงานใหญ่'
-    assert fwd['distanceKm'] == back['distanceKm'] == 30 and fwd['total'] == back['total'], "same distance/total both ways"
-    # editing an existing trip never shows the checkbox (regenerating a return leg from an edit wouldn't make sense)
-    page.click('#travelBody tr:first-child'); page.wait_for_timeout(200)
+    assert 'บันทึกรายการเดินทางแล้ว' in page.inner_text('#toast')
+    assert len(page.evaluate("data.travel")) == before + 1, "ไป-กลับ is one document, not two"
+    trip = page.evaluate("data.travel.find(t => t.distanceKm === 30 && t.tollFee === 15)")
+    assert trip['roundTrip'] is True
+    assert trip['fromLocation'] == 'สำนักงานใหญ่' and trip['toLocation'] == 'บริษัท ลูกค้า เอ จำกัด'
+
+    # find its two rendered rows (ไป then กลับ, in that order, right after each other) - matched by its own total (195 =
+    # 30*6+15), unique to this trip, since another already-existing trip happens to share the same from/to locations
+    row_texts = page.evaluate("""() => [...document.querySelectorAll('#travelBody tr')].map(tr => [...tr.children].map(td => td.textContent.trim()))""")
+    pair_idx = next(i for i, r in enumerate(row_texts) if r[1] == 'ไป' and r[12] == '195')
+    go_row, back_row = row_texts[pair_idx], row_texts[pair_idx + 1]
+    assert back_row[1] == 'กลับ'
+    assert go_row[0] != '' and back_row[0] == '', "the กลับ row's ลำดับ number is left blank"
+    assert go_row[3] == 'สำนักงานใหญ่' and go_row[4] == 'บริษัท ลูกค้า เอ จำกัด'
+    assert back_row[3] == 'บริษัท ลูกค้า เอ จำกัด' and back_row[4] == 'สำนักงานใหญ่', "locations swap on the กลับ row"
+    assert back_row[7] == '' and back_row[12] == '', "the กลับ row's numeric/total cells are left blank, not duplicated"
+    # only the "ไป" (main) row carries row-actions
+    go_tr = page.locator('#travelBody tr').nth(pair_idx)
+    back_tr = page.locator('#travelBody tr').nth(pair_idx + 1)
+    assert go_tr.locator('.row-actions button').count() == 2
+    assert back_tr.locator('.row-actions').count() == 0
+
+    # editing an existing trip never shows the ไป-กลับ checkbox (regenerating a return leg from an edit wouldn't make sense)
+    go_tr.click(); page.wait_for_timeout(200)
     page.click('#travelViewEditBtn'); page.wait_for_timeout(150)
     assert not page.is_visible('#travelRoundTripField')
     page.click('#travelCancelBtn'); page.wait_for_timeout(150)

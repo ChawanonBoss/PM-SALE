@@ -316,8 +316,9 @@ from a fairly detailed user spec (an old reference document, plus an exact colum
 so most of the choices below are direct translations of that spec, not judgment calls:
 - **`pm_travelExpenses`** is a flat collection of individual trip documents (`date`, `fromLocation`, `toLocation`,
   `customerName`, `task`, `distanceKm`, `rate` (always `TRAVEL_RATE_PER_KM = 6`), `tollFee`, `parkingFee`, `otherFee`,
-  `total`, `photoCount`, a synthetic `name` for the generic Trash/audit machinery, `createdBy`/`createdAt`, soft-deleted
-  via `deletedAt` like everything else) - **not** one document per month holding an array. The month/year picker above
+  `total`, `roundTrip` (see below), `photoData`/`photoType` (see below), a synthetic `name` for the generic Trash/audit
+  machinery, `createdBy`/`createdAt`, soft-deleted via `deletedAt` like everything else) - **not** one document per
+  month holding an array. The month/year picker above
   the table (`#travelMonthFilter`) is a FILTER over this flat list (and the source of the print header), the same way
   every other list page in the app filters a flat collection - introducing a second "one doc holds an editable array"
   shape (like `plan[]`) purely for this page would have been a new pattern for no real benefit. The year half of that
@@ -349,23 +350,43 @@ so most of the choices below are direct translations of that spec, not judgment 
   in the shared `@media print` block but were unused by any other page until now, so no new print CSS was needed at all.
   Print always reads a FRESH month slice off `data.travel` directly (`travelRowsForMonth()`), deliberately ignoring
   whatever is currently typed into the search box, so a stray search term can never silently truncate a financial
-  report - refuses with a toast if the selected month has no trips at all.
-- **Photos are a separate shared gallery page** (`tab-travelPhotos`, reached via each row's own "รูปภาพ" button, "←
-  กลับ" returns to the list) rather than the ซื้อขาย/โครงการ pattern of one photo page per record - it lists EVERY
-  trip (`#, วันที่, จาก, ถึง, รูปภาพ`, matching the user's own 5-column spec exactly) with its own inline upload
-  control and thumbnail strip per row, so "ต้องเลือกสถานที่ก่อน" is satisfied by construction (each row already
-  identifies its own trip; there's no separate "which trip is this for" step to forget). No sets/equipment-linking
-  like the project photo page - a trip only ever has one flat kind of photo evidence. Storage is its own
-  `pm_travelPhotos` collection (`tripId`, base64 `data` under the same 900,000-character cap as `pm_photos`, `size`,
-  `type`, `createdBy`/`createdAt`) with a `photoCount` on the parent trip kept in sync via `FieldValue.increment(±1)` -
-  `loadTravelPhotoThumbs()` deliberately does NOT gate its query on that cached count (a fresh upload's own increment
-  and the subsequent reload could otherwise race against the realtime listener refreshing `data.travel`), querying
-  `pm_travelPhotos` unconditionally instead since a personal travel log never has enough trips for that to matter.
-  Purging a trip from Trash permanently (`purgeTrash('travel', id)`) also deletes its `pm_travelPhotos` rows first,
-  mirroring how purging a project already cleans up its own `pm_files`.
-- **Firestore rules are the simplest shape in the app** (`allow read, write: if pmIsAdmin();` for `pm_travelExpenses`,
-  the same idea plus the base64-size cap for `pm_travelPhotos`) - there is no non-admin scoping to write at all, since
-  every access path (the nav item, the tab, the realtime listener) is already admin-only end to end.
+  report - refuses with a toast if the selected month has no trips at all. **Embedding the trip photo into the printed
+  sheet is not done yet** - the user asked for it to match a reference document/image ("ตัวอย่างรูปภาพค่าเดินทางใน
+  โฟลเดอร์ Web") that could not be found in that folder when asked for; print stays data-only until that reference
+  turns up and the exact layout can be matched, rather than guessing at it twice.
+- **Photos: exactly ONE per trip, stored inline on the trip's own document** (`photoData` base64 under the same
+  900,000-character cap as `pm_photos`, `photoType`) rather than a separate collection or gallery page - a real
+  correction after the first version allowed unlimited photos per trip via their own `pm_travelPhotos` collection and a
+  dedicated gallery tab, neither of which matched "แนบได้แค่ 1 รูปสำหรับ 1 รายการเท่านั้น โดยอ้างอิงจากรายการหลัก". A
+  small modal (`#travelPhotoModal`, opened by `openTravelPhotoModal(id)` off the row's own "รูปภาพ" button - the button
+  itself shows a "✓" once a photo exists) is the only place a photo is added, viewed or removed; there's no separate
+  "which trip" selection step since the modal is always opened FROM that specific row already ("ต้องเลือกสถานที่ก่อน"
+  is satisfied by construction, not by an extra step). The "+ แนบรูปภาพ" control hides itself once a photo exists - to
+  replace one, delete it first, matching the "exactly one" constraint rather than silently overwriting. Purging a trip
+  from Trash needs no special-case cleanup any more (unlike `pm_files`/the old `pm_travelPhotos`) since the photo lives
+  on the same document being deleted.
+- **"ไป-กลับ" (round trip) is ONE document with a `roundTrip: true` flag, rendered as TWO table rows, not two documents.**
+  The first version created a full second record for the return leg; a direct correction said that didn't match what
+  was wanted ("ไม่ต้องนำเป็นรายการเพิ่ม...ถือว่าเป็นรายการย่อยแทน" - don't make it an extra list item, treat it as a
+  sub-item instead). `travelLegRow(t, num, isReturn)` builds either row from the SAME document: the "ไป" row (`isReturn:
+  false`) is the record in full with a real ลำดับ number and the "รูปภาพ"/"ลบ" row-actions; the "กลับ" row right under it
+  (`isReturn: true`) has its ลำดับ left blank, `fromLocation`/`toLocation` swapped, and ลูกค้า/รายการปฏิบัติงาน/every
+  numeric cell (distance/rate/fees/total) left blank too - it exists purely to document that a return leg happened, so
+  the trip's own `total` is never doubled and no row-actions appear on it (there's no second record for them to act on).
+  Both `renderTravel()` and `printTravel()` share this same two-row expansion. A new **"ไป/กลับ" column right after ลำดับ**
+  shows which row is which ("สถานะ ไป และ กลับ ต่อจาก ลำดับด้วย") - on-screen only; print deliberately does NOT add this
+  as its own column ("ไม่ต้องเพิ่มคอลัมน์ใน PDF"), relying on the same blank-ลำดับ-plus-swapped-locations convention to
+  read as a return leg without growing the printed table's column count. `travelSums()` (the list's own total row, and
+  print's grand total) still iterates the underlying DOCUMENT array rather than the expanded rows, so a round trip's
+  `total` is only ever counted once regardless of how many rows it renders as - unaffected by this whole rework.
+  `roundTrip` is only ever set at CREATION (`$('travelRoundTrip').checked`, read only when `!editingTravelId`) - the
+  checkbox stays hidden while editing an existing trip, so there's no way to retroactively add or remove the return
+  leg's display from an edit; the field is simply left out of an edit's `update()` payload, so Firestore's merge
+  semantics leave whatever value the document already had untouched.
+- **Firestore rules are the simplest shape in the app** (`allow read, write: if pmIsAdmin();`) - there is no non-admin
+  scoping to write at all, since every access path (the nav item, the tab, the realtime listener) is already admin-only
+  end to end, and no `hasOnly()` restricts the document's keys, so `roundTrip`/`photoData`/`photoType` needed no rule
+  change of their own beyond the base `pm_travelExpenses` block.
 - **Everything else about the page is deliberately unremarkable**: registering `travel` in `COL`/`data`/`ENTITY_LABEL`/
   `NAV_ICONS`/`NAV_LABELS`/`NAV_GROUPS`/`TITLES`/`ADMIN_ONLY_TABS`/`PAGER_UI`/`filterGroups()`/`renderActiveTab()`'s
   dispatch map is the same short checklist every other list page in this app already follows (see "Service warehouse"
@@ -385,8 +406,8 @@ so most of the choices below are direct translations of that spec, not judgment 
 - **A permission-denied save now says so directly** ("ยังไม่ได้เผยแพร่กฎ Firestore ของ pm_travelExpenses ที่ Firebase
   Console") instead of a generic "บันทึกไม่สำเร็จ" - added after a real "บันทึกไม่ได้" report that traced back to
   exactly that (the rules block above is a reference copy in this repo; it does nothing until pasted into the Console
-  and published) - matching the same pattern `addTravelPhotos()`/other newer features already used for the same
-  failure mode, so the toast itself points at the fix instead of leaving it to guesswork.
+  and published) - matching the same pattern used for a photo upload's own failure mode, so the toast itself points at
+  the fix instead of leaving it to guesswork.
 
 ## Handover photos: print to PDF
 `#photosPrintBtn` (next to the back button, in the same `.plan-head` row style as Action Plan's own print button) calls `printPhotos()`, which follows
