@@ -1979,7 +1979,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.2';
+const APP_VERSION = '1.27.3';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -5194,6 +5194,7 @@ $('serviceWarehouseForm').addEventListener('submit', async e => {
    `travelSums()`'s grand total - the reference spreadsheet's own grand-total row adds every leg, not just the outbound one.
    Only the "ไป" row carries the "รูปภาพ"/"ลบ" row-actions, since the "กลับ" row isn't its own record. */
 const TRAVEL_RATE_PER_KM = 6;
+const TRAVEL_MIN_YEAR = 2026;   // 2569 พ.ศ. - the year ค่าเดินทาง itself started; the year filter never offers anything earlier
 // The claim header/print no longer hardcodes one owner's name - every approved user now keeps their own personal travel
 // log (see attachRealtimeListeners()'s own createdBy-scoped query for pm_travelExpenses), so the name shown is always
 // whoever is CURRENTLY signed in, via the shared userFullNameTH() helper (Thai first/last name, falling back to the
@@ -5236,13 +5237,16 @@ function fillTravelMonthFilter(){
   sel.innerHTML = MONTH_TH_FULL.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
   sel.value = prev;
 }
-// Defaults to the current year ("ตั้งปีปัจจุบันเป็นค่าเริ่มต้น") but stays open-ended - any year that actually has a
-// trip in it is offered too, even outside the usual +/- range around today, so old data is never stuck unreachable.
+// Defaults to the current year ("ตั้งปีปัจจุบันเป็นค่าเริ่มต้น") but stays open-ended going forward - any year that
+// actually has a trip in it is offered too, even past the usual +1 ceiling around today. The floor is hard-locked at
+// TRAVEL_MIN_YEAR (2569 พ.ศ.) instead of counting backward from "today" ("เริ่มนับตั้งแต่ปี 2569 เป็นต้นไป ต่ำกว่านี้
+// จะไม่มีข้อมูล") - real trips never predate that year, so offering earlier ones would just be a wall of always-empty
+// options; unlike the ceiling, this floor doesn't move as later years pass, since it marks when the data ITSELF starts.
 function fillTravelYearFilter(){
   const sel = $('travelYearFilter'), curYear = new Date().getFullYear();
   const years = new Set();
-  for (let y = curYear - 3; y <= curYear + 1; y++) years.add(y);
-  data.travel.forEach(t => { const y = t.date && Number(t.date.slice(0, 4)); if (y) years.add(y); });
+  for (let y = TRAVEL_MIN_YEAR; y <= Math.max(curYear, TRAVEL_MIN_YEAR) + 1; y++) years.add(y);
+  data.travel.forEach(t => { const y = t.date && Number(t.date.slice(0, 4)); if (y >= TRAVEL_MIN_YEAR) years.add(y); });
   const sorted = [...years].sort((a, b) => b - a);
   const prev = sel.value || String(curYear);
   sel.innerHTML = sorted.map(y => `<option value="${y}">ปี ${y + 543}</option>`).join('');

@@ -355,9 +355,12 @@ user**, each keeping their own separate log - see "Access: personal, not shared"
   benefit. **เดือน and ปี are two independent `<select>`s**, not one combined dropdown - the original version baked
   "the current year" into every month option's own label and had no year control at all ("ล็อคปีปัจจุบันไว้เสมอ"), so
   there was no way to look at a past or future year's trips; a direct correction ("แยกเดือนกับปีออกจากกัน") split them
-  apart. `fillTravelYearFilter()` defaults to the current year but stays open-ended (`curYear-3` to `curYear+1`, PLUS
-  any year that genuinely has a trip in it even outside that range, so old migrated data is never stranded
-  unreachable) - `fillTravelMonthFilter()`'s own options are now plain month names with no year baked in (that
+  apart. `fillTravelYearFilter()` defaults to the current year but stays open-ended going FORWARD (`TRAVEL_MIN_YEAR`
+  to `curYear+1`, PLUS any year that genuinely has a trip in it even past that ceiling, so future migrated data is
+  never stranded unreachable) - the FLOOR is a hard-locked constant, `TRAVEL_MIN_YEAR = 2026` (2569 พ.ศ.), not
+  "curYear minus a few" ("เริ่มนับตั้งแต่ปี 2569 เป็นต้นไป ต่ำกว่านี้จะไม่มีข้อมูล" - real trips never predate that
+  year, so counting backward from today would just offer a wall of always-empty options that only grows every year).
+  `fillTravelMonthFilter()`'s own options are now plain month names with no year baked in (that
   combined label only ever made sense back when there was nothing else to distinguish one August from another).
   Both `renderTravel()` and `printTravel()` read `$('travelYearFilter').value` directly now instead of always
   assuming `new Date().getFullYear()`.
