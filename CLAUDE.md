@@ -141,6 +141,37 @@ done, muted otherwise) rather than needing to know its neighbour's state, so a t
 `plan[]` without any row needing to recompute another row's connector color - each row really does own its own
 connector, per the original component brief's own implementation note.
 
+## แผนดำเนินการ detail view: per-project progress widget (ring + weekly bars)
+`renderPlanProgressWidget(p)` (called from `renderPlanDetail()`, rendered into the static `#planProgressWidget` div
+that sits between the `.plan-head` panel and the Gantt `#planBody` panel) adapts a "Premium Progress Widget UI"
+reference image the user shared - a circular % ring, a "X/Y tasks completed" stat with a small trend indicator, and a
+"Weekly Activity" Mon-Sun bar chart - translated from the reference's own violet palette into this app's warm
+Neumorphism tokens and built almost entirely out of REUSED code rather than a parallel visual system:
+- **The ring** (`planProgressRingSvg(pct)`) is the exact same stacked-circle/`stroke-dasharray`/`rotate(-90 60 60)`
+  technique `renderStatusDonutArcs()` already uses for the dashboard's 3-way donut (see "Dashboard" above),
+  simplified to one arc instead of three segments, and rendered into the dashboard's own `.dash-donut-wrap`/
+  `.dash-donut`/`.dash-donut-center`/`.dash-donut-num`/`.dash-donut-label` classes verbatim - no new ring CSS at all.
+- **The weekly bar chart** reuses `.dash-bars`/`.dash-bar-col`/`.dash-bar`/`.dash-bar-label` verbatim too (same
+  `Math.max(8, Math.round(n/max*90))` height formula the dashboard's own monthly bars use), fed by a new helper,
+  `planWeeklyActivity(plan)` - this app has no literal "daily task activity" log (a step only ever carries a due-date
+  *range*, never a "completed at" timestamp), so like `monthlyStartCounts()` already substitutes a job's `startDate`
+  for the dashboard's own "weekly activity" bars, this counts how many of the project's own `planLeaves()` are due
+  (`end` date) on each day of the CURRENT Mon-Sun week - the closest REAL data to the reference widget's daily bars,
+  not invented numbers. Day labels reuse the existing `CAL_DOW` Proxy (already Thai/English-aware off `currentLang`,
+  see "ปฏิทิน" below) rather than a new day-name array.
+- **The reference's own small upward-trend sparkline was dropped, not faked** - there is no historical "% complete
+  over time" series anywhere in this app to chart honestly (nothing snapshots a project's progress day by day), so
+  drawing one would just be invented-looking data. "เหลืออีก N วัน" (days until the project's own `endDate`, or
+  "เลยกำหนดแล้ว N วัน" once past it - real, from `daysBetween(todayStr(), p.endDate)`) stands in that slot instead,
+  plus the same late/soon badges `#planMeta` used to show inline (moved here instead of duplicated, since the widget
+  now covers that information more visibly than a plain text span did).
+- **The widget renders nothing at all** (`renderPlanProgressWidget()` returns `''`) for a project with no plan topics
+  yet (`!sm.steps`) - matching `renderPlanDetail()`'s own existing empty-state message for the Gantt table below it,
+  rather than showing a 0%/empty ring that has nothing real to represent.
+- `renderPlanDetail()`'s own `#planMeta` line dropped its old plain-text "ดำเนินการแล้ว X/Y ขั้นตอน (Z%)" + late/soon
+  badge spans, since the new widget now shows the same numbers more richly right below it - keeping both would just
+  repeat the same figures twice in two different visual styles on the same screen.
+
 ## ปฏิทิน (Calendar)
 A top-level page (its own permanent rail icon, next to แดชบอร์ด - not folded into a group, same reasoning as dashboard/Action
 Plan). It shipped first as a deliberately separate "warm editorial" design system, then was folded into the shared Neumorphism
