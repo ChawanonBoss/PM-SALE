@@ -339,9 +339,12 @@ same name twice depending on which language is active.
 `whId` - see "Service warehouse" below); plan[] for projects; `docNo`, `contractNo`, `poNo`; project installments: `installmentTotal`, `installmentNo` (last delivered,
 printed as "3/4"), `deliveries[]` written by the "ส่งงาน" dialog; the โครงการ list's own "งวดงาน" column/filter reads `currentInstallmentStage()` - the next undelivered
 installment, or the last one once everything is in - not `installmentNo` directly; `closedAt`/`closedBy`, ซื้อขาย only - see "ปิดงาน" below), `pm_customers`, `pm_companies`,
-`pm_warehouse` (quantity, serials[], history[] capped 500), `pm_serviceWarehouse` (same shape minus quantity/serials/history - services aren't stocked),
-`pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`), `pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64, <=650 KB
-each, 8 per project - a `role:'closing'` one is the ปิดงาน signed document instead, exactly one per job, not one of the 8), `pm_photos` (handover photos, base64 <=900 KB
+`pm_warehouse` (quantity, serials[], `historyCount` - a withdrawal/return entry itself now lives one-per-document in a `history` SUBcollection instead of an inline
+array, see "Health-check pass, round 2" below; an item saved before that change may still carry a FROZEN inline `history[]` too, capped at 500), `pm_serviceWarehouse`
+(same shape minus quantity/serials/history - services aren't stocked), `pm_counters` (SO/PJ + yyyymmdd -> n; the admin session raises them via `syncDocCounters()`),
+`pm_catalogs` + `pm_catalogChunks`, `pm_files` (attachments, base64 <=650 KB each stored in a sibling `blob/content` subcollection doc rather than inline on the metadata
+doc itself - see "Health-check pass, round 2" below - an OLD row saved before that change still carries it inline - 8 per project; a `role:'closing'` one is the ปิดงาน
+signed document instead, exactly one per job, not one of the 8), `pm_photos` (handover photos, base64 <=900 KB
 each - see "Handover photos" below), `pm_users` (`status` approved|pending|rejected; no status = approved; `thaiFirstName`/
 `thaiLastName`/`engFirstName`/`engLastName`/`phone`/`position`/`avatarBase64` - see "ผู้ใช้งาน" below),
 `pm_pendingRoles` (invites, same extra fields as `pm_users` above - copied over onto the real profile at first sign-in),
@@ -1006,8 +1009,10 @@ low-risk, left two items as disclosed, deliberate non-fixes below.
 ## Health-check pass, round 2 (security-reviewer / performance / ux-reviewer)
 A second independent pass, same format as above - run after the Action Plan card-widget work, specifically scoped to
 not re-report anything round 1 already covered. security-reviewer found one CONFIRMED high-severity issue with a real
-exploit path; fixed it plus everything else concrete and low-risk. Two items need a data-model change bigger than a
-health-check pass and were flagged instead of fixed; two UX items were put to the user directly and answered inline.
+exploit path; fixed it plus everything else concrete and low-risk. Two performance findings needed a data-model change
+bigger than a health-check-scale pass and were flagged for the **database** agent rather than fixed on the spot - it
+later designed and shipped both as a dedicated follow-up, see the last two bullets of "Fixed" below. Two UX items were
+put to the user directly and answered inline.
 
 **Fixed:**
 - **Stored XSS via `<img src="data:TYPE;base64,DATA">` built from unescaped Firestore fields, in 13 places across 6
@@ -1074,18 +1079,58 @@ health-check pass and were flagged instead of fixed; two UX items were put to th
   (already covered by the existing per-document rule) rather than `list` at all - **publish this rules change** like
   any other. This also incidentally closed performance finding (3) below (every colleague's `avatarBase64` no longer
   downloads to every non-admin on login) as a side effect of the same fix, not a separate change.
-
-**Flagged, not fixed in this pass (bigger than a health-check-scale change):**
-- **Two performance findings still require a data-model change** (flat base64 field -> subcollection, so a view that
-  only needs a count/metadata doesn't pull the full blob): (1) `loadProjectFiles()` fetches every attached file's full
-  base64 `data` even in read-only VIEW mode (just clicking a row in ซื้อขาย/โครงการ), though that view only ever
-  displays name/size/date - up to ~5.2MB pulled and discarded per row click on a job with a full 8 attachments. (2)
-  `pm_warehouse`'s shared listener loads every item's full `history[]` (capped at 500 entries, each a real object with
-  `serials[]`) to EVERY signed-in session regardless of role, even though the list view only ever reads
-  `history.length` - the full array is only actually used inside `openSerialModal()` for one item at a time. Both
-  would need the **database** agent to design (`pm_files`' `data` / `pm_warehouse`'s `history[]` moved to a
-  subcollection or sibling doc fetched on demand), including a plan for documents that already exist in the OLD
-  inline shape, not a quick inline fix.
+- **`loadProjectFiles()` no longer fetches a NEW attachment's full base64 bytes just to show its name/size/date** - the
+  original finding: even a read-only VIEW of a job (just clicking a row in ซื้อขาย/โครงการ - see "click-a-row to view,
+  edit-in-place" above) ran the exact same query as editing it, pulling every attached file's full `data` field even
+  though that view only ever displays metadata, discarding up to ~5.2MB per row click on a job with a full 8
+  attachments. Firestore's client SDK has no field-projection on a query (`.select()` only exists server-side, in the
+  Admin SDK) - the only real fix is moving the bytes out of the document the query returns at all. A NEW upload now
+  writes its metadata doc (`pm_files/{id}`: `projectId`/`ownerId`/`name`/`size`/`type`/`createdBy`/`createdAt`, exactly
+  as before minus `data`) and its actual bytes as a sibling `pm_files/{id}/blob/content` document in the SAME
+  `db.batch()` (two new shared helpers, `createFileRecord()`/`deleteFileRecord()`, used by both the general "ไฟล์แนบ"
+  uploader and ปิดงาน's own signed-document upload so neither drifts into writing the old inline shape by hand again) -
+  `loadProjectFiles()`'s own query is completely unchanged, it just now returns lighter documents for anything uploaded
+  from here on. `downloadProjectFile()` is the only place that ever needs the bytes: it uses `f.data` directly when
+  present (an OLD row, saved before this change, still has it - already sitting in memory from the same query, nothing
+  to gain by pretending otherwise) and otherwise fetches `fetchFileBlobData()` on demand, exactly once, only when
+  "ดาวน์โหลด" is actually clicked. **This does NOT shrink an OLD attachment already in the database** - its `data` is
+  permanently inline on that one document and there is no way to stop a collection query from returning a field that's
+  actually on the matched document; only a (not-yet-written) migration moving every existing row's `data` into its own
+  `blob/content` doc would close that gap, which is a bigger, data-rewriting change deliberately left undone here since
+  it needs to run once by hand against the live project, not shipped inside a code change. `firestore.rules`' `pm_files`
+  create rule now treats `data` as OPTIONAL (validated exactly as before when present, simply absent for a new upload)
+  and a new `blob/{blobId}` subcollection rule validates the new sibling doc (`ownerId` duplicated onto it directly,
+  rather than looked up on the parent via `get()`, purely so the rule can check scoping the same flat way every other
+  collection here already does) with the same size cap and admin/owner read-write shape as the parent - **publish this
+  rules change**. Purging a project (Trash's single/bulk purge) now deletes each attachment's `blob/content` doc
+  alongside its metadata doc too, same as it already did for catalog PDF chunks.
+- **`pm_warehouse`'s shared listener no longer carries a NEW withdrawal/return entry's full content to every signed-in
+  session** - the original finding: `history[]` (capped at 500 entries, each holding `serials[]`/`projectName`/etc.)
+  loaded in full for every role even though the warehouse LIST view only ever read `history.length`, and the full
+  per-entry content was only ever actually used one item at a time, inside `openSerialModal()`'s own history table.
+  `warehouseEffectPatch()` (called from `commitProject()`'s stock-effect transaction) now returns `{patch, entries}`
+  instead of a `history[]`-bearing patch: `patch` only ever touches `quantity`/`serials` plus a new `historyCount`
+  counter (`firebase.firestore.FieldValue.increment(entries.length)`, the exact same pattern `pm_photos`' own
+  `photoCounts` already uses) on the warehouse doc itself, while `entries` are written by the SAME transaction into a
+  `pm_warehouse/{id}/history/{entryId}` subcollection (one document per withdrawal/return) instead of appended to an
+  array field. `historyCount` is what keeps the warehouse list's own "เบิก/คืน N ครั้ง" subtext and the Excel export
+  showing a real number cheaply (`warehouseHistoryCount(w)`, a tiny helper) without ever loading a single entry's
+  content for every session. An item's OWN pre-existing inline `history[]`, if it already had one before this change,
+  is left completely untouched going forward - frozen at whatever it was, never read or rewritten by
+  `warehouseEffectPatch()` again - so `warehouseHistoryCount()` adds that frozen length to the live `historyCount`
+  (covering an item that had history before this change AND has been touched again since), and `openSerialModal()`
+  (now `async`, the only place in the app that still needs an item's full entries) renders that same frozen inline
+  portion immediately/synchronously, then fetches the `history` subcollection on demand and merges it in once that one
+  extra read resolves - a legacy-only item's content never visibly changes after the first render; one with new
+  activity gets the rest a moment later. No 500-entry cap on the new subcollection (unlike the old array) - that cap
+  only ever existed to keep one document's content under Firestore's 1 MB limit, which a subcollection of many small
+  documents never shares, so there's nothing left to cap. `firestore.rules`' `pm_warehouse` update rule gained
+  `historyCount` to its `hasOnly()` list (type-checked as a number, never allowed to shrink, same shape as the existing
+  `history` guard) and a new `history/{entryId}` subcollection rule - immutable like `pm_auditLog` (create-only; only
+  an admin may delete, which purging a warehouse item from Trash now does alongside the item itself) - **publish this
+  rules change**. `seedSampleWarehouseSet()` (the admin "+ เพิ่มข้อมูลตัวอย่าง" seeder) no longer writes an inline
+  `history: []` on a brand-new sample item either, matching what a normal (non-sample) new item has always looked
+  like (no `history` field at all until it's actually touched).
 
 **Put to the user directly, answered inline (not independent judgment calls):**
 - Whether to fix the weekly-bar chart being nearly unreadable on phone width (tiny label-less dots, no hover on

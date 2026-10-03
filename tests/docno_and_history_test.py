@@ -139,7 +139,10 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     # ---------------- warehouse: withdrawal history ----------------
     goto_tab(page, 'warehouse')
     row = page.inner_text('#warehouseBody tr:has-text("Catalyst")'); assert 'เบิก/คืน 1 ครั้ง' in row, row
-    page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)')
+    # withdrawal/return entries now live in a `history` SUBcollection (fetched on demand when this modal opens, not loaded by
+    # the shared pm_warehouse listener any more - see "Warehouse: withdrawal history subcollection" in CLAUDE.md), so opening
+    # the modal needs a short wait for that one extra async fetch to resolve before the rows are actually rendered.
+    page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)'); page.wait_for_timeout(200)
     hist = page.inner_text('#serialHistoryBody'); print(hist.replace('\n', ' | '))
     assert 'เบิกออก' in hist and f"SO{YMD}-001" in hist and 'ขายใหม่ 1' in hist and 'S2, S3' in hist and 'Admin One' in hist
     page.click('#serialHistoryBody a'); assert page.is_visible('#projectModal') and page.input_value('#prjName') == 'ขายใหม่ 1'
@@ -149,10 +152,16 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.click('#projectSaveBtn'); page.wait_for_timeout(150)
     assert page.is_visible('#confirmModal')
     page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
-    page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)')
+    page.click('#warehouseBody tr:has-text("Catalyst") td:nth-child(4)'); page.wait_for_timeout(200)
     hist = page.inner_text('#serialHistoryBody')
     assert 'คืนเข้าโกดัง' in hist and 'เบิกออก' in hist and page.locator('#serialHistoryBody tr').count() == 2
-    assert page.evaluate("data.warehouse.find(w => w.id === 'w1').history.map(h => h.type)") == ['out', 'return']
+    # both entries were written to the history SUBcollection (w1 itself carries no legacy inline `history[]` at all) -
+    # data.warehouse (the shared listener's own in-memory cache) never sees them, by design; check the subcollection directly.
+    hist_types = page.evaluate("""async () => {
+      const snap = await db.collection('pm_warehouse').doc('w1').collection('history').get();
+      return snap.docs.map(d => d.data().type);
+    }""")
+    assert hist_types == ['out', 'return'], hist_types
     page.click('#serialCloseBtn')
 
     # ---------------- warehouse: brand filter + sort by stock ----------------

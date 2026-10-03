@@ -104,6 +104,11 @@
             fire();
             return () => { docListeners[name] = docListeners[name].filter(l=>l!==entry); };
           },
+          // A subcollection is just another entry in the same flat `store`, keyed by the full "parent/parentId/sub" path -
+          // added for pm_files' blob/content doc and pm_warehouse's history log (both introduced to keep a heavy field out
+          // of their parent collection's own shared listener payload; see CLAUDE.md). Matches the real SDK's own
+          // `docRef.collection(name)` shape closely enough for every query/get/set/delete this app actually uses on one.
+          collection(subName){ return makeQuery(`${name}/${id}/${subName}`); },
         };
       },
       add(data){ const id='auto_'+Math.random().toString(36).slice(2); getColl(name).set(id,Object.assign({},data)); notify(name); return Promise.resolve({id}); },

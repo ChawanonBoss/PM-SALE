@@ -53,8 +53,13 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     open(os.path.join(OUT, "a.pdf"), "wb").write(b"%PDF-1.4 test attachment " * 20)
     page.set_input_files('#prjFileInput', os.path.join(OUT, "a.pdf")); page.wait_for_timeout(800)
     assert 'a.pdf' in page.inner_text('#prjFilesList') and page.inner_text('#prjFilesCount') == '(1)'
-    rec = page.evaluate("[...window.__mockStore['pm_files'].values()][0]")
-    assert rec['projectId'] == 'p1' and rec['ownerId'] == 'admin1' and base64.b64decode(rec['data']).startswith(b'%PDF'), rec['name']
+    # a NEW attachment's metadata doc carries no `data` at all any more - the bytes live in a sibling `blob/content` doc
+    # instead (see "Project attachments: blob subcollection" in CLAUDE.md), so a project VIEW's own metadata-only query
+    # never has to pull them along for the ride.
+    fid, rec = page.evaluate("[...window.__mockStore['pm_files'].entries()][0]")
+    assert rec['projectId'] == 'p1' and rec['ownerId'] == 'admin1' and 'data' not in rec, rec
+    blob = page.evaluate(f"window.__mockStore['pm_files/{fid}/blob'].get('content')")
+    assert blob['ownerId'] == 'admin1' and base64.b64decode(blob['data']).startswith(b'%PDF')
     with page.expect_download(timeout=10000) as dl:
         page.click('#prjFilesList button:has-text("ดาวน์โหลด")')
     assert dl.value.suggested_filename == 'a.pdf'
@@ -65,6 +70,7 @@ with new_page(viewport={"width": 1440, "height": 900}) as (page, errors):
     assert 'big.bin' not in page.inner_text('#prjFilesList') and page.evaluate("window.__mockStore['pm_files'].size") == 1
     page.locator('#prjFilesList button:has-text("ลบ")').click(); page.click('#confirmModalOkBtn'); page.wait_for_timeout(500)
     assert page.evaluate("window.__mockStore['pm_files'].size") == 0 and 'ยังไม่มีไฟล์แนบ' in page.inner_text('#prjFilesList')
+    assert page.evaluate(f"!window.__mockStore['pm_files/{fid}/blob'] || window.__mockStore['pm_files/{fid}/blob'].size === 0"), "deleting the metadata row also cleans up its blob doc"
     page.click('#projectCancelBtn')
     # a new (unsaved) project cannot take files yet
     page.evaluate("openProjectForm(null)"); page.wait_for_timeout(300)

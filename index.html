@@ -1995,7 +1995,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.8';
+const APP_VERSION = '1.28.0';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3757,6 +3757,16 @@ function describeEffects(effects){
 // returning the write patch (or null if there was nothing to apply and the item is simply gone) - throws if the warehouse item
 // no longer exists, doesn't have enough quantity, or is missing a serial being taken out. Used by commitProject() at
 // "บันทึกรายการ" - the one place a goods line's warehouse effect is ever applied now (see "Item status" in CLAUDE.md).
+// Returns { patch, entries }: `patch` only ever touches quantity/serials/historyCount on the warehouse doc itself now -
+// the withdrawal/return `entries` (still the exact same shape as before) are written by the caller into a `history`
+// SUBcollection instead of appended to a `history[]` array field on this same doc, so they're never loaded by the
+// shared pm_warehouse listener - see "Warehouse: withdrawal history subcollection" in CLAUDE.md. An item's own
+// pre-existing inline `history[]` (if any, from before that change) is left completely untouched here - frozen, never
+// read or rewritten by this function again. `historyCount` is a plain incrementing number (same FieldValue.increment()
+// pattern pm_photos' photoCounts already uses) that DOES still ride along on the shared listener - it's what lets the
+// warehouse LIST's own "เบิก/คืน N ครั้ง" subtext and the Excel export keep showing a real count cheaply, without ever
+// loading a single entry's actual content; see warehouseHistoryCount() below for how it's combined with any frozen
+// legacy inline count for an item that had history before this change AND has been touched again since.
 function warehouseEffectPatch(snap, e, historyBase){
   if (!snap.exists || snap.data().deletedAt){
     if (e.qty > 0 || e.remove.size) throw new Error(`ไม่พบ ${e.label} ในโกดัง`);
@@ -3770,7 +3780,13 @@ function warehouseEffectPatch(snap, e, historyBase){
   const entries = [];
   if (e.qty > 0 || e.remove.size) entries.push({ ...historyBase, type:'out', qty: e.qty > 0 ? e.qty : e.remove.size, serials: [...e.remove] });
   if (e.qty < 0 || e.restore.size) entries.push({ ...historyBase, type:'return', qty: e.qty < 0 ? -e.qty : e.restore.size, serials: [...e.restore] });
-  return { quantity: newQty, serials, history: [...(Array.isArray(w.history) ? w.history : []), ...entries].slice(-500) };
+  return { patch: { quantity: newQty, serials, historyCount: firebase.firestore.FieldValue.increment(entries.length) }, entries };
+}
+// An item's total withdrawal/return count, combining its (frozen) legacy inline `history[].length`, if any, with the
+// live `historyCount` counter that's tracked every entry since (see warehouseEffectPatch above) - used anywhere the
+// COUNT is shown without needing the entries' own content (the warehouse list's subtext, the Excel export).
+function warehouseHistoryCount(w){
+  return (Array.isArray(w.history) ? w.history.length : 0) + (Number(w.historyCount) || 0);
 }
 // Document numbers: SO<YYYYMMDD>-<NNN> for a sale, PJ<YYYYMMDD>-<NNN> for a project; the sequence restarts every day.
 // The counter lives in pm_counters/<SO20260921> and is bumped inside the SAME transaction that creates the document, so two people
@@ -3809,14 +3825,18 @@ async function commitProject(ref, doc, isNew, effects, ctx){
     }
     // ---- stock (see warehouseEffectPatch - same helper the live per-row lock/unlock uses) ----
     const updates = [];
-    // withdrawal history lives on the warehouse item itself: which sale/project took (or returned) how many, with which serials
+    // which sale/project took (or returned) how many, with which serials - written into each item's own `history`
+    // SUBcollection below, never back onto the warehouse doc itself any more (see warehouseEffectPatch's own comment).
     const historyBase = { at: new Date().toISOString(), projectId: ref.id, docNo, projectName: doc.name, jobType: doc.jobType, by: currentUserUid, byName: currentUserName || currentUserEmail || '' };
     effects.forEach((e, whId) => {
-      const patch = warehouseEffectPatch(snaps.get(whId), e, historyBase);
-      if (patch) updates.push([db.collection(COL.warehouse).doc(whId), patch]);
+      const result = warehouseEffectPatch(snaps.get(whId), e, historyBase);
+      if (result) updates.push([db.collection(COL.warehouse).doc(whId), result.patch, result.entries]);
     });
     // ---- writes ----
-    updates.forEach(([wref, patch]) => tx.update(wref, patch));
+    updates.forEach(([wref, patch, entries]) => {
+      tx.update(wref, patch);
+      entries.forEach(entry => tx.set(wref.collection('history').doc(), entry));
+    });
     if (counterRef) tx.set(counterRef, { n: counterN });
     const full = ctx && ctx.numberKey ? { ...doc, docNo } : doc;
     if (isNew) tx.set(ref, full); else tx.update(ref, full);
@@ -4286,12 +4306,12 @@ $('closeJobSaveBtn').addEventListener('click', async () => {
   setSync('saving');
   try{
     const old = await db.collection(COL.files).where('projectId', '==', p.id).where('role', '==', 'closing').get();
-    for (const d of old.docs) await db.collection(COL.files).doc(d.id).delete();
-    await db.collection(COL.files).add({
+    for (const d of old.docs) await deleteFileRecord(d.id);
+    await createFileRecord({
       projectId: p.id, ownerId: p.createdBy, role: 'closing', name: closingDocFile.name, size: closingDocFile.size,
-      type: closingDocFile.type || 'application/octet-stream', data: await readAsBase64(closingDocFile),
+      type: closingDocFile.type || 'application/octet-stream',
       createdBy: currentUserUid, createdAt: new Date().toISOString()
-    });
+    }, await readAsBase64(closingDocFile));
     const closedAt = $('closeJobDate').value;
     await db.collection(COL.projects).doc(p.id).update({ closedAt, closedBy: currentUserUid });
     Object.assign(p, { closedAt, closedBy: currentUserUid });
@@ -5009,7 +5029,7 @@ function renderWarehouse(){
       <td>${escapeHtml(w.brand || '-')}</td>
       <td>${escapeHtml(w.type || '-')}</td>
       <td><b>${escapeHtml(w.name)}</b></td>
-      <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length}/${fmtNum(w.quantity)}${(w.history || []).length ? ` · เบิก/คืน ${(w.history || []).length} ครั้ง` : ''}</div></td>
+      <td>${fmtNum(w.quantity)}<div class="cell-sub">SN ${(w.serials || []).length}/${fmtNum(w.quantity)}${warehouseHistoryCount(w) ? ` · เบิก/คืน ${warehouseHistoryCount(w)} ครั้ง` : ''}</div></td>
       <td class="cell-sub" style="max-width:240px; white-space:pre-line;">${escapeHtml(w.note || '-')}</td>
       <td><div class="row-actions">
         ${currentUserRole === 'admin' ? `<button class="icon-btn delete-btn" onclick="event.stopPropagation(); deleteEntity('warehouse','${w.id}')">ลบ</button>` : ''}
@@ -5040,7 +5060,9 @@ async function seedSampleWarehouseSet(){
     batch.set(db.collection(COL.warehouse).doc(), {
       part, brand, type, name: `[ตัวอย่าง] ${name}`, quantity: qty,
       serials: Array.from({ length: qty }, (_, k) => `${pre}-${String(k + 1).padStart(3, '0')}`),
-      note, history: [], sample: true, createdBy: currentUserUid, createdAt: now
+      note, sample: true, createdBy: currentUserUid, createdAt: now
+      // no `history` field at all - a brand-new item has none yet, same as a normal (non-sample) one; see
+      // "Warehouse: withdrawal history subcollection" in CLAUDE.md for why this is no longer an inline `[]`.
     });
   });
   await batch.commit();
@@ -5681,19 +5703,9 @@ function deleteTravelPhoto(){
 }
 
 let serialModalItemId = null;
-function openSerialModal(id){
-  const w = data.warehouse.find(x => x.id === id);
-  if (!w) return;
-  serialModalItemId = id;
-  const serials = w.serials || [];
-  $('serialModalTitle').textContent = w.name;
-  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.brand ? 'ยี่ห้อ ' + w.brand + ' · ' : ''}${w.type ? w.type + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
-  $('serialModalNote').textContent = w.note ? 'หมายเหตุ: ' + w.note : '';
-  $('serialModalNote').style.whiteSpace = 'pre-line';
-  $('serialModalBody').innerHTML = serials.length
-    ? serials.map((sn, i) => `<tr><td class="cell-sub">${i+1}</td><td><span class="code-mask" style="letter-spacing:0;">${escapeHtml(sn)}</span></td></tr>`).join('')
-    : `<tr><td colspan="2" class="empty-row">ยังไม่ได้บันทึก Serial Number</td></tr>`;
-  const hist = [...(w.history || [])].sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+// Shared by openSerialModal()'s two render passes below (the immediate one off whatever's already in memory, and the
+// one after the `history` subcollection fetch resolves) so the row markup lives in exactly one place.
+function renderSerialHistoryRows(hist){
   $('serialHistoryCount').textContent = hist.length || '';
   $('serialHistoryBody').innerHTML = hist.length ? hist.map(h => {
     const proj = h.projectId && data.projects.find(x => x.id === h.projectId);
@@ -5707,7 +5719,35 @@ function openSerialModal(id){
       <td class="cell-sub">${escapeHtml(h.byName || '-')}</td>
     </tr>`;
   }).join('') : `<tr><td colspan="6" class="empty-row">ยังไม่เคยเบิกหรือคืนอุปกรณ์นี้</td></tr>`;
+}
+// Withdrawal/return history: an item's own pre-existing inline `w.history[]` (if any - frozen there from before the
+// "history subcollection" change, see CLAUDE.md) is already sitting in memory via the shared pm_warehouse listener, so
+// it renders immediately, synchronously, exactly as it always has. NEW entries live in a sibling `history` subcollection
+// instead (never loaded by that shared listener), fetched here - one item at a time, only when this modal opens for
+// THAT item - and merged in once the fetch resolves. `async` only to await that one fetch; every other part of opening
+// this modal stays synchronous so a legacy-only item's content never visibly flashes/changes after the initial render.
+async function openSerialModal(id){
+  const w = data.warehouse.find(x => x.id === id);
+  if (!w) return;
+  serialModalItemId = id;
+  const serials = w.serials || [];
+  $('serialModalTitle').textContent = w.name;
+  $('serialModalSub').textContent = `${w.part ? 'Part ' + w.part + ' · ' : ''}${w.brand ? 'ยี่ห้อ ' + w.brand + ' · ' : ''}${w.type ? w.type + ' · ' : ''}จำนวนอุปกรณ์ ${fmtNum(w.quantity)} · บันทึก Serial Number แล้ว ${serials.length} รายการ`;
+  $('serialModalNote').textContent = w.note ? 'หมายเหตุ: ' + w.note : '';
+  $('serialModalNote').style.whiteSpace = 'pre-line';
+  $('serialModalBody').innerHTML = serials.length
+    ? serials.map((sn, i) => `<tr><td class="cell-sub">${i+1}</td><td><span class="code-mask" style="letter-spacing:0;">${escapeHtml(sn)}</span></td></tr>`).join('')
+    : `<tr><td colspan="2" class="empty-row">ยังไม่ได้บันทึก Serial Number</td></tr>`;
+  const legacyHist = Array.isArray(w.history) ? w.history : [];
+  renderSerialHistoryRows([...legacyHist].sort((a, b) => (b.at || '').localeCompare(a.at || '')));
   openModal('serialModal');
+  let subEntries = [];
+  try{
+    const snap = await db.collection(COL.warehouse).doc(id).collection('history').get();
+    subEntries = snap.docs.map(d => d.data());
+  }catch(err){ /* rules not published yet, or offline - the legacy inline portion (if any) is already shown above */ }
+  if (serialModalItemId !== id || !subEntries.length) return;   // modal closed/switched meanwhile, or nothing new to merge in
+  renderSerialHistoryRows([...legacyHist, ...subEntries].sort((a, b) => (b.at || '').localeCompare(a.at || '')));
 }
 $('serialCloseBtn').addEventListener('click', () => closeModal('serialModal'));
 $('serialEditBtn').addEventListener('click', () => openWarehouseForm(serialModalItemId));
@@ -5792,7 +5832,7 @@ const EXPORTS = {
   equipment: () => (lastList.equipment || []).map(r => ({ 'เลขที่เอกสาร': r.project.docNo || '', 'ชื่องาน/โครงการ': r.project.name || '', 'ประเภทงาน': JOB_TYPES[jobTypeOf(r.project)], 'ลูกค้า': r.project.customerName || '',
     'สถานที่': r.location || '', 'เริ่มรับประกัน': r.months ? excelDate(r.start) : '', 'ประกัน (เดือน)': r.months || '', 'หมดประกัน': excelDate(r.expiry), 'สถานะประกัน': WARRANTY_LABEL[r.wstatus] || r.wstatus })),
   warehouse: () => (lastList.warehouse || []).map(w => ({ 'Part': w.part || '', 'ยี่ห้อ': w.brand || '', 'ประเภท': w.type || '', 'ชื่ออุปกรณ์': w.name || '', 'จำนวนคงเหลือ': Number(w.quantity) || 0,
-    'Serial Number': (w.serials || []).join('\n'), 'จำนวนครั้งที่เบิก/คืน': (w.history || []).length, 'หมายเหตุ': w.note || '' })),
+    'Serial Number': (w.serials || []).join('\n'), 'จำนวนครั้งที่เบิก/คืน': warehouseHistoryCount(w), 'หมายเหตุ': w.note || '' })),
   serviceWarehouse: () => (lastList.serviceWarehouse || []).map(s => ({ 'Part': s.part || '', 'ซัพพลายเออร์': s.brand || '', 'ประเภทงาน': s.type || '', 'ชื่อบริการ': s.name || '', 'หมายเหตุ': s.note || '' })),
   customers: () => (lastList.customers || []).map(c => ({ 'ชื่อลูกค้า': c.name || '', 'ประเภท': CUSTOMER_TYPES[c.type] || CUSTOMER_TYPES.private, 'เลขที่ผู้เสียภาษี': c.type === 'gov' ? '' : (c.taxId || ''), 'ที่อยู่': c.address || '',
     'ผู้ติดต่อ': c.contactName || '', 'เบอร์ติดต่อ': c.contactPhone || '', 'จำนวนรายการ': projectCountForCustomer(c) }))
@@ -5800,10 +5840,39 @@ const EXPORTS = {
 const EXPORT_NAMES = { sales: ['ซื้อขาย', 'ซื้อขาย'], projects: ['โครงการ', 'โครงการ'], equipment: ['อุปกรณ์และการรับประกัน', 'การรับประกัน'], warehouse: ['โกดังสินค้า', 'โกดัง'], serviceWarehouse: ['โกดังบริการ', 'โกดังบริการ'], customers: ['รายชื่อลูกค้า', 'ลูกค้า'] };
 Object.keys(EXPORTS).forEach(k => $(k + 'ExportBtn').addEventListener('click', () => exportExcel(EXPORT_NAMES[k][0], EXPORT_NAMES[k][1], EXPORTS[k]())));
 
-/* ---- project attachments: one document per file in pm_files (bytes stored as base64, like logos/avatars/catalogs; no Firebase Storage) ---- */
+/* ---- project attachments: one document per file in pm_files (bytes stored as base64, like logos/avatars/catalogs; no Firebase Storage).
+   A NEW file's actual byte content lives in a SIBLING document, `pm_files/{id}/blob/content`, rather than inline on the metadata doc
+   itself - loadProjectFiles() (just below) lists every attachment's name/size/date for BOTH the general "ไฟล์แนบ" list and the
+   read-only VIEW mode a row-click opens first (see "โครงการ/ซื้อขาย lists: click-a-row to view, edit-in-place" in CLAUDE.md), but
+   that view only ever displays metadata - the bytes themselves are only ever actually needed once, when "ดาวน์โหลด" on one specific
+   file is clicked. An OLD file saved before this change still carries `data` inline and keeps being fetched (and simply ignored by
+   every reader except downloadProjectFile()) exactly as before - there's no way to stop that without migrating it, which this change
+   doesn't do (see "Project attachments: blob subcollection" in CLAUDE.md). ---- */
 const FILE_MAX_BYTES = 650 * 1024;   // base64 makes it ~33% bigger; 650 KB stays under Firestore's 1 MB document limit
 const FILE_MAX_COUNT = 8;
-let projectFiles = [];   // metadata (+ bytes) of the project open in the edit form
+let projectFiles = [];   // metadata (NOT bytes, for a file uploaded after this change - see above) of the project open in the edit form
+// Writes a pm_files metadata doc PLUS its byte content as a sibling `blob/content` document, in one batch - shared by the general
+// "ไฟล์แนบ" uploader below and ปิดงาน's own signed-document upload, so neither one drifts into writing the old inline shape by hand.
+async function createFileRecord(meta, base64Data){
+  const ref = db.collection(COL.files).doc();
+  const batch = db.batch();
+  batch.set(ref, meta);
+  batch.set(ref.collection('blob').doc('content'), { ownerId: meta.ownerId, data: base64Data });
+  await batch.commit();
+  return ref;
+}
+// Deletes a pm_files row and its blob subcollection doc together (the blob delete is best-effort: an OLD row never had one,
+// so there's nothing to clean up there, and a failed delete here shouldn't block the metadata row from going away).
+async function deleteFileRecord(id){
+  await db.collection(COL.files).doc(id).collection('blob').doc('content').delete().catch(() => {});
+  await db.collection(COL.files).doc(id).delete();
+}
+// Fetches a file's bytes when they're NOT already inline (a file uploaded after this change) - see downloadProjectFile() below.
+async function fetchFileBlobData(id){
+  const snap = await db.collection(COL.files).doc(id).collection('blob').doc('content').get();
+  if (!snap.exists) throw new Error('ไม่พบข้อมูลไฟล์');
+  return snap.data().data;
+}
 async function loadProjectFiles(p){
   const list = $('prjFilesList'), btn = $('prjFileBtn');
   projectFiles = [];
@@ -5844,9 +5913,9 @@ $('prjFileInput').addEventListener('change', async e => {
     for (const f of files){
       if (projectFiles.length >= FILE_MAX_COUNT){ toast(`แนบได้สูงสุด ${FILE_MAX_COUNT} ไฟล์ต่อรายการ`); break; }
       if (f.size > FILE_MAX_BYTES){ toast(`"${f.name}" ใหญ่เกิน ${fmtBytes(FILE_MAX_BYTES)}`); continue; }
-      const doc = { projectId: p.id, ownerId: p.createdBy, name: f.name, size: f.size, type: f.type || 'application/octet-stream', data: await readAsBase64(f), createdBy: currentUserUid, createdAt: new Date().toISOString() };
-      const ref = await db.collection(COL.files).add(doc);
-      projectFiles.push({ id: ref.id, ...doc }); added++;
+      const meta = { projectId: p.id, ownerId: p.createdBy, name: f.name, size: f.size, type: f.type || 'application/octet-stream', createdBy: currentUserUid, createdAt: new Date().toISOString() };
+      const ref = await createFileRecord(meta, await readAsBase64(f));
+      projectFiles.push({ id: ref.id, ...meta }); added++;
       logAudit('แนบไฟล์', p.docNo || p.name, f.name);
     }
     renderProjectFiles();
@@ -5854,10 +5923,15 @@ $('prjFileInput').addEventListener('change', async e => {
   }catch(err){ toast(err && /permission|insufficient/i.test(err.message || '') ? 'แนบไม่ได้: ยังไม่ได้เผยแพร่กฎ Firestore ของไฟล์แนบ' : (err.message || 'แนบไฟล์ไม่สำเร็จ')); }
   $('prjFileBtn').disabled = false;
 });
-function downloadProjectFile(id){
+async function downloadProjectFile(id){
   const f = projectFiles.find(x => x.id === id);
   if (!f) return;
-  const bin = atob(f.data), bytes = new Uint8Array(bin.length);
+  let b64 = f.data;   // an OLD row still carries its bytes inline, already loaded alongside the rest of its metadata
+  if (b64 == null){   // a NEW row's bytes live in the blob subcollection instead - fetch them only now, on demand
+    try{ b64 = await fetchFileBlobData(id); }
+    catch(err){ toast('ดาวน์โหลดไม่สำเร็จ'); return; }
+  }
+  const bin = atob(b64), bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   triggerDownload(new Blob([bytes], { type: f.type }), f.name);
 }
@@ -5866,7 +5940,7 @@ function deleteProjectFile(id){
   if (!f) return;
   confirmAction(`ลบไฟล์แนบ "${f.name}" ถาวรใช่หรือไม่?`, async () => {
     try{
-      await db.collection(COL.files).doc(id).delete();
+      await deleteFileRecord(id);
       projectFiles = projectFiles.filter(x => x.id !== id);
       renderProjectFiles();
       logAudit('ลบไฟล์แนบ', f.name, '');
@@ -6851,7 +6925,11 @@ function purgeTrash(type, id){
   confirmAction(`ลบ "${x ? x.name : id}" ถาวรใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
     try{
       if (type === 'catalogs' && x) await Promise.all(Array.from({ length: x.chunks || 0 }, (_, n) => db.collection(COL.catalogChunks).doc(`${id}_${n}`).delete().catch(() => {})));   // the PDF's stored pieces go too
-      if (type === 'projects') (await db.collection(COL.files).where('projectId', '==', id).get()).docs.forEach(d => db.collection(COL.files).doc(d.id).delete().catch(() => {}));   // its attachments go too
+      if (type === 'projects') (await db.collection(COL.files).where('projectId', '==', id).get()).docs.forEach(d => {
+        db.collection(COL.files).doc(d.id).collection('blob').doc('content').delete().catch(() => {});   // a NEW-style attachment's bytes go too (an OLD one never had this doc at all)
+        db.collection(COL.files).doc(d.id).delete().catch(() => {});
+      });   // its attachments go too
+      if (type === 'warehouse') (await db.collection(COL.warehouse).doc(id).collection('history').get()).docs.forEach(d => db.collection(COL.warehouse).doc(id).collection('history').doc(d.id).delete().catch(() => {}));   // its withdrawal/return log goes too
       await db.collection(COL[type]).doc(id).delete();   // ค่าเดินทาง's own photo (if any) lives inline on this same document, so it's gone automatically
       logAudit('ลบถาวร' + ENTITY_LABEL[type], x ? x.name : id, '');
       trashItems = trashItems.filter(r => !(r.kind === type && r.id === id));
@@ -6896,7 +6974,11 @@ $('trashBulkPurgeBtn').addEventListener('click', () => {
   confirmAction(`ลบถาวร ${list.length} รายการที่เลือก (${trashSummary(list)}) ใช่หรือไม่? กู้คืนไม่ได้อีก`, async () => {
     try{
       const ops = [];
-      for (const x of list.filter(r => r.kind === 'projects')) (await db.collection(COL.files).where('projectId', '==', x.id).get()).docs.forEach(d => ops.push(b => b.delete(db.collection(COL.files).doc(d.id))));
+      for (const x of list.filter(r => r.kind === 'projects')) (await db.collection(COL.files).where('projectId', '==', x.id).get()).docs.forEach(d => {
+        ops.push(b => b.delete(db.collection(COL.files).doc(d.id).collection('blob').doc('content')));   // a NEW-style attachment's bytes go too
+        ops.push(b => b.delete(db.collection(COL.files).doc(d.id)));
+      });
+      for (const x of list.filter(r => r.kind === 'warehouse')) (await db.collection(COL.warehouse).doc(x.id).collection('history').get()).docs.forEach(d => ops.push(b => b.delete(db.collection(COL.warehouse).doc(x.id).collection('history').doc(d.id))));   // its withdrawal/return log goes too
       list.forEach(x => {
         if (x.kind === 'catalogs') for (let n = 0; n < (x.chunks || 0); n++) ops.push(b => b.delete(db.collection(COL.catalogChunks).doc(`${x.id}_${n}`)));   // the PDF's stored pieces go too
         ops.push(b => b.delete(db.collection(COL[x.kind]).doc(x.id)));
@@ -6925,6 +7007,10 @@ $('deleteSampleDataBtn').addEventListener('click', () => {
       for (const col of SAMPLE_DATA_COLS){
         const snap = await db.collection(col).where('sample', '==', true).get();
         total += snap.docs.length;
+        if (col === 'pm_warehouse'){   // a sample item is never actually linked to a stock effect (see projectsAddSampleBtn), so this
+          // is normally a no-op, but sweeps up its `history` subcollection too in case a real job was linked to it afterward.
+          for (const d of snap.docs) (await db.collection(col).doc(d.id).collection('history').get()).docs.forEach(h => db.collection(col).doc(d.id).collection('history').doc(h.id).delete().catch(() => {}));
+        }
         await commitInChunks(snap.docs.map(d => b => b.delete(db.collection(col).doc(d.id))));
       }
       logAudit('ลบข้อมูลตัวอย่างทั้งหมด', 'ข้อมูลตัวอย่าง', `${total} รายการ`);

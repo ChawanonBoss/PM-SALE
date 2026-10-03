@@ -129,9 +129,17 @@ service cloud.firestore {
 
     // Warehouse stock is shared: any signed-in user can read, add and edit items; only admin can delete
     // (a soft-delete is an update that sets deletedAt, so that key is blocked for non-admins here).
-    // Non-admins are limited to the fields the app itself writes (item details, quantity, serials, history), the quantity must stay a
-    // non-negative number, createdBy / deletedAt / any other key cannot be touched, and the withdrawal history can only grow
-    // (it is capped at 500 by the app, so it never shrinks legitimately).
+    // Non-admins are limited to the fields the app itself writes (item details, quantity, serials, history, historyCount), the
+    // quantity must stay a non-negative number, createdBy / deletedAt / any other key cannot be touched, and the withdrawal
+    // history can only grow (it is capped at 500 by the app, so it never shrinks legitimately). `history` itself is now a
+    // legacy field: an item saved before "Warehouse: withdrawal history subcollection" (see CLAUDE.md) still carries it inline
+    // and this rule still lets it sit there untouched (the app never writes to it again - every update from here on only ever
+    // touches quantity/serials/historyCount, so request.resource.data.history ends up identical to resource.data.history,
+    // which trivially satisfies "never shrinks"); a NEW withdrawal/return entry is written into the `history` subcollection
+    // below instead, alongside a plain incrementing `historyCount` number on THIS doc (same FieldValue.increment() pattern
+    // pm_photos' photoCounts already uses) so the warehouse list's own "เบิก/คืน N ครั้ง" subtext and the Excel export can
+    // keep showing a real count cheaply without loading a single entry's content - also never allowed to shrink, same
+    // reasoning as `history` itself.
     match /pm_warehouse/{id} {
       allow read: if pmIsApproved();
       allow create: if pmIsAdmin()
@@ -140,11 +148,34 @@ service cloud.firestore {
             && request.resource.data.quantity is number && request.resource.data.quantity >= 0);
       allow update: if pmIsAdmin()
         || (pmIsApproved()
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['part','name','type','brand','quantity','serials','note','history'])
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['part','name','type','brand','quantity','serials','note','history','historyCount'])
             && request.resource.data.quantity is number && request.resource.data.quantity >= 0
             && (!('history' in resource.data)
-                || (request.resource.data.history is list && request.resource.data.history.size() >= resource.data.history.size())));
+                || (request.resource.data.history is list && request.resource.data.history.size() >= resource.data.history.size()))
+            && (!('historyCount' in resource.data)
+                || (request.resource.data.historyCount is number && request.resource.data.historyCount >= resource.data.historyCount)));
       allow delete: if pmIsAdmin();
+
+      // Withdrawal/return history: one document per entry, instead of growing an array field on the parent doc above - see
+      // "Warehouse: withdrawal history subcollection" in CLAUDE.md for the full "why" (the array field was loaded in full by
+      // every signed-in session's shared pm_warehouse listener even though only the warehouse LIST view's own
+      // `history.length` was ever read from it there; the real per-entry content was only ever used one item at a time,
+      // inside the serial/history modal). No 500-entry cap here unlike the old array - that cap only existed to keep one
+      // document's content under Firestore's 1 MB limit, which a subcollection of many small documents never shares.
+      // Immutable once written, like pm_auditLog: only a create is ever allowed; only an admin may delete (purging the
+      // parent item from Trash sweeps these along, same pattern as pm_files/catalog-chunk cleanup elsewhere).
+      match /history/{entryId} {
+        allow read: if pmIsApproved();
+        allow create: if pmIsAdmin()
+          || (pmIsApproved()
+              && request.resource.data.keys().hasOnly(['at','projectId','docNo','projectName','jobType','by','byName','type','qty','serials'])
+              && request.resource.data.by == request.auth.uid
+              && request.resource.data.type in ['out', 'return']
+              && request.resource.data.qty is number && request.resource.data.qty >= 0
+              && request.resource.data.serials is list);
+        allow update: if false;
+        allow delete: if pmIsAdmin();
+      }
     }
 
     // Service warehouse: same sharing model as pm_warehouse above (any approved user reads/adds/edits, admin-only delete, deletedAt blocked
@@ -159,15 +190,33 @@ service cloud.firestore {
       allow delete: if pmIsAdmin();
     }
 
-    // Project attachments (one document per file; the bytes are base64 inside `data`, under Firestore's 1 MB limit). `ownerId` is the project's
-    // creator: that person and the admins may read, add and delete; nobody edits a file in place.
+    // Project attachments (one document per file; the bytes used to be base64 inline in `data`, under Firestore's 1 MB limit).
+    // `ownerId` is the project's creator: that person and the admins may read, add and delete; nobody edits a file in place.
+    // `data` is now OPTIONAL on this doc - see "Project attachments: blob subcollection" in CLAUDE.md. A file uploaded before
+    // that change still carries it inline and is validated exactly as before when present; a NEW upload omits it here
+    // entirely and writes the actual bytes into the `blob` subcollection below instead, so the metadata query every project
+    // VIEW already runs (name/size/date only) never has to carry that file's full bytes along for the ride any more.
     match /pm_files/{id} {
       allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
       allow create: if pmIsAdmin()
         || (pmIsApproved() && request.resource.data.ownerId == request.auth.uid && request.resource.data.createdBy == request.auth.uid
-            && request.resource.data.data is string && request.resource.data.data.size() < 900000);
+            && (!('data' in request.resource.data) || (request.resource.data.data is string && request.resource.data.data.size() < 900000)));
       allow update: if false;
       allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
+
+      // A NEW file's actual byte content (one document, fixed id "content"). `ownerId` is duplicated here rather than looked
+      // up on the parent via get() purely so this rule can check scoping directly, matching every other collection's own
+      // flat ownerId/createdBy fields instead of adding a "look at my parent doc" shape just for this one case. Immutable
+      // like the metadata doc above - no update, ever.
+      match /blob/{blobId} {
+        allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
+        allow create: if pmIsAdmin()
+          || (pmIsApproved() && request.resource.data.ownerId == request.auth.uid
+              && request.resource.data.keys().hasOnly(['ownerId', 'data'])
+              && request.resource.data.data is string && request.resource.data.data.size() < 900000);
+        allow update: if false;
+        allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
+      }
     }
 
     // Handover photos (equipment / installation sets): one document per photo, same base64-under-1MB shape and ownerId scoping as pm_files above.
