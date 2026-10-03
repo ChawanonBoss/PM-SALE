@@ -30,7 +30,7 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
           { title:'หัวข้อ 4', owner:'ทีมติดตั้ง', start: ymd(today), end: ymd(today), done:false, subs:[] }
         ]
       });
-      // a second project with NO plan at all, to confirm the widget stays absent rather than showing an empty/0% ring
+      // a second project with NO plan at all, to confirm the card shows no ring/bars rather than an empty/0% one
       await db.collection('pm_projects').doc('p2').set({
         jobType:'project', docNo:'PJ2', name:'โครงการไม่มีแผน', customerId:'c1', customerName:'ลูกค้า ก',
         startDate: ymd(today), endDate: ymd(addDays(today, 30)), createdBy:'admin1', items:[], warrantyMonths:1, plan:[]
@@ -39,27 +39,37 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
     page.wait_for_timeout(500)
 
     page.click('.nav-item[data-tab="actionplan"]'); page.wait_for_timeout(300)
-    page.click('.plan-card:has-text("โครงการทดสอบความคืบหน้า")'); page.wait_for_timeout(300)
 
-    # ---------------- ring + stat line read from the SAME planSummary() the rest of the page already uses ----------------
-    assert page.is_visible('.plan-progress-widget'), "the progress widget renders for a project that has plan topics"
-    assert page.locator('.plan-progress-widget .dash-donut-num').inner_text().strip() == '50%'
-    stat_text = page.inner_text('.plan-progress-stat-row')
+    # ---------------- ring + stat line, read directly off the LIST card (no navigation into the detail view) ----------------
+    card = page.locator('.plan-card:has-text("โครงการทดสอบความคืบหน้า")')
+    assert card.locator('.plan-card-progress').is_visible(), "the compact progress widget renders on the card for a project that has plan topics"
+    assert card.locator('.plan-card-ring-pct').inner_text().strip() == '50%'
+    stat_text = card.locator('.plan-card-stat').inner_text()
     assert '2' in stat_text and '4' in stat_text and 'ขั้นตอนเสร็จแล้ว' in stat_text, stat_text
-    ring_circles = page.locator('.plan-progress-widget .dash-donut circle')
+    assert '4' in stat_text and 'หัวข้อใหญ่' in stat_text, stat_text
+    ring_circles = card.locator('.plan-card-ring circle')
     assert ring_circles.count() == 2, "track circle + one progress arc, same technique as the dashboard's own donut"
+    # the existing topic tracker still renders below the new widget, unchanged
+    assert card.locator('.plan-track').is_visible()
 
     # ---------------- weekly bars: today's own column reflects the 2 steps due today; all 7 days render ----------------
-    bar_cols = page.locator('.plan-progress-weekly .dash-bar-col')
+    bar_cols = card.locator('.plan-card-weekly-bars .plan-card-bar-col')
     assert bar_cols.count() == 7, "Mon-Sun, always 7 columns regardless of which day today is"
-    current_col = page.locator('.plan-progress-weekly .dash-bar-col.current')
+    current_col = card.locator('.plan-card-weekly-bars .plan-card-bar-col.current')
     assert current_col.count() == 1, "exactly one column is marked as today"
     assert '2 ขั้นตอน' in (current_col.get_attribute('title') or ''), current_col.get_attribute('title')
 
-    # ---------------- a project with no plan topics at all shows no ring (nothing to show progress of yet) ----------------
-    page.click('#planBackBtn'); page.wait_for_timeout(200)
-    page.click('.plan-card:has-text("โครงการไม่มีแผน")'); page.wait_for_timeout(300)
-    assert not page.is_visible('.plan-progress-widget'), "no plan topics yet -> the widget stays out of the page entirely"
+    # ---------------- a project with no plan topics at all shows no ring/bars (nothing to show progress of yet) ----------------
+    empty_card = page.locator('.plan-card:has-text("โครงการไม่มีแผน")')
+    assert not empty_card.locator('.plan-card-progress').count(), "no plan topics yet -> the card shows no progress widget at all"
+    assert empty_card.locator('.dash-empty').is_visible()
+
+    # ---------------- the per-project DETAIL view is back to its original content, no widget there any more ----------------
+    card.click(); page.wait_for_timeout(300)
+    assert not page.locator('#planProgressWidget').count(), "the widget's old container div is gone from the detail view"
+    assert not page.is_visible('.plan-progress-widget')
+    meta_text = page.inner_text('#planMeta')
+    assert 'ดำเนินการแล้ว' in meta_text and '2/4' in meta_text and '50%' in meta_text, meta_text
 
     print("errors:", errors); assert not errors
 print("OK")

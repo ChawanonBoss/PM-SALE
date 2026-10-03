@@ -377,20 +377,23 @@
   .plan-head{ display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; }
   .plan-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--ink-soft); }
   .plan-meta b{ color:var(--ink); font-weight:500; }
-  /* Per-project progress widget (ring + weekly bars) in the Action Plan detail view - reuses the dashboard's own
-     .dash-donut-*/.dash-bar* classes verbatim for the ring and bar chart (same shadow/token vocabulary, no reason to
-     duplicate it), only the wrapper/layout classes below are new to this widget. */
-  .plan-progress-widget{ display:flex; flex-direction:column; gap:18px; }
-  .plan-progress-top{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; }
-  .plan-progress-title{ font-size:15px; font-weight:700; color:var(--ink); margin:0 0 2px; }
-  .plan-progress-main{ display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
-  .plan-progress-stat{ display:flex; flex-direction:column; gap:6px; flex:1; min-width:180px; }
-  .plan-progress-stat-row{ display:flex; align-items:center; gap:8px; font-size:15px; color:var(--ink); }
-  .plan-progress-check{ display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--ok-soft); color:var(--ok-ink); font-size:13px; flex-shrink:0; }
-  .plan-progress-days.late{ color:var(--danger); }
-  .plan-progress-flags{ display:flex; gap:6px; flex-wrap:wrap; }
-  .plan-progress-weekly{ border-top:1px solid var(--line); padding-top:16px; }
-  .plan-progress-weekly-head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  /* Per-project progress widget (ring + weekly activity bars) on each card of the Action Plan LIST page - a compact
+     version of the same ring/bar-chart technique the dashboard's own .dash-donut-*/.dash-bar* classes use, sized down
+     to fit a ~300px card instead of a full panel (moved here from an earlier pass that put it on the per-project
+     detail page instead, per a direct correction - a card view showing several projects at once is where it actually
+     belongs, one ring per project). */
+  .plan-card-progress{ display:flex; align-items:center; gap:12px; }
+  .plan-card-ring-wrap{ position:relative; width:58px; height:58px; flex-shrink:0; }
+  .plan-card-ring{ width:100%; height:100%; }
+  .plan-card-ring-center{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .plan-card-ring-pct{ font-family:var(--font-display); font-size:14px; font-weight:800; color:var(--ink); line-height:1; }
+  .plan-card-stat{ display:flex; flex-direction:column; gap:2px; font-size:12.5px; color:var(--ink-soft); min-width:0; }
+  .plan-card-stat b{ color:var(--ink); }
+  .plan-card-weekly-bars{ display:flex; align-items:flex-end; gap:4px; height:32px; padding-top:2px; }
+  .plan-card-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:3px; min-width:0; }
+  .plan-card-bar{ width:5px; border-radius:100px; background:var(--paper-dim); box-shadow:var(--shadow-inset-sm); min-height:4px; }
+  .plan-card-bar-col.current .plan-card-bar{ background:var(--accent); box-shadow:var(--shadow-ext-sm); }
+  .plan-card-bar-label{ font-size:8px; color:var(--ink-soft); }
   .plan-edit-topic td{ background:var(--paper-dim); }
   @media (max-width:760px){ .gantt .g-chk, .gantt .g-no, .gantt .g-detail{ position:static; } }
 
@@ -1026,7 +1029,6 @@
               </div>
             </div>
           </div>
-          <div id="planProgressWidget"></div>
           <div class="panel">
             <p class="panel-note" id="planNote" style="margin-top:0;">สัปดาห์นับตามวันที่ในเดือน: วัน 1–7 = สัปดาห์ที่ 1, 8–14 = 2, 15–21 = 3, 22–28 = 4, 29 ขึ้นไป = 5 · แถบสีจะเรียงต่อจากสัปดาห์ของวันเริ่มต้นไปจนถึงสัปดาห์ของวันสิ้นสุด (ส่วนสีเข้มคือความคืบหน้า) · ลากแถบเพื่อย้าย, ลากขอบซ้าย/ขวาเพื่อปรับความยาว (เป็นรายสัปดาห์), ลากบนแถวที่ยังไม่มีวันที่เพื่อสร้างแถบ · ติ๊กช่อง ✓ หน้าสุดของแถวเมื่อดำเนินการแล้ว (ความคืบหน้าคำนวณจากจำนวนที่ติ๊ก)</p>
             <div id="planBody"></div>
@@ -1994,7 +1996,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.4';
+const APP_VERSION = '1.27.5';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -4570,67 +4572,44 @@ function renderPlanList(projects){
       <div class="plan-card-top"><b>${escapeHtml(pr.name)}</b>${statusBadge(projectStatus(pr))}</div>
       <div class="cell-sub">${pr.docNo ? `<span class="docno">${escapeHtml(pr.docNo)}</span> ` : ''}${escapeHtml(pr.customerName || '-')}${pr.contractNo ? ' · ' + escapeHtml(pr.contractNo) : ''}</div>
       ${sm.steps
-        ? `<div class="cell-sub">${currentLang === 'en' ? `${sm.steps} topics · Done ${sm.done}/${sm.total}` : `${sm.steps} หัวข้อ · ดำเนินการแล้ว ${sm.done}/${sm.total}`} (<b style="color:var(--ink);">${sm.progress}%</b>)</div>${planTrackHtml(pr)}`
+        ? `${renderPlanCardProgress(pr, sm)}${planTrackHtml(pr)}`
         : `<div class="dash-empty" style="padding:6px 0 0;">ยังไม่มีแผนดำเนินการ</div>`}
     </div>`;
   }).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${projects.length ? 'ไม่พบโครงการตามเงื่อนไข' : 'ยังไม่มีโครงการ — สร้างโครงการที่หน้า "โครงการ" แล้วจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ'}</div>`;
 }
-// Single-value ring for the progress widget below - the exact same stacked-circle/stroke-dasharray/rotate(-90) technique
-// renderStatusDonutArcs() already uses for the dashboard's 3-way donut, simplified to one arc instead of three segments.
+// Single-value ring for the LIST card's own compact progress widget below - the exact same stacked-circle/
+// stroke-dasharray/rotate(-90) technique renderStatusDonutArcs() already uses for the dashboard's 3-way donut,
+// simplified to one arc instead of three segments and sized down to fit inside a ~300px card.
 function planProgressRingSvg(pct){
-  const R = 46, C = 2 * Math.PI * R;
+  const R = 22, C = 2 * Math.PI * R;
   const dash = Math.max(0, Math.min(100, pct)) / 100 * C;
-  return `<circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--paper-dim)" stroke-width="13"></circle>
-    <g transform="rotate(-90 60 60)"><circle cx="60" cy="60" r="${R}" fill="none" stroke="var(--accent)" stroke-width="13" stroke-linecap="round" stroke-dasharray="${dash} ${C - dash}"></circle></g>`;
+  return `<circle cx="29" cy="29" r="${R}" fill="none" stroke="var(--paper-dim)" stroke-width="7"></circle>
+    <g transform="rotate(-90 29 29)"><circle cx="29" cy="29" r="${R}" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${dash} ${C - dash}"></circle></g>`;
 }
-// Per-project progress widget (ring + tasks-completed stat + weekly bar chart) sitting between the project header and
-// the Gantt table - adapted from a "Premium Progress Widget UI" reference image the user shared, translated from its
-// own violet palette into this app's warm Neumorphism tokens and reusing the dashboard's existing .dash-donut-*/
-// .dash-bar* classes rather than inventing parallel ones. The reference's own small upward-trend sparkline was left
-// out rather than faked - this app has no historical "% complete over time" series to chart honestly, so "เหลืออีก
-// N วัน" (real, from the project's own end date) stands in its place instead of invented-looking data.
-function renderPlanProgressWidget(p){
-  const sm = planSummary(p);
-  if (!sm.steps) return '';   // nothing to show a ring for before any plan topics exist - renderPlanTable()'s own empty-state message covers this
-  const daysLeft = p.endDate ? daysBetween(todayStr(), p.endDate) : null;
-  const daysLine = daysLeft == null ? '' : daysLeft >= 0 ? `เหลืออีก ${daysLeft} วัน` : `เลยกำหนดแล้ว ${-daysLeft} วัน`;
+// Per-project progress widget (ring + tasks-completed stat + weekly activity bars) on each Action Plan LIST card -
+// adapted from a "Premium Progress Widget UI" reference image the user shared, translated from its own violet palette
+// into this app's warm Neumorphism tokens. First built into the per-project DETAIL page as a full-size panel, then
+// moved here instead per a direct correction ("เอามาแทนหน้านี้" pointing at the list/cards screen) - a card view
+// showing several projects side by side is where a compact per-project ring actually earns its place, one per card.
+function renderPlanCardProgress(p, sm){
   const bars = planWeeklyActivity(p.plan).map(d => {
-    const h = Math.max(8, Math.round(d.n / d.max * 90));
-    return `<div class="dash-bar-col ${d.current ? 'current' : ''}" title="${d.label}: ${d.n} ขั้นตอนครบกำหนด">
-      <div class="dash-bar" style="height:${h}px;"></div>
-      <div class="dash-bar-label">${d.label}</div>
+    const h = Math.max(4, Math.round(d.n / d.max * 28));
+    return `<div class="plan-card-bar-col ${d.current ? 'current' : ''}" title="${d.label}: ${d.n} ขั้นตอนครบกำหนด">
+      <div class="plan-card-bar" style="height:${h}px;"></div>
+      <div class="plan-card-bar-label">${d.label}</div>
     </div>`;
   }).join('');
-  return `<div class="panel plan-progress-widget">
-    <div class="plan-progress-top">
-      <div>
-        <h4 class="plan-progress-title">ความคืบหน้าโครงการ</h4>
-        <div class="cell-sub">ติดตามความคืบหน้าแผนดำเนินการ</div>
+  return `<div class="plan-card-progress">
+      <div class="plan-card-ring-wrap">
+        <svg class="plan-card-ring" viewBox="0 0 58 58">${planProgressRingSvg(sm.progress)}</svg>
+        <div class="plan-card-ring-center"><div class="plan-card-ring-pct">${sm.progress}%</div></div>
       </div>
-      ${statusBadge(projectStatus(p))}
-    </div>
-    <div class="plan-progress-main">
-      <div class="dash-donut-wrap">
-        <svg class="dash-donut" viewBox="0 0 120 120">${planProgressRingSvg(sm.progress)}</svg>
-        <div class="dash-donut-center"><div class="dash-donut-num">${sm.progress}%</div><div class="dash-donut-label">เสร็จแล้ว</div></div>
-      </div>
-      <div class="plan-progress-stat">
-        <div class="plan-progress-stat-row"><span class="plan-progress-check">✓</span><b>${sm.done} / ${sm.total}</b>&nbsp;ขั้นตอนเสร็จแล้ว</div>
-        ${daysLine ? `<div class="cell-sub plan-progress-days ${daysLeft < 0 ? 'late' : ''}">${daysLine}</div>` : ''}
-        ${sm.late || sm.soon ? `<div class="plan-progress-flags">
-          ${sm.late ? `<span class="badge expired">เลยกำหนด ${sm.late}</span>` : ''}
-          ${sm.soon ? `<span class="badge soon">ใกล้ครบกำหนด ${sm.soon}</span>` : ''}
-        </div>` : ''}
+      <div class="plan-card-stat">
+        <div><b>${sm.done}/${sm.total}</b> ขั้นตอนเสร็จแล้ว</div>
+        <div>${sm.steps} หัวข้อใหญ่</div>
       </div>
     </div>
-    <div class="plan-progress-weekly">
-      <div class="plan-progress-weekly-head">
-        <h4 class="plan-progress-title">กิจกรรมประจำสัปดาห์</h4>
-        <span class="cell-sub">ขั้นตอนที่ครบกำหนดในแต่ละวัน (สัปดาห์นี้)</span>
-      </div>
-      <div class="dash-bars">${bars}</div>
-    </div>
-  </div>`;
+    <div class="plan-card-weekly-bars">${bars}</div>`;
 }
 function renderPlanDetail(p){
   const sm = planSummary(p);
@@ -4640,8 +4619,10 @@ function renderPlanDetail(p){
     `<span>ลูกค้า <b>${escapeHtml(p.customerName || '-')}</b></span>` +
     `<span>เลขที่สัญญา <b>${escapeHtml(p.contractNo || '-')}</b></span>` +
     `<span>ระยะเวลา <b>${fmtDate(p.startDate)} – ${fmtDate(p.endDate)}</b> (${inclusiveDays(p.startDate, p.endDate)} วัน)</span>` +
+    (sm.steps ? `<span>ดำเนินการแล้ว <b>${sm.done}/${sm.total}</b> ขั้นตอน (${sm.progress}%)</span>` : '') +
+    (sm.late ? `<span><span class="badge expired">เลยกำหนด ${sm.late} ขั้นตอน</span></span>` : '') +
+    (sm.soon ? `<span><span class="badge soon">ใกล้ครบกำหนด ${sm.soon} ขั้นตอน</span></span>` : '') +
     `<span>${statusBadge(projectStatus(p))}</span>`;
-  $('planProgressWidget').innerHTML = renderPlanProgressWidget(p);
   setPlanBodyHtml(sm.steps
     ? renderPlanTable(p)
     : `<div class="dash-empty" style="text-align:center; padding:30px 0;">โครงการนี้ยังไม่มีแผนดำเนินการ — กด "แก้ไขแผนดำเนินการ" เพื่อเพิ่มหัวข้อและกำหนดวันที่</div>${renderPlanTable(p)}`);
