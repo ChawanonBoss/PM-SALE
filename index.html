@@ -1995,7 +1995,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.6';
+const APP_VERSION = '1.27.7';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -3898,7 +3898,7 @@ async function printWhenReady(){
 function letterheadHtml(co){
   return co ? `
     <div class="pr-head">
-      ${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}
+      ${co.logoBase64 ? `<img src="${escapeHtml(co.logoBase64)}" alt="">` : ''}
       <div>
         <div class="pr-co-name">${escapeHtml(co.name)}</div>
         ${co.address ? `<div>${escapeHtml(co.address)}</div>` : ''}
@@ -3919,7 +3919,7 @@ function buildProjectPrintHtml(p){
   // that field is set, and every line here is right-aligned flush to the page's right margin (logo stays put on the left).
   const phoneTax = co ? [co.phone ? 'โทร. ' + co.phone : '', co.taxId ? 'เลขประจำตัวผู้เสียภาษี ' + co.taxId : ''].filter(Boolean).map(escapeHtml).join(' &nbsp;|&nbsp; ') : '';
   const head = co ? `
-    <div class="ho-head"><div class="row"><div>${co.logoBase64 ? `<img src="${co.logoBase64}" alt="">` : ''}</div>
+    <div class="ho-head"><div class="row"><div>${co.logoBase64 ? `<img src="${escapeHtml(co.logoBase64)}" alt="">` : ''}</div>
       <div><div class="co">${escapeHtml(co.name)}</div>
         ${co.address ? `<div class="addr">${escapeHtml(co.address)}</div>` : ''}
         ${phoneTax ? `<div class="addr">${phoneTax}</div>` : ''}
@@ -4593,7 +4593,8 @@ function planProgressRingSvg(pct){
 function renderPlanCardProgress(p, sm){
   const bars = planWeeklyActivity(p.plan).map(d => {
     const h = Math.max(4, Math.round(d.n / d.max * 28));
-    return `<div class="plan-card-bar-col ${d.current ? 'current' : ''}" title="${d.label}: ${d.n} ขั้นตอนครบกำหนด">
+    const title = `${d.label}: ${d.n} ขั้นตอนครบกำหนด`;
+    return `<div class="plan-card-bar-col ${d.current ? 'current' : ''}" title="${title}" tabindex="0" role="img" aria-label="${title}">
       <div class="plan-card-bar" style="height:${h}px;"></div>
     </div>`;
   }).join('');
@@ -4603,8 +4604,8 @@ function renderPlanCardProgress(p, sm){
         <div class="plan-card-ring-center"><div class="plan-card-ring-pct">${sm.progress}%</div></div>
       </div>
       <div class="plan-card-stat">
-        <div><b>${sm.done}/${sm.total}</b> ขั้นตอนเสร็จแล้ว</div>
-        <div>${sm.steps} หัวข้อใหญ่</div>
+        <div>${currentLang === 'en' ? `<b>${sm.done}/${sm.total}</b> steps done` : `ดำเนินการแล้ว <b>${sm.done}/${sm.total}</b> ขั้นตอน`}</div>
+        <div>${currentLang === 'en' ? `${sm.steps} topics` : `${sm.steps} หัวข้อใหญ่`}</div>
       </div>
     </div>
     <div class="plan-card-weekly-bars">${bars}</div>`;
@@ -5408,7 +5409,7 @@ let travelViewMode = false;
 let travelNewPhotoData = null, travelNewPhotoType = null;
 function renderTravelNewPhotoGrid(){
   $('travelNewPhotoGrid').innerHTML = travelNewPhotoData
-    ? `<div class="photo-item"><img src="data:${travelNewPhotoType || 'image/jpeg'};base64,${travelNewPhotoData}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
+    ? `<div class="photo-item"><img src="data:${escapeHtml(travelNewPhotoType || 'image/jpeg')};base64,${escapeHtml(travelNewPhotoData)}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
         <button type="button" class="icon-btn delete-btn" onclick="deleteTravelNewPhoto()" aria-label="ลบรูปภาพ">ลบ</button></div>`
     : '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
   $('travelNewPhotoAddLabel').style.display = travelNewPhotoData ? 'none' : 'inline-block';
@@ -5580,7 +5581,7 @@ function printTravel(){
         <tr><td>สถานที่เริ่มต้น</td><td>${escapeHtml(r.t.fromLocation || '-')}</td></tr>
         <tr><td>สถานที่ปลายทาง</td><td>${escapeHtml(r.t.toLocation || '-')}</td></tr></table>
       <div class="pr-travel-photo-label">รูปภาพ</div>
-      <img src="data:${r.t.photoType || 'image/jpeg'};base64,${r.t.photoData}" alt="">
+      <img src="data:${escapeHtml(r.t.photoType || 'image/jpeg')};base64,${escapeHtml(r.t.photoData)}" alt="">
     </div>`;
   let photoSection = '';
   for (let i = 0; i < photoRows.length; i += 4){
@@ -5628,7 +5629,7 @@ function openTravelPhotoModal(id){
 function renderTravelPhotoGrid(){
   const t = data.travel.find(x => x.id === travelPhotoTripId);
   $('travelPhotoGrid').innerHTML = t && t.photoData
-    ? `<div class="photo-item"><img src="data:${t.photoType || 'image/jpeg'};base64,${t.photoData}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
+    ? `<div class="photo-item"><img src="data:${escapeHtml(t.photoType || 'image/jpeg')};base64,${escapeHtml(t.photoData)}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
         <button type="button" class="icon-btn delete-btn" onclick="deleteTravelPhoto()" aria-label="ลบรูปภาพ">ลบ</button></div>`
     : '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
   // only one photo per trip - hide "+ แนบรูปภาพ" once one exists; delete first to replace it
@@ -5953,7 +5954,7 @@ function renderPhotoGrids(){
     const gridId = set === 'equipment' ? 'photosEquipGrid' : 'photosInstallGrid';
     $(set === 'equipment' ? 'photosEquipCount' : 'photosInstallCount').textContent = list.length ? `(${list.length})` : '';
     $(gridId).innerHTML = list.map(ph => `<div class="photo-item">
-        <img src="data:${ph.type || 'image/jpeg'};base64,${ph.data}" alt="${escapeHtml(ph.name)}" loading="lazy" onclick="window.open(this.src, '_blank')">
+        <img src="data:${escapeHtml(ph.type || 'image/jpeg')};base64,${escapeHtml(ph.data)}" alt="${escapeHtml(ph.name)}" loading="lazy" onclick="window.open(this.src, '_blank')">
         <button type="button" class="icon-btn delete-btn" onclick="deleteProjectPhoto('${ph.id}')" aria-label="ลบรูปภาพ">ลบ</button>
         <span class="cell-sub">${equipCaption(ph) ? escapeHtml(equipCaption(ph)) : '<i>ไม่ระบุอุปกรณ์</i>'} · ${fmtBytes(ph.size || 0)}</span>
       </div>`).join('') || '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
@@ -6025,7 +6026,7 @@ function buildPhotosPrintHtml(rec, photos){
     const list = photos.filter(p => p.set === set);
     if (!list.length) return '';
     return `<div class="pr-photo-sec"><div class="pr-title" style="font-size:15pt; text-align:left; border-bottom:0.3mm solid #7F7F7F; padding-bottom:1mm;">${label}</div></div>
-      <div class="pr-photo-grid">${list.map(p => `<div class="pr-photo-cell"><img src="data:${p.type || 'image/jpeg'};base64,${p.data}" alt="">
+      <div class="pr-photo-grid">${list.map(p => `<div class="pr-photo-cell"><img src="data:${escapeHtml(p.type || 'image/jpeg')};base64,${escapeHtml(p.data)}" alt="">
         <div class="pr-photo-cap">${escapeHtml(equipCaption(p) || p.name)}</div></div>`).join('')}</div>`;
   };
   return letterheadHtml(co) + `<table class="pr-info">${info}</table>`
@@ -6114,7 +6115,7 @@ async function getCatalogBytes(cat){
 /* ---- postcards ---- */
 function postcardHtml(o){
   return `<div class="postcard" onclick="${o.open}">
-    <div class="pc-img"><img src="${o.thumb}" alt="" loading="lazy">${o.sample ? '<span class="pc-sample">ตัวอย่าง</span>' : ''}<span class="pc-badge">${o.pages || '-'} หน้า</span></div>
+    <div class="pc-img"><img src="${escapeHtml(o.thumb)}" alt="" loading="lazy">${o.sample ? '<span class="pc-sample">ตัวอย่าง</span>' : ''}<span class="pc-badge">${o.pages || '-'} หน้า</span></div>
     <div class="pc-title">${escapeHtml(o.title)}</div>
     <div class="pc-sub">${escapeHtml([o.brand, o.category].filter(Boolean).join(' · ') || '-')} · ${fmtBytes(o.size || 0)}</div>
     <div class="pc-actions">${o.actions}</div>
@@ -6261,7 +6262,7 @@ function openCatalogForm(id){
   $('catFileField').style.display = c ? 'none' : '';
   $('catFile').value = ''; $('catFile').required = !c;
   $('catFileInfo').textContent = 'ขนาดไม่เกิน 15 MB';
-  $('catPreview').innerHTML = c ? `<img src="${c.thumb}" alt="">` : '';
+  $('catPreview').innerHTML = c ? `<img src="${escapeHtml(c.thumb)}" alt="">` : '';
   $('catTitle').value = c ? c.title || '' : '';
   $('catBrand').value = c ? c.brand || '' : '';
   catCategorySel.reset();
@@ -6282,7 +6283,7 @@ $('catFile').addEventListener('change', async e => {
     const bytes = await readPdfFile(f);
     const info = await analysePdf(bytes);
     pendingCatalogFile = f;
-    $('catPreview').innerHTML = `<img src="${info.thumb}" alt="">`;
+    $('catPreview').innerHTML = `<img src="${escapeHtml(info.thumb)}" alt="">`;
     $('catFileInfo').textContent = `${f.name} · ${info.pages} หน้า · ${fmtBytes(f.size)}`;
     if (!$('catTitle').value.trim()) $('catTitle').value = f.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim();
   }catch(err){
@@ -6436,7 +6437,7 @@ function renderCompanies(){
   $('companiesGrid').innerHTML = rows.length ? view.map(c => `
     <div class="company-card">
       <div style="display:flex; gap:14px; align-items:center;">
-        <div class="company-logo">${c.logoBase64 ? `<img src="${c.logoBase64}" alt="">` : escapeHtml((c.name||'?').charAt(0).toUpperCase())}</div>
+        <div class="company-logo">${c.logoBase64 ? `<img src="${escapeHtml(c.logoBase64)}" alt="">` : escapeHtml((c.name||'?').charAt(0).toUpperCase())}</div>
         <div><a href="#" class="company-name-link" title="กดเพื่อดูรายการซื้อขาย/โครงการของบริษัทนี้" onclick="openCompanyProjects('${c.id}'); return false;">${escapeHtml(c.name)}</a><div class="company-line">เลขที่ผู้เสียภาษี ${escapeHtml(c.taxId || '-')}</div></div>
       </div>
       <div class="company-line">🧾 ซื้อขาย/โครงการ: <b>${data.projects.filter(pr => pr.companyId === c.id).length}</b> รายการ</div>
@@ -6453,7 +6454,7 @@ function openCompanyProjects(id){
   if (!c) return;
   const list = data.projects.filter(pr => pr.companyId === id).sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''));
   const sales = list.filter(isSale).length, projs = list.length - sales;
-  $('cpoLogo').innerHTML = c.logoBase64 ? `<img src="${c.logoBase64}" alt="">` : escapeHtml((c.name || '?').charAt(0).toUpperCase());
+  $('cpoLogo').innerHTML = c.logoBase64 ? `<img src="${escapeHtml(c.logoBase64)}" alt="">` : escapeHtml((c.name || '?').charAt(0).toUpperCase());
   $('cpoTitle').textContent = c.name;
   $('cpoSub').textContent = [c.taxId && `เลขผู้เสียภาษี ${c.taxId}`, c.phone].filter(Boolean).join(' · ');
   $('cpoSummary').innerHTML = list.length
@@ -6473,7 +6474,7 @@ $('cpoCloseBtn').addEventListener('click', () => closeModal('companyProjectsModa
 let editingCompanyId = null;
 let companyLogoDraft = '';
 function setLogoPreview(){
-  $('cmpLogoPreview').innerHTML = companyLogoDraft ? `<img src="${companyLogoDraft}" alt="">` : 'Logo';
+  $('cmpLogoPreview').innerHTML = companyLogoDraft ? `<img src="${escapeHtml(companyLogoDraft)}" alt="">` : 'Logo';
 }
 function openCompanyForm(id){
   const c = id ? data.companies.find(x => x.id === id) : null;
@@ -6560,7 +6561,7 @@ function renderUsers(){
     const displayName = userFullNameTH(u);
     const initial = (displayName || u.email || '?').trim().charAt(0).toUpperCase();
     const avatar = u.isPending ? `<div class="user-avatar" style="cursor:default; background:var(--paper-dim); color:var(--ink-soft);">${escapeHtml(initial)}</div>`
-      : `<div class="user-avatar" title="คลิกเพื่อเปลี่ยนรูป" onclick="pickAvatar('${u.id}')">${u.avatarBase64 ? `<img src="${u.avatarBase64}" alt="">` : escapeHtml(initial)}</div>`;
+      : `<div class="user-avatar" title="คลิกเพื่อเปลี่ยนรูป" onclick="pickAvatar('${u.id}')">${u.avatarBase64 ? `<img src="${escapeHtml(u.avatarBase64)}" alt="">` : escapeHtml(initial)}</div>`;
     const isMe = u.id === currentUserUid;
     const roleCell = isAdmin
       ? `<select class="filter-control" onchange="setUserRole('${escapeHtml(u.id)}', ${u.isPending}, this.value)" ${isMe ? 'disabled title="ไม่สามารถเปลี่ยนสิทธิ์ของตัวเอง"' : ''}>
@@ -6611,7 +6612,7 @@ const addUsrPositionSel = makeAddableSelect({ sel:'addUsrPosition', addBtn:'addU
 let addUsrPhotoData = null;
 function renderAddUsrPhotoGrid(){
   $('addUsrPhotoGrid').innerHTML = addUsrPhotoData
-    ? `<div class="photo-item"><img src="${addUsrPhotoData}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
+    ? `<div class="photo-item"><img src="${escapeHtml(addUsrPhotoData)}" alt="" loading="lazy" onclick="window.open(this.src,'_blank')">
         <button type="button" class="icon-btn delete-btn" onclick="deleteAddUsrPhoto()" aria-label="ลบรูปภาพ">ลบ</button></div>`
     : '<span class="cell-sub">ยังไม่มีรูปภาพ</span>';
   $('addUsrPhotoAddLabel').style.display = addUsrPhotoData ? 'none' : 'inline-block';

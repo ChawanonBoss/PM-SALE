@@ -45,7 +45,7 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
     assert card.locator('.plan-card-progress').is_visible(), "the compact progress widget renders on the card for a project that has plan topics"
     assert card.locator('.plan-card-ring-pct').inner_text().strip() == '50%'
     stat_text = card.locator('.plan-card-stat').inner_text()
-    assert '2' in stat_text and '4' in stat_text and 'ขั้นตอนเสร็จแล้ว' in stat_text, stat_text
+    assert '2' in stat_text and '4' in stat_text and 'ดำเนินการแล้ว' in stat_text and 'ขั้นตอน' in stat_text, stat_text
     assert '4' in stat_text and 'หัวข้อใหญ่' in stat_text, stat_text
     ring_circles = card.locator('.plan-card-ring circle')
     assert ring_circles.count() == 2, "track circle + one progress arc, same technique as the dashboard's own donut"
@@ -70,6 +70,14 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
     assert not page.is_visible('.plan-progress-widget')
     meta_text = page.inner_text('#planMeta')
     assert 'ดำเนินการแล้ว' in meta_text and '2/4' in meta_text and '50%' in meta_text, meta_text
+    page.click('#planBackBtn'); page.wait_for_timeout(200)
+
+    # ---------------- English mode: the card's own composite stat lines switch too, not just the static dictionary strings ----------------
+    page.evaluate("() => applyLanguage('en')"); page.wait_for_timeout(300)
+    en_stat_text = page.locator('.plan-card:has-text("โครงการทดสอบความคืบหน้า")').locator('.plan-card-stat').inner_text()
+    assert '2/4' in en_stat_text and 'steps done' in en_stat_text and 'topics' in en_stat_text, en_stat_text
+    assert 'ขั้นตอนเสร็จแล้ว' not in en_stat_text and 'หัวข้อใหญ่' not in en_stat_text, en_stat_text
+    page.evaluate("() => applyLanguage('th')"); page.wait_for_timeout(300)   # back to Thai, so this test doesn't leak language state into the next one
 
     print("errors:", errors); assert not errors
 print("OK")

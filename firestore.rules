@@ -35,28 +35,55 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pm_users/$(request.auth.uid)).data.get('status', 'approved') == 'approved';
     }
 
+    // Shared validation for the few places a raw base64 image blob is written straight from the client and later
+    // rendered into an <img src="data:TYPE;base64,DATA">: constrains TYPE to a real image mime and DATA to the base64
+    // alphabet, so a crafted string with a stray quote can never reach that attribute even if a future code change
+    // forgot to escapeHtml() it client-side (defense in depth - the client itself already escapes every such spot).
+    function pmValidImageField(type, data) {
+      return type in ['image/jpeg', 'image/png']
+        && data is string && data.size() < 900000 && data.matches('^[A-Za-z0-9+/]*={0,2}$');
+    }
+    // pm_travelExpenses' one photo per trip (photoData/photoType) is optional - only present once a trip actually has
+    // a photo attached - so this passes when neither key is present at all, and otherwise requires both keys and runs
+    // them through the same validation as every other base64 image field.
+    function pmValidPhotoFields(d) {
+      return (!('photoData' in d) && !('photoType' in d))
+        || ('photoData' in d && 'photoType' in d && pmValidImageField(d.photoType, d.photoData));
+    }
+
     match /pm_projects/{id} {
       allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
       allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
       // A non-admin owner may set closedAt/closedBy for the first time (the real "ปิดงาน" action), but once a job is
       // closed, only an admin may change or clear those two fields - otherwise the owner could reopen a closed sale
       // themselves (bypassing the app's own "a closed sale can never be deleted" rule, since deleteEntity() only checks
-      // client-side that closedAt is unset) by clearing closedAt directly, then deleting it.
+      // client-side that closedAt is unset) by clearing closedAt directly, then deleting it. closedBy must be the
+      // caller's own uid the moment closedAt is first set, so the audit trail can't be forged with someone else's name.
+      // deletedAt (soft delete into Trash) follows the exact same "owner may set it once, only admin may change/clear
+      // it afterwards" shape, so a non-admin owner can't self-restore their own trashed job outside the admin's Trash tab.
       allow update: if pmIsAdmin()
         || (pmIsApproved() && resource.data.createdBy == request.auth.uid
             && request.resource.data.createdBy == resource.data.createdBy
             && (resource.data.get('closedAt', null) == null
-                || (request.resource.data.get('closedAt', null) == resource.data.get('closedAt', null)
-                    && request.resource.data.get('closedBy', null) == resource.data.get('closedBy', null))));
+                ? (request.resource.data.get('closedAt', null) == null
+                    || request.resource.data.get('closedBy', null) == request.auth.uid)
+                : (request.resource.data.get('closedAt', null) == resource.data.get('closedAt', null)
+                    && request.resource.data.get('closedBy', null) == resource.data.get('closedBy', null)))
+            && (resource.data.get('deletedAt', null) == null
+                || request.resource.data.get('deletedAt', null) == resource.data.get('deletedAt', null)));
       allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
     match /pm_customers/{id} {
       allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
       allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
+      // deletedAt: the owner may send their own record to Trash (null -> a value) but, once there, only an admin may
+      // change or clear it - so restoring still has to go through the admin's Trash tab, matching the documented model.
       allow update: if pmIsAdmin()
         || (pmIsApproved() && resource.data.createdBy == request.auth.uid
-            && request.resource.data.createdBy == resource.data.createdBy);
+            && request.resource.data.createdBy == resource.data.createdBy
+            && (resource.data.get('deletedAt', null) == null
+                || request.resource.data.get('deletedAt', null) == resource.data.get('deletedAt', null)));
       allow delete: if pmIsAdmin();   // the app only ever soft-deletes (an update); a real delete is the admin's Trash purge
     }
 
@@ -78,13 +105,19 @@ service cloud.firestore {
     // there's no "view another user's travel log" UI built on top of that wider admin read access (yet). A real delete is
     // still admin-only (the app only ever soft-deletes via an update, same as pm_customers). Its one photo per trip lives
     // inline on this same document (photoData/photoType) rather than a separate collection - no hasOnly() here, so those
-    // two extra keys (and roundTrip/returnTollFee/etc.) needed no rule change of their own.
+    // two extra keys (and roundTrip/returnTollFee/etc.) needed no rule change of their own, but photoData/photoType ARE
+    // validated when present (same size cap and image-type allowlist as pm_photos/pm_files below) since both are rendered
+    // straight into an <img src="data:...;base64,..."> on the client. deletedAt follows the same "owner sets it once,
+    // only admin changes/clears it" shape as pm_customers above, so a trashed trip can't be self-restored either.
     match /pm_travelExpenses/{id} {
       allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.createdBy == request.auth.uid);
-      allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid;
+      allow create: if pmIsApproved() && request.resource.data.createdBy == request.auth.uid && pmValidPhotoFields(request.resource.data);
       allow update: if pmIsAdmin()
         || (pmIsApproved() && resource.data.createdBy == request.auth.uid
-            && request.resource.data.createdBy == resource.data.createdBy);
+            && request.resource.data.createdBy == resource.data.createdBy
+            && pmValidPhotoFields(request.resource.data)
+            && (resource.data.get('deletedAt', null) == null
+                || request.resource.data.get('deletedAt', null) == resource.data.get('deletedAt', null)));
       allow delete: if pmIsAdmin();
     }
 
@@ -138,11 +171,13 @@ service cloud.firestore {
     }
 
     // Handover photos (equipment / installation sets): one document per photo, same base64-under-1MB shape and ownerId scoping as pm_files above.
+    // type/data are additionally constrained to a real image mime + the base64 alphabet (pmValidImageField) since both are
+    // rendered straight into an <img src="data:TYPE;base64,DATA"> on the client - defense in depth alongside client-side escaping.
     match /pm_photos/{id} {
       allow read: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
       allow create: if pmIsAdmin()
         || (pmIsApproved() && request.resource.data.ownerId == request.auth.uid && request.resource.data.createdBy == request.auth.uid
-            && request.resource.data.data is string && request.resource.data.data.size() < 900000);
+            && pmValidImageField(request.resource.data.type, request.resource.data.data));
       allow update: if false;
       allow delete: if pmIsAdmin() || (pmIsApproved() && resource.data.ownerId == request.auth.uid);
     }

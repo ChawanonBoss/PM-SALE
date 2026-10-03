@@ -169,6 +169,18 @@ per card, and `renderPlanDetail()`/`#planMeta` reverted to exactly their pre-wid
   ("ตัดส่วนที่เป็นวันออก") after the card version shipped, since a day initial (จ/อ/พ/...) under a 5px-wide bar at
   card scale read as more clutter than useful; `planWeeklyActivity()`'s own `label` field (still built off the
   existing `CAL_DOW` Proxy) is kept and used only in each bar's `title` tooltip now, not rendered as visible text.
+  Each `.plan-card-bar-col` also carries `tabindex="0" role="img" aria-label="..."` (same text as `title`) so that
+  tooltip is reachable by keyboard/screen reader too, not just mouse hover - a follow-up ux-reviewer health-check pass
+  flagged that without SOME accessible text the bars carry no information at all on a touchscreen (no hover there);
+  the bars staying visually label-less on phone width otherwise is a disclosed, deliberate trade-off the user confirmed
+  keeping as-is when asked, not an oversight.
+- **The two stat lines are `currentLang`-aware** (`currentLang === 'en' ? ... : ...`, the same composite-string pattern
+  `renderPager()` already uses) rather than hardcoded Thai - a gap the same health-check pass caught (every OTHER piece
+  of this card's own text, like the status badge and the topic tracker's late/soon badges, already switched with
+  English mode; only this widget's two new lines didn't). The Thai wording was also changed to match `renderPlanDetail()`'s
+  own `#planMeta` phrasing for the identical number ("ดำเนินการแล้ว X/Y ขั้นตอน" instead of the card's own earlier,
+  differently-worded "X/Y ขั้นตอนเสร็จแล้ว") - the same metric for the same project showing up worded two different
+  ways on two pages of the same feature read as if it might be two different numbers.
 - **The reference's own small upward-trend sparkline, and the detail-view version's "เหลืออีก N วัน" days-remaining
   stand-in for it, were both dropped** on the card - a card already carries the project's own late/soon badges via
   `planTrackHtml()`'s own per-topic badges, and there isn't really room for a third stat line at card width; the ring
@@ -976,3 +988,93 @@ low-risk, left two items as disclosed, deliberate non-fixes below.
   with no check that the change matches a real effect from an actual `pm_projects` save - this is an existing,
   already-documented trust model (shared warehouse, not per-transaction verified), not something this session's
   changes made worse, so left alone rather than redesigned as part of a health-check pass.
+
+## Health-check pass, round 2 (security-reviewer / performance / ux-reviewer)
+A second independent pass, same format as above - run after the Action Plan card-widget work, specifically scoped to
+not re-report anything round 1 already covered. security-reviewer found one CONFIRMED high-severity issue with a real
+exploit path; fixed it plus everything else concrete and low-risk. Two items need a data-model change bigger than a
+health-check pass and were flagged instead of fixed; two UX items were put to the user directly and answered inline.
+
+**Fixed:**
+- **Stored XSS via `<img src="data:TYPE;base64,DATA">` built from unescaped Firestore fields, in 13 places across 6
+  features** - `type`/`data` (handover photos, `pm_photos`), `photoType`/`photoData` (ค่าเดินทาง photos,
+  `pm_travelExpenses`, 3 render sites + the in-memory create-form picker), `avatarBase64` (ผู้ใช้งาน list + the
+  add-user modal's own in-memory preview), `logoBase64` (company letterhead, both the print document and the
+  companies list/popup), and catalog PDF `thumb` (postcard grid + upload preview). All of these interpolate a
+  Firestore-sourced (or, for the in-memory ones, still Firestore-bound) string directly into an HTML attribute via a
+  template literal assigned to `innerHTML` - a value containing `" onerror="..."` breaks out of the `src="..."`
+  attribute and runs arbitrary JS in whoever's browser renders that row. Confirmed exploit path: an approved
+  non-admin user (no special access needed) writes a crafted `avatarBase64` directly through the Firebase SDK
+  (bypassing the app's own upload UI entirely, which always produces a clean data URL) onto their OWN `pm_users` doc -
+  the rules' own update rule has no format check on that field - then waits for an ADMIN to open "ผู้ใช้งาน" (which
+  renders every row, admin included); the payload runs in the admin's own session and can immediately rewrite the
+  attacker's own `role` to `'admin'` from there, a full privilege escalation. The same pattern reaches an admin via
+  `pm_photos`/`pm_travelExpenses` too (attacker attaches a crafted photo to their OWN project/trip, waits for admin to
+  open that photo page or print it). Fixed by wrapping every one of these 13 interpolations in the existing
+  `escapeHtml()` helper (already used everywhere else in the file for exactly this) - `escapeHtml()` escapes `"` and
+  `'` too, so it's attribute-safe, not just text-safe.
+- **`firestore.rules` hardened to match**, so the same hole can't be reopened by a future code change that forgets to
+  escape: a new shared `pmValidImageField(type, data)` function restricts `type` to a real image mime
+  (`['image/jpeg','image/png']`, matching what the app itself ever actually writes) and `data` to the base64 alphabet
+  via `.matches('^[A-Za-z0-9+/]*={0,2}$')`, applied to `pm_photos`' create rule and (via a small `pmValidPhotoFields()`
+  wrapper, since `photoData`/`photoType` are optional - only present once a trip has a photo at all) to
+  `pm_travelExpenses`' create/update rules. `pm_travelExpenses` also had no size cap on `photoData` at all before this
+  (unlike `pm_photos`/`pm_files`'s existing `< 900000` cap) - folded into the same `pmValidImageField()` check.
+  `avatarBase64` on `pm_users` was NOT given the same treatment (it's a full `data:image/jpeg;base64,...` data URL,
+  not a bare base64 string like the other three, so it needs its own regex shape) - flagged to the user as a smaller
+  follow-up rather than done opportunistically here, since the client-side XSS is already closed and this would be
+  defense-in-depth on top of that, not a live hole.
+- **`deletedAt` (Trash) can now only be SET by a non-admin owner, never cleared/changed once set** - `pm_customers`,
+  `pm_projects`, and `pm_travelExpenses`'s update rules all previously left `deletedAt` completely unguarded for a
+  non-admin owner (only `pm_projects`' `closedAt` had a similar guard, from round 1), so any owner could restore their
+  own trashed record directly via the SDK (`.update({deletedAt: FieldValue.delete()})`) without going through the
+  admin's Trash tab at all - contradicting the documented "Trash tab (admin) restores" model. Same shape as the
+  existing `closedAt` guard: `resource.data.get('deletedAt',null)==null || request.resource.data.get('deletedAt',null)
+  == resource.data.get('deletedAt',null)` - a non-admin can go null -> a value (the real "ลบ" action) but never touch
+  it again once it's set; only `pmIsAdmin()` bypasses that.
+- **`pm_projects`' `closedBy` can no longer be forged on the first ปิดงาน** - the existing `closedAt` guard (round 1)
+  only locked `closedBy` once `closedAt` was ALREADY set; the very first transition (`closedAt` null -> a value) had
+  no check that `closedBy` was the caller's own uid, so an owner could close their own sale and attribute it to
+  someone else in the audit trail. Added `request.resource.data.get('closedBy',null) == request.auth.uid` to that
+  first-close branch specifically (a ternary on `resource.data.get('closedAt',null)==null`, since the "already closed"
+  branch's existing check is unrelated and unchanged).
+- **The new Action Plan card widget's weekly-bar tooltips are now reachable without a mouse** - `tabindex="0" role="img"
+  aria-label="..."` added to each `.plan-card-bar-col` (see the widget's own section above) - a ux-reviewer finding
+  that the bars carried zero information outside mouse hover once round 1's own "drop the day labels" change shipped.
+- **The widget's two stat lines are now `currentLang`-aware, and reworded to match the detail view's own phrasing** -
+  see the widget's own section above; both were ux-reviewer findings (one a gap in the English-mode pass this
+  session's "Language: English overlay" work already did everywhere else on this same card; one a copy inconsistency
+  between this card and `renderPlanDetail()`'s `#planMeta` for the identical number).
+
+**Flagged, not fixed in this pass (bigger than a health-check-scale change):**
+- **`pm_users` is read by every approved user, not just admin** - `firestore.rules`' own `list` rule
+  (`allow list: if pmIsApproved() || ...`) and the client's own `watch('users', db.collection(COL.users), ...)`
+  listener (no `.where()` at all) mean every signed-in user's browser holds every OTHER user's phone/email/position/
+  avatar in memory (`data.users`), even though `renderUsers()` only ever DISPLAYS a non-admin's own row - open
+  devtools and type `data.users` as a plain approved user and every colleague's profile is sitting right there. Why
+  not fixed here: `pm_users` is one of the app's six loading-gate collections and `userFullNameTH()`/ค่าเดินทาง's own
+  claim header depend on `data.users` containing at least the CURRENT user's own doc for every role - narrowing the
+  rule to admin-only would need the client query changed first too (a single-doc listener for a non-admin instead of
+  a bare collection listener), otherwise non-admins lose their own profile data and the travel claim header breaks.
+  A real fix is a paired client-query + rules change, which is exactly the kind of thing the **database** agent
+  should design and implement, not something to do opportunistically inside a review pass. Whether this is actually
+  unwanted ("company directory" might be intentional) is also genuinely the user's call, not an obvious bug - flagged
+  for a decision, not assumed either way.
+- **Three performance findings, all requiring a data-model change** (flat base64 field -> subcollection, so a view
+  that only needs a count/metadata doesn't pull the full blob): (1) `loadProjectFiles()` fetches every attached file's
+  full base64 `data` even in read-only VIEW mode (just clicking a row in ซื้อขาย/โครงการ), though that view only ever
+  displays name/size/date - up to ~5.2MB pulled and discarded per row click on a job with a full 8 attachments. (2)
+  `pm_warehouse`'s shared listener loads every item's full `history[]` (capped at 500 entries, each a real object with
+  `serials[]`) to EVERY signed-in session regardless of role, even though the list view only ever reads
+  `history.length` - the full array is only actually used inside `openSerialModal()` for one item at a time. (3)
+  `pm_users`' same unscoped listener (see above) also means every non-admin downloads every colleague's `avatarBase64`
+  on every login, not just their own - smallest impact of the three (avatars are ~128px/a few KB each) but same root
+  cause. All three would need the **database** agent to design (e.g. `pm_files`' `data` / `pm_warehouse`'s `history[]`
+  moved to a subcollection fetched on demand), not a quick inline fix.
+
+**Put to the user directly, answered inline (not independent judgment calls):**
+- Whether to fix the weekly-bar chart being nearly unreadable on phone width (tiny label-less dots, no hover on
+  touch) - the user chose to leave it as-is for now rather than add a visible fallback or a partial day-label revival.
+- Whether to make the widget's two stat lines `currentLang`-aware (a change attempted once earlier in this same
+  session and stopped mid-edit by the user at the time) - asked again now that an independent reviewer flagged it as
+  a real gap; the user said yes this time, see "Fixed" above.
