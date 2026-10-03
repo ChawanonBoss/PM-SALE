@@ -159,13 +159,16 @@ per card, and `renderPlanDetail()`/`#planMeta` reverted to exactly their pre-wid
   `-ring-center`/`-ring-pct`) rather than reusing the dashboard's own `.dash-donut-*` classes verbatim, since those are
   sized for the dashboard's larger panel.
 - **The weekly bar chart** is the same `Math.max(_, Math.round(n/max*H))` height-formula technique as the dashboard's
-  own monthly bars, just with its own smaller card-scoped classes (`.plan-card-weekly-bars`/`-bar-col`/`-bar`/
-  `-bar-label`, capped at 28px tall instead of 90px) fed by `planWeeklyActivity(plan)` - this app has no literal
-  "daily task activity" log (a step only ever carries a due-date *range*, never a "completed at" timestamp), so like
-  `monthlyStartCounts()` already substitutes a job's `startDate` for the dashboard's own "weekly activity" bars, this
-  counts how many of the project's own `planLeaves()` are due (`end` date) on each day of the CURRENT Mon-Sun week -
-  the closest REAL data to the reference widget's daily bars, not invented numbers. Day labels reuse the existing
-  `CAL_DOW` Proxy (already Thai/English-aware off `currentLang`, see "ปฏิทิน" below) rather than a new day-name array.
+  own monthly bars, just with its own smaller card-scoped classes (`.plan-card-weekly-bars`/`-bar-col`/`-bar`, capped
+  at 28px tall instead of 90px) fed by `planWeeklyActivity(plan)` - this app has no literal "daily task activity" log
+  (a step only ever carries a due-date *range*, never a "completed at" timestamp), so like `monthlyStartCounts()`
+  already substitutes a job's `startDate` for the dashboard's own "weekly activity" bars, this counts how many of the
+  project's own `planLeaves()` are due (`end` date) on each day of the CURRENT Mon-Sun week - the closest REAL data to
+  the reference widget's daily bars, not invented numbers. Unlike the dashboard's own monthly bars (and the widget's
+  own earlier detail-view version), **each bar has no day label under it any more** - a direct correction
+  ("ตัดส่วนที่เป็นวันออก") after the card version shipped, since a day initial (จ/อ/พ/...) under a 5px-wide bar at
+  card scale read as more clutter than useful; `planWeeklyActivity()`'s own `label` field (still built off the
+  existing `CAL_DOW` Proxy) is kept and used only in each bar's `title` tooltip now, not rendered as visible text.
 - **The reference's own small upward-trend sparkline, and the detail-view version's "เหลืออีก N วัน" days-remaining
   stand-in for it, were both dropped** on the card - a card already carries the project's own late/soon badges via
   `planTrackHtml()`'s own per-topic badges, and there isn't really room for a third stat line at card width; the ring
