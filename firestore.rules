@@ -206,7 +206,12 @@ service cloud.firestore {
     // already approved; the first-ever admin needs the pm_config/bootstrap marker (made by hand in the Console). Nobody can change their own role or status.
     match /pm_users/{userId} {
       allow get: if request.auth != null && (request.auth.uid == userId || pmIsApproved());
-      allow list: if pmIsApproved()
+      // list (the whole-collection query behind the "ผู้ใช้งาน" admin page) is admin-only - a non-admin's own client
+      // listener only ever subscribes to their own single document now (covered by `get` above, not `list`), so there's
+      // no legitimate non-admin case left that needs this. The bootstrap branch is the one-time "am I the first user"
+      // check a brand-new sign-up makes before their own pm_users doc exists at all (so neither `pmIsAdmin()` nor the
+      // self-uid half of `get` can apply yet) - limited to while pm_config/bootstrap still exists, same as always.
+      allow list: if pmIsAdmin()
         || (request.auth != null && exists(/databases/$(database)/documents/pm_config/bootstrap) && request.query.limit <= 1);
       allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.keys().hasOnly(['email','name','role','status',

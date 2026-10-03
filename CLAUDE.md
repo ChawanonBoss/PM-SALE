@@ -740,19 +740,33 @@ one-for-one, reading from `data.serviceWarehouse` instead of `data.warehouse`. `
 this was added: it used to blank out `type` for any line with no `whId` (meant for old freeform/unlinked goods lines), which would have wrongly blanked a
 service line's ประเภทงาน too since a service never has a `whId` either - the condition is now `(it.whId || service)`.
 
-## Item status: removed - a goods line has no status any more
+## Item status: removed - neither a goods nor a service line has a status any more
 A **goods** line used to carry its own "รอดำเนินการ"/"เลือกแล้ว" status, and for a while (one session's worth of history, now reverted)
 flipping that status to "เลือกแล้ว" on an already-saved job hit `pm_warehouse` immediately, live, before "บันทึกรายการ" was ever
 clicked - a real screenshot report called this column out directly ("ลบสถานะ ในภาพออก") with the actual principle wanted: pick the
 product, quantity and serials, click confirm, and the warehouse is deducted right then - **no status indicator needed at all**. So
 the whole status concept was removed for goods, not just hidden:
-- The "สถานะ" `<th>`/`<td>` is gone from the goods table entirely (`renderItemRows()` - the services table right below it keeps its
-  own status column unchanged, since a service's status tracks whether the WORK is done, not stock, and was never in scope here).
-- `buildItemsFromEditing()` now writes `status:'done'` **unconditionally** for every goods line (never `'pending'` any more) - a
-  service line keeps its own real pending/done value. Every consumer that reads `item.status === 'done'` elsewhere (the โครงการ/
-  ซื้อขาย list's "สถานะงาน" done-count, the warranty page export, the dashboard) needed no change at all: a goods-only job now simply
-  always reads as fully done the moment it's saved, and only a still-pending SERVICE line can leave a job showing the partial
-  "กำลังดำเนินการ" state.
+- The "สถานะ" `<th>`/`<td>` is gone from the goods table entirely (`renderItemRows()`).
+- `buildItemsFromEditing()` now writes `status:'done'` **unconditionally** for every goods line (never `'pending'` any more). Every
+  consumer that reads `item.status === 'done'` elsewhere (the โครงการ/ซื้อขาย list's "สถานะงาน" done-count, the warranty page export,
+  the dashboard) needed no change at all: a goods-only job now simply always reads as fully done the moment it's saved.
+- **The services table originally kept its own real pending/done status** (a service's status tracks whether the WORK is done, not
+  stock, so it was left out of scope the first time around) **but was later brought in line with goods too**, per a direct request
+  ("ส่วนบริการ อยากให้แก้ไข ให้เหมือนสินค้า ตรง สถานะ" - make the services section match the goods one on status): the services
+  table's own "สถานะ" `<th>`/`<td>` (a `<select>` of รอดำเนินการ/ดำเนินการแล้ว) is gone the same way, `blankServiceItem()` now
+  seeds `status:'done'` instead of `'pending'`, and `buildItemsFromEditing()` writes `status:'done'` unconditionally for a service
+  line too - there is no longer any item line, goods or service, that can be `'pending'`. `setItemStatus()` (the select's own
+  onchange handler) was deleted outright as dead code. The row-locking that used to gate a service row's svcId-select/qty behind
+  `it.status === 'done'` (`const locked = ...`) was dropped at the same time, for the same reason `pickedElsewhere()` already
+  dropped its own goods-side lock when goods status was removed - every row is equally "not yet committed" until the whole form is
+  saved, goods or service alike. One real side effect: a job's "กำลังดำเนินการ" (partial-done) status, driven by `item.status==='done'`
+  counts, is now effectively unreachable through items alone (every line of either kind reads as done the instant it exists) -
+  this mirrors exactly what already happened to a goods-only job, just extended to a mixed or services-only one too, not a new
+  trade-off invented for this change. The stale `.panel-note` at the bottom of the form (still describing an even older "เลือกแล้ว
+  เพื่อล็อคของ...ตัดจำนวนและรหัสอุปกรณ์ออกจากโกดังทันที" live-lock flow that no longer exists for either table) was rewritten to
+  describe what the form actually does today - deducts/returns stock for a goods line through the whole-form save, a service line
+  never touches stock at all - and its old, now-orphaned `I18N_EN` dictionary fragments (split across the note's old `<b>` tags)
+  were replaced with one entry for the new, plain (no-`<b>`) text.
 - `stockEffects()` no longer gates on status (every goods line - `r.whId` set - counts, since it's always 'done'); the ENTIRE
   "live lock" mechanism built around that status (`lockOrUnlockItem()`, `applyLiveItemChangeTx()`, `warehouseHistoryBase()`, and
   the special live give-back branch inside `removeItemRow()`) was deleted outright rather than kept as now-unreachable dead code.
@@ -1045,32 +1059,33 @@ health-check pass and were flagged instead of fixed; two UX items were put to th
   see the widget's own section above; both were ux-reviewer findings (one a gap in the English-mode pass this
   session's "Language: English overlay" work already did everywhere else on this same card; one a copy inconsistency
   between this card and `renderPlanDetail()`'s `#planMeta` for the identical number).
+- **`pm_users` is no longer read by every approved user - a non-admin's own listener now only ever subscribes to
+  their own single document.** `attachRealtimeListeners()`'s `users` subscription now branches on `isAdmin`: admin
+  keeps the original `watch('users', db.collection(COL.users), ...)` full-collection listener (needed for the
+  "ผู้ใช้งาน" management page), while a non-admin gets a brand-new `watchDoc('users', db.collection(COL.users)
+  .doc(currentUserUid), ...)` - a single-document listener (`watchDoc()`, a new sibling to the existing `watch()`
+  helper, identical loading-gate/error-toast wiring but built around a `DocumentSnapshot` instead of a
+  `QuerySnapshot`) that resolves to a one-element `data.users` array holding just their own profile. This was
+  confirmed safe before being done: every non-admin-facing feature that reads `data.users` (`renderUsers()`'s own
+  self-view filter, `userFullNameTH()`/the sidebar avatar, ค่าเดินทาง's claim header) only ever needed the CURRENT
+  user's own doc to exist in that array, never anyone else's - grepped every `data.users` call site first to confirm
+  nothing else depended on seeing other users. `firestore.rules`' `pm_users` `list` rule narrowed to admin-only (plus
+  the pre-existing one-time bootstrap-check branch, untouched) since a non-admin's read now goes through `get`
+  (already covered by the existing per-document rule) rather than `list` at all - **publish this rules change** like
+  any other. This also incidentally closed performance finding (3) below (every colleague's `avatarBase64` no longer
+  downloads to every non-admin on login) as a side effect of the same fix, not a separate change.
 
 **Flagged, not fixed in this pass (bigger than a health-check-scale change):**
-- **`pm_users` is read by every approved user, not just admin** - `firestore.rules`' own `list` rule
-  (`allow list: if pmIsApproved() || ...`) and the client's own `watch('users', db.collection(COL.users), ...)`
-  listener (no `.where()` at all) mean every signed-in user's browser holds every OTHER user's phone/email/position/
-  avatar in memory (`data.users`), even though `renderUsers()` only ever DISPLAYS a non-admin's own row - open
-  devtools and type `data.users` as a plain approved user and every colleague's profile is sitting right there. Why
-  not fixed here: `pm_users` is one of the app's six loading-gate collections and `userFullNameTH()`/ค่าเดินทาง's own
-  claim header depend on `data.users` containing at least the CURRENT user's own doc for every role - narrowing the
-  rule to admin-only would need the client query changed first too (a single-doc listener for a non-admin instead of
-  a bare collection listener), otherwise non-admins lose their own profile data and the travel claim header breaks.
-  A real fix is a paired client-query + rules change, which is exactly the kind of thing the **database** agent
-  should design and implement, not something to do opportunistically inside a review pass. Whether this is actually
-  unwanted ("company directory" might be intentional) is also genuinely the user's call, not an obvious bug - flagged
-  for a decision, not assumed either way.
-- **Three performance findings, all requiring a data-model change** (flat base64 field -> subcollection, so a view
-  that only needs a count/metadata doesn't pull the full blob): (1) `loadProjectFiles()` fetches every attached file's
-  full base64 `data` even in read-only VIEW mode (just clicking a row in ซื้อขาย/โครงการ), though that view only ever
+- **Two performance findings still require a data-model change** (flat base64 field -> subcollection, so a view that
+  only needs a count/metadata doesn't pull the full blob): (1) `loadProjectFiles()` fetches every attached file's full
+  base64 `data` even in read-only VIEW mode (just clicking a row in ซื้อขาย/โครงการ), though that view only ever
   displays name/size/date - up to ~5.2MB pulled and discarded per row click on a job with a full 8 attachments. (2)
   `pm_warehouse`'s shared listener loads every item's full `history[]` (capped at 500 entries, each a real object with
   `serials[]`) to EVERY signed-in session regardless of role, even though the list view only ever reads
-  `history.length` - the full array is only actually used inside `openSerialModal()` for one item at a time. (3)
-  `pm_users`' same unscoped listener (see above) also means every non-admin downloads every colleague's `avatarBase64`
-  on every login, not just their own - smallest impact of the three (avatars are ~128px/a few KB each) but same root
-  cause. All three would need the **database** agent to design (e.g. `pm_files`' `data` / `pm_warehouse`'s `history[]`
-  moved to a subcollection fetched on demand), not a quick inline fix.
+  `history.length` - the full array is only actually used inside `openSerialModal()` for one item at a time. Both
+  would need the **database** agent to design (`pm_files`' `data` / `pm_warehouse`'s `history[]` moved to a
+  subcollection or sibling doc fetched on demand), including a plan for documents that already exist in the OLD
+  inline shape, not a quick inline fix.
 
 **Put to the user directly, answered inline (not independent judgment calls):**
 - Whether to fix the weekly-bar chart being nearly unreadable on phone width (tiny label-less dots, no hover on

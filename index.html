@@ -1469,7 +1469,7 @@
 
       <h5 style="font-size:13px; margin:18px 0 6px; color:var(--ink-soft);">บริการ</h5>
       <div class="table-scroll"><table class="items-table m-cards">
-        <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดังบริการ)</th><th>ซัพพลายเออร์</th><th>ชื่อบริการ</th><th>ประเภทงาน</th><th style="width:80px;">จำนวน</th><th style="width:150px;">สถานะ</th><th style="width:40px;"></th></tr></thead>
+        <thead><tr><th style="width:36px;">#</th><th style="width:320px;">Part (เลือกจากโกดังบริการ)</th><th>ซัพพลายเออร์</th><th>ชื่อบริการ</th><th>ประเภทงาน</th><th style="width:80px;">จำนวน</th><th style="width:40px;"></th></tr></thead>
         <tbody id="prjServicesBody"></tbody>
       </table></div>
       <button class="btn outline" type="button" id="prjAddServiceBtn" style="margin-top:10px;">+ เพิ่มบริการ</button>
@@ -1482,7 +1482,7 @@
           <span class="cell-sub" id="prjFilesHint"></span>
         </div>
       </div>
-      <p class="panel-note" style="margin:10px 0 0;">เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เปลี่ยนเป็น "เลือกแล้ว" เพื่อ<b>ล็อคของ</b>: ถ้ารายการนี้เคยบันทึกไว้แล้ว ระบบตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง<b>ทันที</b> ไม่ต้องรอกดบันทึกทั้งฟอร์ม (รายการที่เพิ่งสร้างใหม่ยังไม่เคยบันทึก จะตัดตอนกดบันทึกครั้งแรกตามปกติ) และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้ทันทีเช่นกัน</p>
+      <p class="panel-note" style="margin:10px 0 0;">เลือกสินค้า/บริการจากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — เมื่อกด "บันทึกรายการ" ระบบจะตัดจำนวนและรหัสอุปกรณ์ (Serial) ของสินค้าออกจากโกดังให้ทันที (บริการไม่มีผลต่อสต็อก) ลบแถวหรือแก้ไขจำนวน ระบบจะปรับยอดในโกดังให้ถูกต้องเช่นกัน</p>
       </fieldset>
       <div class="modal-actions">
         <button class="btn outline" type="button" id="projectCancelBtn">ยกเลิก</button>
@@ -1995,7 +1995,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.27.7';
+const APP_VERSION = '1.27.8';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -2236,11 +2236,7 @@ const I18N_EN = {
   'บันทึกการสร้าง/แก้ไข/ลบ/กู้คืนรายการต่างๆ ในระบบ แสดง 300 รายการล่าสุด เรียงจากใหม่ไปเก่า':'Logs every create/edit/delete/restore in the system. Shows the latest 300 entries, newest first',
   'ข้อผิดพลาด JavaScript ที่เกิดขึ้นจริงในเครื่องผู้ใช้งาน แสดง 200 รายการล่าสุด':'Real JavaScript errors that occurred on a user\'s own device. Shows the latest 200 entries',
   'รายการที่ถูกลบจะอยู่ที่นี่และกู้คืนได้ ไม่มีการล้างอัตโนมัติ — กด "รีเฟรช" เพื่อโหลดรายการล่าสุด (หน้านี้ไม่อัปเดตสด) · "ลบข้อมูลตัวอย่างทั้งหมด" ลบถาวรทันที (ไม่ผ่านถังขยะ) ทุกรายการที่มีแท็ก "sample" (บริษัท/ลูกค้า/โกดัง/ซื้อขาย-โครงการ/คำเชิญ ที่ขึ้นต้น "[ตัวอย่าง]") ไม่ว่าจะอยู่ในถังขยะหรือไม่':'Deleted records stay here and can be restored — nothing is auto-purged · Click "Refresh" to load the latest list (this page doesn\'t update live) · "Delete all sample data" permanently deletes (bypassing Trash) every record tagged "sample" (companies/customers/warehouse/sales-projects/invites starting with "[Sample]"), whether it\'s in Trash or not',
-  'เลือกอุปกรณ์จากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — สถานะเริ่มต้นคือ "รอดำเนินการ" เปลี่ยนเป็น "เลือกแล้ว" เพื่อ':'Pick equipment from the warehouse data (part, brand, name, type fill in automatically) — the default status is "Pending", change it to "Selected" to ',
-  'ล็อคของ':'lock the item',
-  ': ถ้ารายการนี้เคยบันทึกไว้แล้ว ระบบตัดจำนวนและรหัสอุปกรณ์ (Serial) ออกจากโกดัง':': if this line has already been saved before, the system deducts the quantity and serial numbers from the warehouse ',
-  'ทันที':'immediately ',
-  'ไม่ต้องรอกดบันทึกทั้งฟอร์ม (รายการที่เพิ่งสร้างใหม่ยังไม่เคยบันทึก จะตัดตอนกดบันทึกครั้งแรกตามปกติ) และถ้าเปลี่ยนกลับเป็น "รอดำเนินการ" หรือลบแถว จะคืนเข้าโกดังให้ทันทีเช่นกัน':'without waiting to save the whole form (a brand-new, never-saved line still deducts on its first save as usual) — and switching it back to "Pending" or deleting the row returns it to the warehouse immediately too',
+  'เลือกสินค้า/บริการจากข้อมูลในโกดัง (Part, ยี่ห้อ, ชื่อ, ประเภท เติมให้เอง) — เมื่อกด "บันทึกรายการ" ระบบจะตัดจำนวนและรหัสอุปกรณ์ (Serial) ของสินค้าออกจากโกดังให้ทันที (บริการไม่มีผลต่อสต็อก) ลบแถวหรือแก้ไขจำนวน ระบบจะปรับยอดในโกดังให้ถูกต้องเช่นกัน':'Pick a good/service from the warehouse data (part, brand, name, type fill in automatically) — clicking "Save" deducts the goods line\'s quantity and serial numbers from the warehouse immediately (a service has no effect on stock); deleting a row or changing its quantity adjusts the warehouse back correctly too.',
   'หัวข้อที่มีรายละเอียดย่อย จะใช้วันที่เริ่มต้น–สิ้นสุดรวมจากรายการย่อยโดยอัตโนมัติ · จำนวนวันนับรวมวันเริ่มต้นและวันสิ้นสุด':'A step with sub-items automatically uses the combined start–end date range of its sub-items · Day count includes both the start and end date',
   'ค้นหาเลขที่เอกสาร, ชื่องาน, ลูกค้า, เลขที่ PO':'Search doc no., job name, customer, PO no.',
   'ค้นหาเลขที่เอกสาร, ชื่อโครงการ, ลูกค้า, เลขที่สัญญา, เลขที่ PO':'Search doc no., project name, customer, contract no., PO no.',
@@ -2864,6 +2860,25 @@ function attachRealtimeListeners(){
       checkAllLoaded();
     }));
   };
+  // Same as watch() above but for a single-document listener (docRef.onSnapshot gets a DocumentSnapshot, not a
+  // QuerySnapshot with .docs) - used by a non-admin's own "users" subscription below, which only ever needs their
+  // own profile doc rather than the whole collection.
+  const watchDoc = (key, docRef, mapper) => {
+    loaded[key] = false;
+    unsubscribers.push(docRef.onSnapshot(doc => {
+      data[key] = mapper(doc);
+      loaded[key] = true;
+      if (key === 'users') updateSidebarAvatar();
+      checkAllLoaded();
+      onAnyUpdate();
+    }, err => {
+      console.error(key, err);
+      loaded[key] = true;
+      setSync('error');
+      toast('โหลดข้อมูลไม่สำเร็จ (' + key + ')');
+      checkAllLoaded();
+    }));
+  };
   watch('projects', scoped(db.collection(COL.projects)), mapDocs);
   watch('customers', scoped(db.collection(COL.customers)), mapDocs);
   watch('companies', db.collection(COL.companies), mapDocs);
@@ -2878,7 +2893,14 @@ function attachRealtimeListeners(){
   unsubscribers.push(db.collection(COL.catalogs).onSnapshot(
     snap => { catalogsUnavailable = false; data.catalogs = mapDocs(snap); onAnyUpdate(); },
     () => { catalogsUnavailable = true; data.catalogs = []; onAnyUpdate(); }));
-  watch('users', db.collection(COL.users), snap => snap.docs.map(d => ({ id:d.id, ...d.data() })));
+  // Admin reads the whole collection (needed for the "ผู้ใช้งาน" management page); a non-admin only ever needs their
+  // OWN profile doc (their self-view of "ผู้ใช้งาน", userFullNameTH() for the sidebar/ค่าเดินทาง claim header), so
+  // their subscription is scoped to a single document instead of the full collection - closes a real data leak where
+  // every approved user's browser used to hold every OTHER user's phone/email/avatar in memory even though nothing
+  // in the UI for a non-admin ever displayed anyone but themselves. firestore.rules' pm_users list rule is admin-only
+  // to match (a non-admin's own doc is still covered by the existing per-document get rule).
+  if (isAdmin) watch('users', db.collection(COL.users), snap => snap.docs.map(d => ({ id:d.id, ...d.data() })));
+  else watchDoc('users', db.collection(COL.users).doc(currentUserUid), doc => doc.exists ? [{ id:doc.id, ...doc.data() }] : []);
   if (isAdmin){
     // bonus admin-only subscriptions — deliberately not part of the initial-load gate
     const raw = snap => snap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -3473,7 +3495,7 @@ const blankItem = () => ({ rid:newRid(), kind:'good', whId:'', part:'', brand:''
 // A service line reuses the same brand/name/type fields as a goods line (holding ซัพพลายเออร์/ชื่อบริการ/ประเภทงาน instead) so every
 // generic place that already renders an item row (PDF, Excel, this form's own toItemRow) needs no separate handling for it - only
 // stockEffects()/commitProject() care about the difference, and they already key off whId, which a service line never has.
-const blankServiceItem = () => ({ rid:newRid(), kind:'service', svcId:'', part:'', brand:'', name:'', type:'', qty:1, status:'pending' });
+const blankServiceItem = () => ({ rid:newRid(), kind:'service', svcId:'', part:'', brand:'', name:'', type:'', qty:1, status:'done' });
 // Lines saved before warehouse links existed (name/qty/unit..., or the heading/detail work rows) are mapped on read and stay as plain text lines
 function toItemRow(it){
   const service = it.kind === 'service';
@@ -3632,24 +3654,19 @@ function renderItemRows(){
 
   $('prjServicesBody').innerHTML = services.length ? services.map(({ it, i }) => {
     const svc = it.svcId ? data.serviceWarehouse.find(s => s.id === it.svcId) : null;
-    const locked = it.status === 'done';
     const opts = `<option value="">— เลือกบริการจากโกดังบริการ —</option>` + svcs.map(s => `<option value="${s.id}" ${s.id === it.svcId ? 'selected' : ''}>${escapeHtml(svcLabel(s))}</option>`).join('')
       + (it.svcId && !svc ? `<option value="${escapeHtml(it.svcId)}" selected>${escapeHtml(it.part || '-')} (ไม่พบในโกดังบริการแล้ว)</option>` : '');
     return `
     <tr>
       <td class="cell-sub">${i+1}</td>
-      <td>${!it.svcId && (it.part || it.name) ? `<div><b>${escapeHtml(it.part || '-')}</b></div><div class="cell-sub">ไม่ได้ผูกกับบริการในโกดังบริการ${locked ? '' : ' — เลือกด้านล่างเพื่อผูก'}</div>` : ''}<select ${locked ? 'disabled' : ''} onchange="pickItemService(${i}, this.value)">${opts}</select></td>
+      <td>${!it.svcId && (it.part || it.name) ? `<div><b>${escapeHtml(it.part || '-')}</b></div><div class="cell-sub">ไม่ได้ผูกกับบริการในโกดังบริการ — เลือกด้านล่างเพื่อผูก</div>` : ''}<select onchange="pickItemService(${i}, this.value)">${opts}</select></td>
       <td>${escapeHtml(it.brand || '-')}</td>
       <td>${escapeHtml(it.name || '-')}</td>
       <td>${escapeHtml(it.type || '-')}</td>
-      <td><input type="number" min="1" step="1" value="${it.qty}" ${locked ? 'disabled' : ''} onchange="setItemQty(${i}, this.value)"></td>
-      <td><select onchange="setItemStatus(${i}, this.value)">
-        <option value="pending" ${it.status !== 'done' ? 'selected' : ''}>รอดำเนินการ</option>
-        <option value="done" ${it.status === 'done' ? 'selected' : ''}>ดำเนินการแล้ว</option>
-      </select></td>
+      <td><input type="number" min="1" step="1" value="${it.qty}" onchange="setItemQty(${i}, this.value)"></td>
       <td><button type="button" class="icon-btn delete-btn" style="padding:0 9px;" onclick="removeItemRow(${i})" title="ลบแถว">✕</button></td>
     </tr>`;
-  }).join('') : `<tr><td colspan="8" class="empty-row">ยังไม่มีรายการบริการ</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty-row">ยังไม่มีรายการบริการ</td></tr>`;
 }
 function pickItemWh(i, whId){
   const it = editingItems[i];
@@ -3668,14 +3685,15 @@ function pickItemService(i, svcId){
   renderItemRows();
 }
 // The one place that turns the in-memory editingItems rows into the shape saved on the project doc's items[] - used by the
-// whole-form "บันทึกรายการ" submit. A goods line has no pending/done choice any more - it's always 'done', so simply having
-// a warehouse item picked (with a quantity and serials) is what makes it count in stockEffects() at save time; a service
-// line keeps its own real pending/done status, since that still tracks whether the work itself is finished, not stock.
+// whole-form "บันทึกรายการ" submit. Neither a goods nor a service line has a pending/done choice any more - both are
+// always 'done' the moment they're saved (a service line used to keep its own real pending/done status, since that
+// tracked whether the work itself was finished rather than stock, but a direct request to make it "เหมือนสินค้า" on
+// status removed that distinction too - see "Item status" in CLAUDE.md).
 function buildItemsFromEditing(){
   return editingItems.filter(r => r.whId || r.svcId || (r.name || '').trim()).map(r => {
     const qty = Math.max(1, Math.floor(Number(r.qty) || 1));
     const service = r.kind === 'service';
-    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: service ? (r.status === 'done' ? 'done' : 'pending') : 'done' };
+    const base = { rid: r.rid, kind: service ? 'service' : 'good', part: r.part, brand: r.brand, name: (r.name || '').trim(), type: r.type, qty, status: 'done' };
     return service ? { ...base, svcId: r.svcId || '' } : { ...base, whId: r.whId, serials: r.serials.slice(0, qty).map(sn => (sn || '').trim()).filter(Boolean) };
   });
 }
@@ -3684,11 +3702,6 @@ function setItemSerial(i, k, v){
   const it = editingItems[i];
   while (it.serials.length <= k) it.serials.push('');
   it.serials[k] = v;
-  renderItemRows();
-}
-// Only a service line still has a real pending/done choice (it tracks work progress, not stock) - see buildItemsFromEditing().
-function setItemStatus(i, st){
-  editingItems[i].status = st === 'done' ? 'done' : 'pending';
   renderItemRows();
 }
 // Removing a row - goods or service - just drops it from the in-memory list. Any warehouse give-back for a goods line that

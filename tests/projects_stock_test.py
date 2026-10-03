@@ -63,9 +63,9 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     assert order == ['ชื่องาน *', 'หน่วยงาน / ลูกค้า *', 'เลขที่สัญญา', 'เลขที่ PO', 'จำนวนงวดงานทั้งหมด', 'บันทึกรูปภาพชุดใด (เลือกได้มากกว่า 1)', 'รูปภาพอุปกรณ์', 'รูปภาพงานติดตั้ง', 'วันที่สั่งซื้อ *', 'วันที่สิ้นสุด *', 'บริษัทของเรา (หัวกระดาษ PDF)', 'สถานที่ส่งสินค้า', 'การรับประกัน (เดือน)', 'หมายเหตุ'], order
     assert page.evaluate("document.getElementById('prjJobType').type") == 'hidden' and page.input_value('#prjJobType') == 'sale', "no job-type select: the menu decides"
     heads = page.evaluate("[...document.querySelectorAll('#projectModal .items-table thead th')].map(t => t.textContent.trim())")
-    # a goods line has no สถานะ column any more (see "Item status" in CLAUDE.md) - the services table right after it still has its own
+    # neither a goods nor a service line has a สถานะ column any more (see "Item status" in CLAUDE.md) - both tables match
     assert heads[1].startswith('Part') and heads[2:7] == ['ยี่ห้อ', 'ชื่อ', 'ประเภท', 'รหัสอุปกรณ์', 'จำนวน'], heads
-    assert heads.count('สถานะ') == 1, heads
+    assert heads.count('สถานะ') == 0, heads
     page.evaluate("$('prjJobType').value = 'sale'; applyJobType()")
     assert page.inner_text('#prjNameLabel') == 'ชื่องาน *' and page.inner_text('#prjStartLabel') == 'วันที่สั่งซื้อ *' and page.inner_text('#prjLocationLabel') == 'สถานที่ส่งสินค้า'
     assert not page.is_visible('#prjEndField') and page.evaluate("document.getElementById('prjEnd').required") is False

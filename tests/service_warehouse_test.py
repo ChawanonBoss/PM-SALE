@@ -95,6 +95,8 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     saved = page.evaluate("data.projects.find(p => p.name === 'ขายพร้อมบริการติดตั้ง')")
     assert saved and len(saved['items']) == 1 and saved['items'][0]['kind'] == 'service' and saved['items'][0]['qty'] == 2
     assert saved['items'][0]['brand'] == 'บริษัท ติดตั้ง จำกัด' and saved['items'][0]['name'] == 'ติดตั้งกล้องวงจรปิด'
+    assert saved['items'][0]['status'] == 'done', "a service line has no pending/done choice any more either - always 'done', same as a goods line"
+    assert page.locator('table:has(#prjServicesBody) th:has-text("สถานะ")').count() == 0, "the services table's own สถานะ column was removed to match the goods table"
 
     # handover PDF: goods and services print as two separately-headed tables ("รายการอุปกรณ์"/"รายการเพิ่มเติม"); a service row shows
     # only its Part code, never the ซัพพลายเออร์ next to it (this job has no goods line at all, so its own table is the empty-state one)
@@ -118,7 +120,6 @@ with new_page(viewport={"width": 1600, "height": 1000}) as (page, errors):
     page.select_option('#prjItemsBody tr:first-child td:nth-child(2) select', 'w1')
     page.click('#prjAddServiceBtn')
     page.select_option('#prjServicesBody tr:first-child td:nth-child(2) select', label=next(o for o in svc_opts if 'SVC-1' in o))
-    page.select_option('#prjServicesBody tr:first-child td:nth-child(7) select', 'done')
     page.fill('#prjName', 'ขายผสมสินค้าและบริการ')
     page.select_option('#prjCustomer', 'c1')
     page.fill('#prjStart', '2026-09-11')
