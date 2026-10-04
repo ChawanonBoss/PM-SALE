@@ -12,8 +12,7 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
     page.evaluate("() => localStorage.setItem('pm-sale-login-ts', String(Date.now()))")
     page.evaluate("() => window.__authListeners[0]({uid:'admin1', email:'admin@a.com', displayName:'Admin One'})"); page.wait_for_timeout(900)
 
-    # a project with 4 leaf steps: 2 already done (in the past), 2 still pending and both due TODAY (so the weekly
-    # bar chart's own "current day" column has a real, known count regardless of which real weekday the suite runs on)
+    # a project with 4 plan topics (no subs): 2 already done, 1 "live" (the first not-done one, in plan order), 1 pending after it
     page.evaluate("""async () => {
       const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -47,19 +46,23 @@ with new_page(viewport={"width": 1500, "height": 1000}) as (page, errors):
     stat_text = card.locator('.plan-card-stat').inner_text()
     assert '2' in stat_text and '4' in stat_text and 'ดำเนินการแล้ว' in stat_text and 'ขั้นตอน' in stat_text, stat_text
     assert '4' in stat_text and 'หัวข้อใหญ่' in stat_text, stat_text
+    # ---------------- the ring is now segmented one-arc-per-topic, not one smooth percentage arc ----------------
     ring_circles = card.locator('.plan-card-ring circle')
-    assert ring_circles.count() == 2, "track circle + one progress arc, same technique as the dashboard's own donut"
+    assert ring_circles.count() == 4, "one slice per หัวข้อใหญ่ (4 topics), no separate background track circle any more"
+    labels = [ring_circles.nth(i).get_attribute('aria-label') for i in range(4)]
+    assert labels[0] == 'หัวข้อที่ 1: หัวข้อ 1 (เสร็จแล้ว)', labels
+    assert labels[1] == 'หัวข้อที่ 2: หัวข้อ 2 (เสร็จแล้ว)', labels
+    assert labels[2] == 'หัวข้อที่ 3: หัวข้อ 3 (กำลังดำเนินการ)', labels   # the first not-done topic, in plan order, is the single "live" slice
+    assert labels[3] == 'หัวข้อที่ 4: หัวข้อ 4 (รอดำเนินการ)', labels
+    for i in range(4):   # each slice is keyboard/screen-reader reachable too, not just mouse-hover (native <title> + aria-label/tabindex)
+        assert ring_circles.nth(i).get_attribute('tabindex') == '0'
+        assert ring_circles.nth(i).inner_html().strip().startswith('<title>')
     # the existing topic tracker still renders below the new widget, unchanged
     assert card.locator('.plan-track').is_visible()
+    # the old weekly-activity bar row is gone outright - a direct correction, not replaced by anything else on the card
+    assert not card.locator('.plan-card-weekly-bars').count()
 
-    # ---------------- weekly bars: today's own column reflects the 2 steps due today; all 7 days render ----------------
-    bar_cols = card.locator('.plan-card-weekly-bars .plan-card-bar-col')
-    assert bar_cols.count() == 7, "Mon-Sun, always 7 columns regardless of which day today is"
-    current_col = card.locator('.plan-card-weekly-bars .plan-card-bar-col.current')
-    assert current_col.count() == 1, "exactly one column is marked as today"
-    assert '2 ขั้นตอน' in (current_col.get_attribute('title') or ''), current_col.get_attribute('title')
-
-    # ---------------- a project with no plan topics at all shows no ring/bars (nothing to show progress of yet) ----------------
+    # ---------------- a project with no plan topics at all shows no ring (nothing to show progress of yet) ----------------
     empty_card = page.locator('.plan-card:has-text("โครงการไม่มีแผน")')
     assert not empty_card.locator('.plan-card-progress').count(), "no plan topics yet -> the card shows no progress widget at all"
     assert empty_card.locator('.dash-empty').is_visible()

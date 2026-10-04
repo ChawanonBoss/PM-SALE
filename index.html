@@ -377,11 +377,12 @@
   .plan-head{ display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; align-items:flex-start; }
   .plan-meta{ display:flex; gap:22px; flex-wrap:wrap; margin-top:10px; font-size:13px; color:var(--ink-soft); }
   .plan-meta b{ color:var(--ink); font-weight:500; }
-  /* Per-project progress widget (ring + weekly activity bars) on each card of the Action Plan LIST page - a compact
-     version of the same ring/bar-chart technique the dashboard's own .dash-donut-*/.dash-bar* classes use, sized down
-     to fit a ~300px card instead of a full panel (moved here from an earlier pass that put it on the per-project
-     detail page instead, per a direct correction - a card view showing several projects at once is where it actually
-     belongs, one ring per project). */
+  /* Per-project progress widget (segmented ring, one slice per หัวข้อใหญ่) on each card of the Action Plan LIST page -
+     sized down to fit a ~300px card instead of a full panel (moved here from an earlier pass that put it on the
+     per-project detail page instead, per a direct correction - a card view showing several projects at once is where
+     it actually belongs, one ring per project). The ring used to pair with a weekly-activity bar row below it; that
+     row was dropped outright per a direct correction (circled in a screenshot) in favor of segmenting the ring itself
+     by topic count instead - see planTopicsRingSvg()/renderPlanCardProgress(). */
   .plan-card-progress{ display:flex; align-items:center; gap:12px; }
   .plan-card-ring-wrap{ position:relative; width:58px; height:58px; flex-shrink:0; }
   .plan-card-ring{ width:100%; height:100%; }
@@ -389,10 +390,6 @@
   .plan-card-ring-pct{ font-family:var(--font-display); font-size:14px; font-weight:800; color:var(--ink); line-height:1; }
   .plan-card-stat{ display:flex; flex-direction:column; gap:2px; font-size:12.5px; color:var(--ink-soft); min-width:0; }
   .plan-card-stat b{ color:var(--ink); }
-  .plan-card-weekly-bars{ display:flex; align-items:flex-end; gap:4px; height:32px; padding-top:2px; }
-  .plan-card-bar-col{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:3px; min-width:0; }
-  .plan-card-bar{ width:5px; border-radius:100px; background:var(--paper-dim); box-shadow:var(--shadow-inset-sm); min-height:4px; }
-  .plan-card-bar-col.current .plan-card-bar{ background:var(--accent); box-shadow:var(--shadow-ext-sm); }
   .plan-edit-topic td{ background:var(--paper-dim); }
   @media (max-width:760px){ .gantt .g-chk, .gantt .g-no, .gantt .g-detail{ position:static; } }
 
@@ -1995,7 +1992,7 @@ const FIREBASE_CONFIG = {
   appId: "1:731171924728:web:f06be87f5f278d7f59a90d"
 };
 firebase.initializeApp(FIREBASE_CONFIG);
-const APP_VERSION = '1.28.0';
+const APP_VERSION = '1.28.1';
 const auth = firebase.auth();
 const db = firebase.firestore();
 const COL = {
@@ -4393,29 +4390,6 @@ function projectProgress(plan){
   const c = planCounts(plan);
   return c.total ? Math.round(100 * c.done / c.total) : 0;
 }
-// "Weekly Activity" for the per-project progress widget: how many of THIS project's own leaf steps are due on each day
-// of the CURRENT week (Mon-Sun) - the app has no literal "task activity log" with timestamps (a step only ever carries
-// a due-date range, never a "completed at" moment), so this counts due dates the same way monthlyStartCounts() already
-// substitutes a job's startDate for "weekly activity" on the dashboard - the closest REAL data to the reference
-// widget's own daily-activity bars, not invented numbers.
-function planWeeklyActivity(plan){
-  const leaves = planLeaves(plan);
-  const today = new Date();
-  const dow0 = today.getDay();   // 0=Sun..6=Sat
-  const monday = calAddDays(today, dow0 === 0 ? -6 : 1 - dow0);
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = calAddDays(monday, i);
-    const key = calYMD(d);
-    return { key, dow: d.getDay(), current: key === todayStr(), n: 0 };
-  });
-  leaves.forEach(x => {
-    const end = normRange(x.start, x.end).end;
-    const day = end && days.find(d => d.key === end);
-    if (day) day.n++;
-  });
-  const max = Math.max(...days.map(d => d.n), 1);
-  return days.map(d => ({ ...d, max, label: CAL_DOW[d.dow] }));
-}
 // done | late (past its end date, not ticked) | soon (not ticked, ends within PLAN_DUE_SOON_DAYS) | todo
 function leafState(x){
   if (isDone(x)) return 'done';
@@ -4609,39 +4583,58 @@ function renderPlanList(projects){
     </div>`;
   }).join('') : `<div class="dash-empty" style="grid-column:1/-1; text-align:center; padding:30px 0;">${projects.length ? 'ไม่พบโครงการตามเงื่อนไข' : 'ยังไม่มีโครงการ — สร้างโครงการที่หน้า "โครงการ" แล้วจะมาปรากฏที่นี่เพื่อวางแผนดำเนินการ'}</div>`;
 }
-// Single-value ring for the LIST card's own compact progress widget below - the exact same stacked-circle/
-// stroke-dasharray/rotate(-90) technique renderStatusDonutArcs() already uses for the dashboard's 3-way donut,
-// simplified to one arc instead of three segments and sized down to fit inside a ~300px card.
-function planProgressRingSvg(pct){
+// Segmented ring for the LIST card's own compact progress widget below - one arc PER หัวข้อใหญ่ (topic) instead of a
+// single smooth percentage arc, per a direct correction after a screenshot circled the old weekly-activity bar row
+// and asked for this ring to "have a count matching the number of main topics" with each slice identifiable as
+// "หัวข้อที่ 1", "หัวข้อที่ 2" etc. Same cumulative stroke-dasharray/stroke-dashoffset/rotate(-90) technique
+// renderStatusDonutArcs() already uses for the dashboard's 3-way donut, just one equal-width slice per topic instead
+// of one slice per status group, with a small gap carved out of each slice (rather than a full background track
+// circle underneath) so the card's own background shows through between slices and the ring visibly reads as N
+// divisions - a pending topic's slice is the same muted tone a plain track circle would have been, so the gaps are
+// what make the segmentation legible, not the color. Each slice gets both a native SVG `<title>` (mouse hover) and
+// `tabindex="0" role="img" aria-label="..."` (keyboard/screen reader) - the same two-channel tooltip pattern used
+// for the weekly-bar tooltips this replaced.
+const PLAN_TOPIC_RING_COLOR = { done: 'var(--ok)', live: 'var(--accent)', pending: 'var(--paper-dim)' };
+const PLAN_TOPIC_STATE_LABEL = { done: 'เสร็จแล้ว', live: 'กำลังดำเนินการ', pending: 'รอดำเนินการ' };
+function planTopicsRingSvg(topics){
   const R = 22, C = 2 * Math.PI * R;
-  const dash = Math.max(0, Math.min(100, pct)) / 100 * C;
-  return `<circle cx="29" cy="29" r="${R}" fill="none" stroke="var(--paper-dim)" stroke-width="7"></circle>
-    <g transform="rotate(-90 29 29)"><circle cx="29" cy="29" r="${R}" fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${dash} ${C - dash}"></circle></g>`;
-}
-// Per-project progress widget (ring + tasks-completed stat + weekly activity bars) on each Action Plan LIST card -
-// adapted from a "Premium Progress Widget UI" reference image the user shared, translated from its own violet palette
-// into this app's warm Neumorphism tokens. First built into the per-project DETAIL page as a full-size panel, then
-// moved here instead per a direct correction ("เอามาแทนหน้านี้" pointing at the list/cards screen) - a card view
-// showing several projects side by side is where a compact per-project ring actually earns its place, one per card.
-function renderPlanCardProgress(p, sm){
-  const bars = planWeeklyActivity(p.plan).map(d => {
-    const h = Math.max(4, Math.round(d.n / d.max * 28));
-    const title = `${d.label}: ${d.n} ขั้นตอนครบกำหนด`;
-    return `<div class="plan-card-bar-col ${d.current ? 'current' : ''}" title="${title}" tabindex="0" role="img" aria-label="${title}">
-      <div class="plan-card-bar" style="height:${h}px;"></div>
-    </div>`;
+  const n = Math.max(1, topics.length);
+  const seg = C / n;
+  const gap = Math.min(4, seg * 0.3);
+  const dash = Math.max(1, seg - gap);
+  const arcs = topics.map((t, i) => {
+    const title = `หัวข้อที่ ${i + 1}: ${escapeHtml(t.title)} (${PLAN_TOPIC_STATE_LABEL[t.state]})`;
+    return `<circle cx="29" cy="29" r="${R}" fill="none" stroke="${PLAN_TOPIC_RING_COLOR[t.state]}" stroke-width="7" stroke-linecap="round"
+      stroke-dasharray="${dash} ${C - dash}" stroke-dashoffset="${-i * seg}" tabindex="0" role="img" aria-label="${title}"><title>${title}</title></circle>`;
   }).join('');
+  return `<g transform="rotate(-90 29 29)">${arcs}</g>`;
+}
+// Per-project progress widget (segmented ring + tasks-completed stat) on each Action Plan LIST card - adapted from a
+// "Premium Progress Widget UI" reference image the user shared, translated from its own violet palette into this
+// app's warm Neumorphism tokens. First built into the per-project DETAIL page as a full-size panel, then moved here
+// instead per a direct correction ("เอามาแทนหน้านี้" pointing at the list/cards screen) - a card view showing
+// several projects side by side is where a compact per-project ring actually earns its place, one per card.
+function renderPlanCardProgress(p, sm){
+  // Same done/live/pending state walk planTrackHtml() already does for the topic tracker right below this widget -
+  // reused here (not re-derived differently) so the ring's own colors never disagree with that tracker's markers.
+  let liveTaken = false;
+  const topics = (p.plan || []).map(t => {
+    const done = (t.subs || []).length ? t.subs.every(isDone) : isDone(t);
+    let state = 'pending';
+    if (done) state = 'done';
+    else if (!liveTaken){ state = 'live'; liveTaken = true; }
+    return { title: t.title, state };
+  });
   return `<div class="plan-card-progress">
       <div class="plan-card-ring-wrap">
-        <svg class="plan-card-ring" viewBox="0 0 58 58">${planProgressRingSvg(sm.progress)}</svg>
+        <svg class="plan-card-ring" viewBox="0 0 58 58">${planTopicsRingSvg(topics)}</svg>
         <div class="plan-card-ring-center"><div class="plan-card-ring-pct">${sm.progress}%</div></div>
       </div>
       <div class="plan-card-stat">
         <div>${currentLang === 'en' ? `<b>${sm.done}/${sm.total}</b> steps done` : `ดำเนินการแล้ว <b>${sm.done}/${sm.total}</b> ขั้นตอน`}</div>
         <div>${currentLang === 'en' ? `${sm.steps} topics` : `${sm.steps} หัวข้อใหญ่`}</div>
       </div>
-    </div>
-    <div class="plan-card-weekly-bars">${bars}</div>`;
+    </div>`;
 }
 function renderPlanDetail(p){
   const sm = planSummary(p);

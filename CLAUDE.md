@@ -141,53 +141,52 @@ done, muted otherwise) rather than needing to know its neighbour's state, so a t
 `plan[]` without any row needing to recompute another row's connector color - each row really does own its own
 connector, per the original component brief's own implementation note.
 
-## แผนดำเนินงานโครงการ list: per-project progress widget (ring + weekly bars) on each card
+## แผนดำเนินงานโครงการ list: per-project progress widget (segmented ring) on each card
 `renderPlanCardProgress(p, sm)` (called from `renderPlanList()`, rendered inside each `.plan-card` right above the
-existing `planTrackHtml(pr)` topic tracker) adapts a "Premium Progress Widget UI" reference image the user shared - a
-circular % ring plus an "X/Y tasks completed" stat with a small trend indicator, and a "Weekly Activity" Mon-Sun bar
-chart - translated from the reference's own violet palette into this app's warm Neumorphism tokens. **This first
-shipped on the per-project DETAIL page** (`renderPlanDetail()`, a full-size panel between `.plan-head` and the Gantt
-table) **and was moved here instead right after**, per a direct correction pointing at a screenshot of the LIST page
-("เอามาแทนหน้านี้ ส่วนที่แก้ไป เอากลับมาเป็นแบบเดิม" - put it here instead, put back what I edited the way it was) -
-a card view showing several projects side by side is where a compact per-project ring actually earns its place, one
-per card, and `renderPlanDetail()`/`#planMeta` reverted to exactly their pre-widget content (the plain-text
-"ดำเนินการแล้ว X/Y ขั้นตอน (Z%)" line plus late/soon badges, no widget on the detail page at all any more):
-- **The ring** (`planProgressRingSvg(pct)`) is the exact same stacked-circle/`stroke-dasharray`/`rotate(-90)`
-  technique `renderStatusDonutArcs()` already uses for the dashboard's 3-way donut (see "Dashboard" above), simplified
-  to one arc instead of three segments and sized down (`R=22`, `viewBox 0 0 58 58`) to fit inside a ~300px card
-  instead of a full dashboard panel - new card-scoped wrapper classes (`.plan-card-progress`/`-ring-wrap`/`-ring`/
-  `-ring-center`/`-ring-pct`) rather than reusing the dashboard's own `.dash-donut-*` classes verbatim, since those are
-  sized for the dashboard's larger panel.
-- **The weekly bar chart** is the same `Math.max(_, Math.round(n/max*H))` height-formula technique as the dashboard's
-  own monthly bars, just with its own smaller card-scoped classes (`.plan-card-weekly-bars`/`-bar-col`/`-bar`, capped
-  at 28px tall instead of 90px) fed by `planWeeklyActivity(plan)` - this app has no literal "daily task activity" log
-  (a step only ever carries a due-date *range*, never a "completed at" timestamp), so like `monthlyStartCounts()`
-  already substitutes a job's `startDate` for the dashboard's own "weekly activity" bars, this counts how many of the
-  project's own `planLeaves()` are due (`end` date) on each day of the CURRENT Mon-Sun week - the closest REAL data to
-  the reference widget's daily bars, not invented numbers. Unlike the dashboard's own monthly bars (and the widget's
-  own earlier detail-view version), **each bar has no day label under it any more** - a direct correction
-  ("ตัดส่วนที่เป็นวันออก") after the card version shipped, since a day initial (จ/อ/พ/...) under a 5px-wide bar at
-  card scale read as more clutter than useful; `planWeeklyActivity()`'s own `label` field (still built off the
-  existing `CAL_DOW` Proxy) is kept and used only in each bar's `title` tooltip now, not rendered as visible text.
-  Each `.plan-card-bar-col` also carries `tabindex="0" role="img" aria-label="..."` (same text as `title`) so that
-  tooltip is reachable by keyboard/screen reader too, not just mouse hover - a follow-up ux-reviewer health-check pass
-  flagged that without SOME accessible text the bars carry no information at all on a touchscreen (no hover there);
-  the bars staying visually label-less on phone width otherwise is a disclosed, deliberate trade-off the user confirmed
-  keeping as-is when asked, not an oversight.
-- **The two stat lines are `currentLang`-aware** (`currentLang === 'en' ? ... : ...`, the same composite-string pattern
-  `renderPager()` already uses) rather than hardcoded Thai - a gap the same health-check pass caught (every OTHER piece
-  of this card's own text, like the status badge and the topic tracker's late/soon badges, already switched with
-  English mode; only this widget's two new lines didn't). The Thai wording was also changed to match `renderPlanDetail()`'s
-  own `#planMeta` phrasing for the identical number ("ดำเนินการแล้ว X/Y ขั้นตอน" instead of the card's own earlier,
-  differently-worded "X/Y ขั้นตอนเสร็จแล้ว") - the same metric for the same project showing up worded two different
-  ways on two pages of the same feature read as if it might be two different numbers.
-- **The reference's own small upward-trend sparkline, and the detail-view version's "เหลืออีก N วัน" days-remaining
-  stand-in for it, were both dropped** on the card - a card already carries the project's own late/soon badges via
-  `planTrackHtml()`'s own per-topic badges, and there isn't really room for a third stat line at card width; the ring
-  + done/total + topic count was judged enough at this size.
-- **The widget renders nothing at all** for a project with no plan topics yet (guarded by the same `sm.steps` check
-  `renderPlanList()` already uses to decide between the topic tracker and the "ยังไม่มีแผนดำเนินการ" empty state) -
-  matching the same "nothing real to show a ring for yet" reasoning the detail-view version used.
+existing `planTrackHtml(pr)` topic tracker) adapts a "Premium Progress Widget UI" reference image the user shared,
+translated from its own violet palette into this app's warm Neumorphism tokens. **This first shipped on the
+per-project DETAIL page** (`renderPlanDetail()`, a full-size panel between `.plan-head` and the Gantt table) **and was
+moved here instead right after**, per a direct correction pointing at a screenshot of the LIST page ("เอามาแทนหน้านี้
+ส่วนที่แก้ไป เอากลับมาเป็นแบบเดิม" - put it here instead, put back what I edited the way it was) - a card view
+showing several projects side by side is where a compact per-project ring actually earns its place, one per card, and
+`renderPlanDetail()`/`#planMeta` reverted to exactly their pre-widget content (the plain-text "ดำเนินการแล้ว X/Y
+ขั้นตอน (Z%)" line plus late/soon badges, no widget on the detail page at all any more). It originally paired a
+circular % ring with a "Weekly Activity" Mon-Sun bar chart, like the reference image; a screenshot later circled that
+bar row directly and asked for it to go entirely, AND for the ring itself to stop being one smooth percentage arc and
+instead "have a count matching the number of main topics" with each slice identifiable as "หัวข้อที่ 1", "หัวข้อที่ 2"
+etc - both changes are reflected below, there is no bar chart on this card any more:
+- **`planTopicsRingSvg(topics)`** draws a SEGMENTED ring - one slice per หัวข้อใหญ่ (topic), not one arc for the
+  overall percentage - using the same cumulative `stroke-dasharray`/`stroke-dashoffset`/`rotate(-90)` technique
+  `renderStatusDonutArcs()` already uses for the dashboard's 3-way donut (see "Dashboard" above), just one equal-width
+  slice per topic instead of one slice per status group, sized down (`R=22`, `viewBox 0 0 58 58`) the same way the
+  ring's own earlier single-arc version was. Each slice is shortened by a small gap (`Math.min(4, seg*0.3)`) rather
+  than drawn against a full background track circle underneath - a pending topic's slice is literally the same muted
+  `var(--paper-dim)` a plain track would have used, so with no full track circle behind it, the GAPS (showing the
+  card's own background through) are what make the ring visibly read as N divisions, not the color. A done topic's
+  slice is `var(--ok)`; the single "live" topic (the first not-yet-done one in plan order - the exact same walk
+  `planTrackHtml()` already does for the tracker right below this widget, reused here rather than re-derived
+  differently so the ring's colors can never disagree with that tracker's own markers) is `var(--accent)`.
+- **Each slice carries BOTH a native SVG `<title>` (mouse hover) and `tabindex="0" role="img" aria-label="..."`**
+  (keyboard/screen-reader) - the same two-channel tooltip pattern a ux-reviewer health-check pass already added to
+  the old weekly bars for the same reason (without SOME accessible text, a purely-visual slice/bar carries no
+  information at all on a touchscreen) - carried over to the ring's own slices now that the bars are gone. The label
+  text is `"หัวข้อที่ N: <topic title> (<เสร็จแล้ว|กำลังดำเนินการ|รอดำเนินการ>)"`.
+- **The center `%` number stays the overall leaf-based percentage** (`sm.progress`, from `planSummary()`) rather than
+  switching to a topic-count-based number itself - deliberately left as a holistic figure independent of however many
+  slices the ring happens to be divided into (a topic WITH its own sub-items still counts as just one ring slice, but
+  contributes multiple leaves to this percentage), rather than forcing the two numbers to always agree.
+- **The two stat lines below the ring are unchanged**: `currentLang`-aware (`currentLang === 'en' ? ... : ...`, the
+  same composite-string pattern `renderPager()` already uses) rather than hardcoded Thai, and worded to match
+  `renderPlanDetail()`'s own `#planMeta` phrasing for the identical number ("ดำเนินการแล้ว X/Y ขั้นตอน") so the same
+  metric never reads as two different numbers across the list and detail pages.
+- **The widget still renders nothing at all** for a project with no plan topics yet, guarded by the same `sm.steps`
+  check `renderPlanList()` already uses to decide between the topic tracker and the "ยังไม่มีแผนดำเนินการ" empty
+  state - nothing real to show a ring (segmented or otherwise) for yet.
+- `planWeeklyActivity()` (the helper that fed the old bar row) and the `.plan-card-weekly-bars`/`-bar-col`/`-bar` CSS
+  classes were deleted outright as dead code along with the row itself - nothing else in the app used them. The
+  reference image's own small upward-trend sparkline was never built at all (a prior decision, still true) - this app
+  has no historical "% complete over time" series to chart honestly, and a card has no room for a third stat line
+  anyway.
 
 ## ปฏิทิน (Calendar)
 A top-level page (its own permanent rail icon, next to แดชบอร์ด - not folded into a group, same reasoning as dashboard/Action
